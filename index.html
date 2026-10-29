@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="DRFT: drum and bass for night drives. Your own DRFT FM radio from your Spotify, your playlist, or your own WAVs, with pixel-art 90s car-anime visuals.">
+<meta name="description" content="DRFT: drum and bass for night drives. Your own DRFT FM radio from your Spotify, your playlist, or your own WAVs, with an endless pixel-art night drive seen from the cockpit.">
 <meta name="theme-color" content="#05030f">
 <title>DRFT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -220,9 +220,8 @@ body.boot .hud,body.boot .corner{visibility:hidden}
     </div>
 
     <div class="pane" data-pane="visual" role="tabpanel" aria-labelledby="tab-visual" hidden>
-      <section><div class="lbl-row"><span class="lbl">SCENE</span><div class="seg" id="cycleSeg"></div></div><div class="tiles" id="sceneTiles"></div></section>
       <section><div class="lbl-row"><span class="lbl">MOOD</span><div class="seg" id="themeCycleSeg"></div></div><div class="tiles" id="themeTiles"></div></section>
-      <div class="acts"><button class="btn" id="btnAddImg">+ IMAGES</button><button class="btn ghost" id="btnClearImg">REMOVE</button><span class="mini" id="imgCount"></span></div>
+      <p class="mini">One endless night drive. Each mood sets the colours and the weather; they change slowly on their own.</p>
     </div>
 
     <div class="pane" data-pane="settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
@@ -231,7 +230,7 @@ body.boot .hud,body.boot .corner{visibility:hidden}
       <div class="set"><span class="lbl">PIXELS</span><div class="seg" id="pxSeg"></div></div>
       <div class="set"><span class="lbl">REACTION</span><div class="seg" id="reactSeg"></div></div>
       <div class="set"><span class="lbl">WEATHER</span><div class="seg" id="weatherSeg"></div></div>
-      <p class="keys">SPACE PLAY · N NEXT · DRAG THE BAR TO SEEK · 1–3 SOURCES · V SCENE · P MOOD · F FULLSCREEN · M MENU</p>
+      <p class="keys">SPACE PLAY · N NEXT · DRAG THE BAR TO SEEK · 1–3 SOURCES · P MOOD · F FULLSCREEN · M MENU</p>
     </div>
   </aside>
 
@@ -247,7 +246,6 @@ body.boot .hud,body.boot .corner{visibility:hidden}
   <div class="toast" id="toast" role="status" aria-live="polite" data-show="0"></div>
   <input type="file" id="fileAudio" accept="audio/*,.wav,.wave,.aif,.aiff,.flac,.mp3,.ogg,.oga,.m4a,.aac,.opus,.webm" multiple hidden>
   <input type="file" id="fileFolder" webkitdirectory multiple hidden>
-  <input type="file" id="fileImg" accept="image/*" multiple hidden>
 </div>
 
 <script>
@@ -380,8 +378,6 @@ class FilePlayer {
    Connexion PKCE dans le navigateur : aucun serveur, aucun secret.
    ===================================================================== */
 const SP_SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-read-private playlist-read-collaborative';
-// style de départ de la radio : artistes et/ou styles, séparés par des virgules (modifiable dans le menu)
-const SP_KEYWORDS = ['TURQUOISEDEATH', 'atmospheric dnb', 'liquid funk', 'jazzstep'];
 // styles drum & bass reconnus quand on vérifie qu'un artiste trouvé par mot-clé est bien de la famille
 const DNB_RX = /drum|dnb|d&b|jungle|liquid|neurofunk|breakbeat|breakcore|jazzstep|halftime|darkstep|techstep|atmospheric/i;
 const waitMs = ms => new Promise(r => setTimeout(r, ms));
@@ -405,7 +401,7 @@ function trackItem(t, aid) {
 
 const Sp = {
   cid: store.get('sp_cid', ''), tok: store.get('sp_tok', null), user: store.get('sp_user', null), uid: store.get('sp_uid', ''),
-  keywords: (() => { const s = store.get('sp_kw', null); return Array.isArray(s) && s.length ? s : SP_KEYWORDS.slice(); })(),
+  radioPl: store.get('sp_radio_pl', ''), radioName: store.get('sp_radio_name', ''), radioSnap: store.get('sp_radio_snap', ''),
   plId: store.get('sp_pl', ''), plName: store.get('sp_pl_name', ''),
   source: 'fm',
   recent: (() => { const r = store.get('sp_recent', []); return Array.isArray(r) ? r : []; })(),
@@ -525,13 +521,19 @@ const Sp = {
   },
   uriOf(tr) { return tr ? tr.uri : null; },
   /* position d'un morceau dans ce qu'on a envoyé à Spotify (par lien, sinon par titre : Spotify remplace parfois un morceau par une autre version) */
+  /* la radio peut repasser un morceau de ta playlist plus loin dans la liste : on cherche à partir de la position courante */
+  sentPos: 0,
   sentIndex(tr) {
     if (!tr) return -1;
-    let i = this.sent.indexOf(tr.uri);
-    if (i >= 0) return i;
-    const key = norm(tr.name) + '|' + norm(tr.artists && tr.artists[0] && tr.artists[0].name);
-    for (let j = this.sent.length - 1; j >= 0; j--) { const it = this.byUri.get(this.sent[j]); if (it && norm(it.name) + '|' + norm(it.artist.split(', ')[0]) === key) return j; }
-    return -1;
+    const from = Math.max(0, this.sentPos);
+    let i = this.sent.indexOf(tr.uri, from);
+    if (i < 0) {
+      const key = norm(tr.name) + '|' + norm(tr.artists && tr.artists[0] && tr.artists[0].name);
+      for (let j = from; j < this.sent.length; j++) { const it = this.byUri.get(this.sent[j]); if (it && norm(it.name) + '|' + norm(it.artist.split(', ')[0]) === key) { i = j; break; } }
+    }
+    if (i < 0) i = this.sent.indexOf(tr.uri);
+    if (i >= 0) this.sentPos = i;
+    return i;
   },
   onState(s) {
     this.state = s; this.stateAt = performance.now();
@@ -580,61 +582,58 @@ const Sp = {
     }
     return out;
   },
-  /* chaque mot-clé devient un artiste (nom exact), un style Spotify (genre), ou à défaut une recherche vérifiée */
-  async resolve(kw) {
-    const k = norm(kw);
-    const arts = await this.searchArtists(kw, 0);
-    const exact = arts.find(a => norm(a.name) === k);
-    const g = kw.toLowerCase().replace(/"/g, '');
-    const inGenre = (await this.searchArtists('genre:"' + g + '"', 0)).concat(await this.searchArtists('genre:"' + g + '"', 10).catch(() => []));
-    // « jungle » est aussi le nom d'un groupe : un nom exact ne gagne que s'il fait de la drum & bass ou si ce n'est pas un style
-    if (exact && (DNB_RX.test(exact.genres.join(' ')) || !inGenre.length)) return { kw, type: 'artist', artist: exact };
-    if (inGenre.length) return { kw, type: 'genre', genre: g, artists: inGenre };
-    return { kw, type: 'text' };
-  },
-  /* la radio : uniquement des artistes vérifiés (ceux que tu as donnés, puis ceux classés dans les mêmes styles) */
-  async buildRadio() {
-    const res = [];
-    for (const kw of this.keywords) res.push(await this.resolve(kw));
-    const seeds = res.filter(r => r.type === 'artist').map(r => r.artist);
-    let styles = [];
-    for (const r of res) if (r.type === 'genre') styles.push(r.genre);
-    for (const a of seeds) { const dn = a.genres.filter(g => DNB_RX.test(g)); styles.push(...(dn.length ? dn : a.genres).slice(0, 4)); }
-    styles = [...new Set(styles)].slice(0, 10);
-    // aucun style trouvé (petits artistes sans genre sur Spotify) : on reste dans la drum & bass
-    if (!styles.length) styles = ['drum and bass', 'liquid funk', 'jungle'];
-    // artistes candidats par style
-    const byId = new Map();
-    for (const a of seeds) byId.set(a.id, { a, seed: true });
-    for (const r of res) if (r.type === 'genre') for (const a of r.artists) if (!byId.has(a.id)) byId.set(a.id, { a, seed: false });
-    const extra = await this.many(styles.filter(g => !res.some(r => r.type === 'genre' && r.genre === g)).flatMap(g => [0, 10].map(o => () => this.searchArtists('genre:"' + g + '"', o))));
-    for (const list of extra) for (const a of list) if (!byId.has(a.id)) byId.set(a.id, { a, seed: false });
-    const seedList = [...byId.values()].filter(x => x.seed), others = shuffle([...byId.values()].filter(x => !x.seed)).slice(0, Math.max(0, 40 - seedList.length));
-    // morceaux de chaque artiste : on ne garde que ceux où il figure vraiment
+  /* LA RADIO : ta playlist de référence (DRFT) + des morceaux proches.
+     « Proche » = mêmes artistes (leurs autres morceaux) et artistes classés dans les mêmes styles que ceux
+     de la playlist, pondérés par le nombre de styles en commun. Chaque morceau est vérifié (bon artiste). */
+  async buildFromPlaylist(id) {
+    const own = [], aCount = new Map();
+    let path = '/playlists/' + id + '/items?limit=50';
+    for (let i = 0; i < 20 && path; i++) {
+      const r = await this.api('GET', path);
+      for (const row of (r && r.items) || []) {
+        const t = row && (row.item || row.track);
+        if (!t || !t.uri || !/^spotify:track:/.test(t.uri) || t.is_local) continue;
+        const it = trackItem(t); it.own = true; it.w = 1; own.push(it); this.byUri.set(it.uri, it);
+        for (const a of t.artists || []) if (a.id) aCount.set(a.id, (aCount.get(a.id) || 0) + 1);
+      }
+      path = r && r.next ? r.next.replace('https://api.spotify.com/v1', '') : null;
+    }
+    if (!own.length) throw new Error('emptyradio');
+    // profil de styles de la playlist
+    const pArtists = [...aCount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40);
+    const infos = await this.many(pArtists.map(([aid]) => () => this.artist(aid)));
+    const gw = new Map();
+    infos.forEach((a, i) => { const c = pArtists[i] ? pArtists[i][1] : 1; for (const g of a.genres || []) gw.set(g, (gw.get(g) || 0) + c); });
+    let styles = [...gw.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
+    if (!styles.length) styles = [['drum and bass', 1], ['liquid funk', 1], ['jungle', 1]];
+    const wsum = styles.reduce((a, b) => a + b[1], 0), wOf = new Map(styles.map(([g, w]) => [g, w / wsum]));
+    // artistes candidats : ceux de la playlist (poids fort) + ceux des mêmes styles
+    const cand = new Map();
+    for (const a of infos) if (a && a.id) cand.set(a.id, { a, score: 1, mine: true });
+    const lists = await this.many(styles.flatMap(([g, w]) => (w / wsum > 0.18 ? [0, 10, 20] : w / wsum > 0.08 ? [0, 10] : [0]).map(o => () => this.searchArtists('genre:"' + g + '"', o))));
+    for (const list of lists) for (const a of list) {
+      if (cand.has(a.id)) continue;
+      const shared = (a.genres || []).filter(g => wOf.has(g));
+      if (!shared.length) continue;
+      const overlap = shared.reduce((x, g) => x + wOf.get(g), 0), purity = shared.length / Math.max(1, a.genres.length);
+      cand.set(a.id, { a, score: clamp(overlap * 2.2, 0.05, 1) * (0.5 + 0.5 * purity), mine: false });
+    }
+    const mine = [...cand.values()].filter(c => c.mine), others = [...cand.values()].filter(c => !c.mine).sort((x, y) => y.score - x.score).slice(0, 36);
+    const ownUris = new Set(own.map(t => t.uri)), ownNames = new Set(own.map(t => norm(t.name) + '|' + t.aid));
     const jobs = [];
-    for (const { a, seed } of seedList.concat(others)) for (const o of seed ? [0, 10, 20] : [0]) jobs.push(() => this.searchTracks('artist:"' + a.name + '"', o).then(ts => ts.filter(t => (t.artists || []).some(x => x.id === a.id)).map(t => trackItem(t, a.id))));
-    const lists = await this.many(jobs);
-    // mots-clés qui ne sont ni un artiste ni un style : recherche libre, gardée seulement si l'artiste est de la famille drum & bass
-    const texts = res.filter(r => r.type === 'text');
-    const styleSet = new Set(styles);
-    for (const r of texts) {
-      const ts = (await this.many([0, 10].map(o => () => this.searchTracks(r.kw, o)))).flat();
-      const ok = [];
-      for (const t of ts.slice(0, 16)) { const a = t.artists && t.artists[0]; if (!a) continue; const info = await this.artist(a.id); if (info.genres.some(g => styleSet.has(g) || DNB_RX.test(g))) ok.push(trackItem(t, a.id)); }
-      r.found = ok.length; lists.push(ok);
-    }
-    const seen = new Set(), names = new Set(), perArtist = new Map(), pool = [];
-    for (const list of lists) for (const it of list) {
+    for (const c of mine.slice(0, 24).concat(others)) for (const o of c.mine ? [0, 10] : [0]) jobs.push(() => this.searchTracks('artist:"' + c.a.name + '"', o).then(ts => ts.filter(t => (t.artists || []).some(x => x.id === c.a.id)).map(t => { const it = trackItem(t, c.a.id); it.w = c.mine ? 1 : c.score; it.own = false; return it; })));
+    const found = (await this.many(jobs)).flat();
+    const seen = new Set(), names = new Set(ownNames), perArtist = new Map(), sim = [];
+    for (const it of found) {
       const nk = norm(it.name) + '|' + it.aid;
-      if (seen.has(it.uri) || names.has(nk)) continue;
-      const cap = seedList.some(x => x.a.id === it.aid) ? 18 : 6, n = perArtist.get(it.aid) || 0;
-      if (n >= cap) continue;
-      seen.add(it.uri); names.add(nk); perArtist.set(it.aid, n + 1); pool.push(it); this.byUri.set(it.uri, it);
+      if (ownUris.has(it.uri) || seen.has(it.uri) || names.has(nk)) continue;
+      const n = perArtist.get(it.aid) || 0; if (n >= 8) continue;
+      seen.add(it.uri); names.add(nk); perArtist.set(it.aid, n + 1); sim.push(it); this.byUri.set(it.uri, it);
     }
-    this.resolved = { at: Date.now(), items: res.map(r => ({ kw: r.kw, type: r.type, n: r.type === 'genre' ? r.artists.length : r.type === 'text' ? (r.found || 0) : 0 })), styles, artists: perArtist.size, tracks: pool.length };
+    const simF = this.instrumentalFirst(sim);
+    this.resolved = { at: Date.now(), name: this.radioName, own: own.length, sim: simF.length, artists: perArtist.size, styles: styles.map(x => x[0]) };
     store.set('sp_resolved', this.resolved);
-    if (!pool.length) throw new Error('empty');
-    return this.instrumentalFirst(pool);
+    return own.concat(simF);
   },
   /* sans paroles d'abord : les morceaux visiblement chantés sont écartés tant qu'il reste assez d'instrumentaux */
   instrumentalFirst(list) {
@@ -654,11 +653,21 @@ const Sp = {
   async loadPlaylists() {
     try {
       const r = await this.api('GET', '/me/playlists?limit=50');
-      this.playlists = ((r && r.items) || []).filter(p => p && p.id && (!this.uid || p.collaborative || (p.owner && p.owner.id === this.uid))).map(p => ({ id: p.id, name: p.name || 'Untitled' }));
+      this.playlists = ((r && r.items) || []).filter(p => p && p.id && (!this.uid || p.collaborative || (p.owner && p.owner.id === this.uid))).map(p => ({ id: p.id, name: p.name || 'Untitled', snap: p.snapshot_id || '' }));
     } catch (e) { this.playlists = []; }
+    // la radio se base sur ta playlist « DRFT » tant que tu n'en choisis pas une autre
+    const cur = this.playlists.find(p => p.id === this.radioPl);
+    const pick = cur || this.playlists.find(p => norm(p.name) === 'drft') || this.playlists.find(p => /\bdrft\b/.test(norm(p.name)));
+    if (pick) this.setRadioBase(pick, true);
     UI.renderSpotify(); UI.renderStations();
   },
-  feedKey(src) { src = src || this.source; return src === 'fm' ? 'fm|' + this.keywords.map(norm).join(',') : src; },
+  setRadioBase(pl, quiet) {
+    const changed = pl.id !== this.radioPl || (pl.snap && pl.snap !== this.radioSnap);
+    this.radioPl = pl.id; this.radioName = pl.name; if (pl.snap) this.radioSnap = pl.snap;
+    store.set('sp_radio_pl', this.radioPl); store.set('sp_radio_name', this.radioName); store.set('sp_radio_snap', this.radioSnap);
+    return changed;
+  },
+  feedKey(src) { src = src || this.source; return src === 'fm' ? 'fm|' + this.radioPl + '|' + this.radioSnap : src; },
   async getPool(src) {
     src = src || this.source;
     const key = this.feedKey(src);
@@ -671,7 +680,7 @@ const Sp = {
         // la radio garde sa liste 12 h, pour ne pas tout rechercher à chaque ouverture
         const c = store.get('sp_pool', null);
         if (c && c.key === key && Date.now() - c.at < 12 * 3600000 && Array.isArray(c.items) && c.items.length) { items = c.items; for (const it of items) this.byUri.set(it.uri, it); }
-        else { items = await this.buildRadio(); store.set('sp_pool', { key, at: Date.now(), items }); }
+        else { if (!this.radioPl) throw new Error('noradio'); items = await this.buildFromPlaylist(this.radioPl); store.set('sp_pool', { key, at: Date.now(), items }); }
       }
       if (!items.length) throw new Error('empty');
       this.pool = items; this.poolKey = key;
@@ -679,21 +688,43 @@ const Sp = {
     this.building = { key, p };
     return p;
   },
-  /* tirage : jamais un morceau entendu récemment, jamais deux fois le même artiste sur 4 morceaux */
+  /* tirage : jamais un morceau entendu récemment, jamais deux fois le même artiste sur 4 morceaux.
+     Radio : un morceau de ta playlist, un morceau proche, et ainsi de suite (moitié / moitié) ;
+     parmi les morceaux proches, les artistes les plus proches sortent plus souvent. */
   pickItems(n, first, avoid) {
     const pool = this.pool || [], out = [];
     if (first) out.push(this.byUri.get(first) || { uri: first, dur: 0, name: '', artist: '', aid: '' });
     const block = new Set(avoid || []);
-    const recentN = Math.min(this.recent.length, Math.floor(pool.length * 0.8));
-    for (const u of this.recent.slice(this.recent.length - recentN)) block.add(u);
-    for (const it of out) block.add(it.uri);
-    let cand = shuffle(pool.filter(t => !block.has(t.uri)));
-    if (cand.length < n - out.length) cand = cand.concat(shuffle(pool.filter(t => block.has(t.uri) && !out.some(o => o.uri === t.uri) && !(avoid && avoid.has && avoid.has(t.uri)))));
-    while (out.length < n && cand.length) {
+    const half = this.source === 'fm' && pool.some(t => t.own) && pool.some(t => !t.own);
+    const order = list => { const k = list.map(t => [Math.pow(Math.random(), 1 / Math.max(0.05, t.w || 1)), t]); k.sort((a, b) => b[0] - a[0]); return k.map(x => x[1]); };
+    const lane = list => {
+      const recentN = Math.min(this.recent.length, Math.floor(list.length * 0.8)), rec = new Set(this.recent.slice(this.recent.length - recentN));
+      const ok = list.filter(t => !block.has(t.uri) && !rec.has(t.uri) && !out.some(o => o.uri === t.uri));
+      const more = list.filter(t => !block.has(t.uri) && rec.has(t.uri) && !out.some(o => o.uri === t.uri));
+      return order(ok).concat(shuffle(more));
+    };
+    const ownAll = half ? pool.filter(t => t.own) : [];
+    const lanes = half ? [lane(ownAll), lane(pool.filter(t => !t.own))] : [lane(pool)];
+    // ta playlist est plus courte que la radio : quand ses morceaux sont épuisés, ils reviennent,
+    // sauf les plus récents (60 % de la playlist), pour garder la moitié / moitié sans répétition rapprochée
+    const refillOwn = () => {
+      const hist = this.recent.concat(avoid ? [...avoid] : [], out.map(o => o.uri)), ownSet = new Set(ownAll.map(t => t.uri)), K = Math.ceil(ownAll.length * 0.6);
+      const last = new Set(); for (let i = hist.length - 1; i >= 0 && last.size < K; i--) if (ownSet.has(hist[i])) last.add(hist[i]);
+      return shuffle(ownAll.filter(t => !last.has(t.uri) && !out.slice(-K).some(o => o.uri === t.uri)));
+    };
+    let turn = half ? (Math.random() < 0.5 ? 0 : 1) : 0;
+    if (first && half) turn = (out[0] && out[0].own) ? 1 : 0;
+    let guard = 0;
+    while (out.length < n && guard++ < n * 4) {
+      if (half && !lanes[0].length) lanes[0] = refillOwn();
+      let L = lanes[turn % lanes.length]; if (!L.length) L = lanes.find(l => l.length);
+      if (!L) break;
       const lastA = out.slice(-4).map(x => x.aid);
-      let i = cand.findIndex(t => !t.aid || !lastA.includes(t.aid));
-      if (i < 0) i = 0;
-      out.push(cand.splice(i, 1)[0]);
+      let i = L.findIndex(t => !t.aid || !lastA.includes(t.aid)); if (i < 0) i = 0;
+      const it = L.splice(i, 1)[0];
+      const K = it.own ? Math.ceil(ownAll.length * 0.6) * 2 : out.length;
+      if (!out.slice(-K).some(o => o.uri === it.uri)) out.push(it);
+      turn++;
     }
     return out;
   },
@@ -701,7 +732,7 @@ const Sp = {
     const body = { uris }; if (pos > 0) body.position_ms = Math.round(pos);
     try { await this.api('PUT', '/me/player/play?device_id=' + encodeURIComponent(this.device), body); }
     catch (e) { if (e.status !== 404) throw e; this.ready = false; await this.init(); await this.api('PUT', '/me/player/play?device_id=' + encodeURIComponent(this.device), body); }
-    this.sent = uris.slice();
+    this.sent = uris.slice(); this.sentPos = 0;
   },
   async playFresh(first) {
     this.starting = true; this.guard(5000);
@@ -720,11 +751,11 @@ const Sp = {
     if (this.topping) return;
     this.topping = true;
     try {
-      const last = this.sent[this.sent.length - 1];
-      let list;
-      if (this.source === 'fm') { await Fm.ensure(); list = Fm.after(last, 6); }
+      let list, fm = false;
+      if (this.source === 'fm' && Fm.sched) { await Fm.ensure(); list = Fm.takeNext(6); fm = list.length > 0; }
       if (!list || !list.length) { await this.getPool(); list = this.pickItems(6, null, new Set(this.sent.slice(-200))).map(x => x.uri); }
-      for (const u of list) { if (this.sent.includes(u)) continue; await this.api('POST', '/me/player/queue?device_id=' + encodeURIComponent(this.device) + '&uri=' + encodeURIComponent(u)); this.sent.push(u); }
+      const recentSent = new Set(this.sent.slice(-Math.max(4, Math.min(40, Math.floor((this.pool || []).filter(t => !t.own).length * 0.6)))));
+      for (const u of list) { const own = (this.byUri.get(u) || {}).own; if (!fm && !own && recentSent.has(u)) continue; await this.api('POST', '/me/player/queue?device_id=' + encodeURIComponent(this.device) + '&uri=' + encodeURIComponent(u)); this.sent.push(u); }
     } catch (e) { /* on retentera au prochain changement */ }
     this.topping = false;
   },
@@ -795,6 +826,7 @@ const Fm = {
       let cut = 0; const keepFrom = now - 6 * 3600000; let acc = s.epoch;
       while (cut < s.items.length - 1 && acc + s.items[cut].dur < keepFrom) { acc += s.items[cut].dur; cut++; }
       s = { key, epoch: acc, items: s.items.slice(cut).concat(more) };
+      this.schedEnd = Math.max(-1, this.schedEnd - cut);
       this.sched = s; this.save();
     }
     for (const it of s.items) if (!Sp.byUri.has(it.uri)) Sp.byUri.set(it.uri, it);
@@ -812,13 +844,17 @@ const Fm = {
     if (!p) throw new Error('empty');
     this.live = true; this.lastRetune = Date.now();
     await Sp.playUris(s.items.slice(p.i, p.i + 30).map(x => x.uri), p.off);
+    this.schedEnd = Math.min(s.items.length - 1, p.i + 29);
     UI.renderLive();
     if (!quiet) this.ident(true);
   },
-  after(uri, n) {
-    const s = this.sched; if (!s) return [];
-    const i = s.items.findIndex(x => x.uri === uri);
-    return i < 0 ? [] : s.items.slice(i + 1, i + 1 + n).map(x => x.uri);
+  /* la suite de la grille après le dernier morceau envoyé à Spotify */
+  schedEnd: -1,
+  takeNext(n) {
+    const s = this.sched; if (!s || this.schedEnd < 0) return [];
+    const out = s.items.slice(this.schedEnd + 1, this.schedEnd + 1 + n).map(x => x.uri);
+    this.schedEnd += out.length;
+    return out;
   },
   leave() { if (this.live) { this.live = false; UI.renderLive(); } },
   async goLive() {
@@ -851,7 +887,8 @@ const Fm = {
   },
   ident(first) {
     this.sinceJingle = 0; this.lastShow = showAt(Date.now());
-    Eyecatch.show(this.lastShow);
+    // le bandeau arrive après le regard en arrière du pilote
+    const show = this.lastShow; setTimeout(() => Eyecatch.show(show), 5200);
     Jingle.play();
     this.duck();
   },
@@ -967,6 +1004,7 @@ const Radio = {
     this.playing = true; UI.syncPlay(); UI.loading();
     UI.showTrack({ kind: 'spotify', title: Sp.source === 'fm' ? 'DRFT FM' : (Sp.plName || 'PLAYLIST'), artist: 'Tuning in…' });
     try {
+      if (Sp.source === 'fm' && !Sp.radioPl && !Sp.playlists) await Sp.loadPlaylists();
       await Sp.playFresh(first);
       if (tok !== this.seq) return true;
       return true;
@@ -980,7 +1018,9 @@ const Radio = {
     let msg = 'SPOTIFY ERROR · ' + String(m || 'UNKNOWN').toUpperCase().slice(0, 60);
     if (m === 'sdk') msg = 'SPOTIFY PLAYER BLOCKED · TURN OFF THE AD BLOCKER FOR THIS SITE';
     else if (m === 'device' || m === 'connect') msg = 'SPOTIFY PLAYER DIDN\'T START · TRY AGAIN';
-    else if (m === 'empty') msg = 'NOTHING FOUND · CHANGE THE SOURCE OR THE MIX ARTISTS';
+    else if (m === 'empty') msg = 'NOTHING FOUND IN THIS PLAYLIST';
+    else if (m === 'emptyradio') msg = 'THE RADIO PLAYLIST IS EMPTY · ADD TRACKS TO IT IN SPOTIFY';
+    else if (m === 'noradio') { msg = 'CHOOSE THE PLAYLIST THE RADIO IS BASED ON'; setDrawer(true, 'music'); }
     else if (st === 401) msg = 'SPOTIFY SESSION ENDED · RECONNECT IN THE MENU';
     else if (st === 403) msg = 'SPOTIFY REFUSED · CHECK PREMIUM AND YOUR APP\'S USER MANAGEMENT';
     else if (st === 404) msg = 'SPOTIFY DEVICE LOST · PRESS PLAY AGAIN';
@@ -1146,7 +1186,7 @@ const Radio = {
       Fm.leave(); Sp.guard(2500);
       if (more && Sp.player) { Sp.fadeTok++; await Sp.player.nextTrack().catch(() => {}); if (s && s.paused) Sp.player.resume().catch(() => {}); Sp.player.setVolume(clamp(settings.vol * settings.vol, 0, 1)).catch(() => {}); }
       else {
-        const after = Sp.source === 'fm' ? Fm.after(Sp.lastUri, 30) : [];
+        const after = Sp.source === 'fm' ? Fm.takeNext(30) : [];
         if (after.length) { Sp.playUris(after).catch(e => this.spFail(e)); }
         else Sp.getPool().then(() => Sp.playUris(Sp.pickItems(40, null, new Set(Sp.sent.slice(-200))).map(x => x.uri))).catch(e => this.spFail(e));
       }
@@ -1236,15 +1276,13 @@ const Radio = {
    Les couleurs et la météo glissent en douceur d'une ambiance à l'autre.
    ===================================================================== */
 const THEMES = [
-  { id: 'nuit',    name: 'Neon night',        cols: ['#05030f', '#1d1a4a', '#2fd3c7', '#e8fffb'], ink: '#7fe8dc', env: { sun: 0,   stars: 1,    cloud: 0,    rain: 0,   snow: 0, fog: 0,    lightning: 0, glow: 0.4 } },
-  { id: 'pluie',   name: 'Rain',              cols: ['#0b0c0e', '#3a3f45', '#8a929b', '#dfe3e8'], ink: '#c3c9d0', env: { sun: 0,   stars: 0,    cloud: 0.9,  rain: 1,   snow: 0, fog: 0.35, lightning: 0, glow: 0.1 } },
-  { id: 'orage',   name: 'Storm',             cols: ['#040509', '#1f2430', '#596377', '#f4f6ff'], ink: '#b9c2d6', env: { sun: 0,   stars: 0,    cloud: 1,    rain: 1.6, snow: 0, fog: 0.2,  lightning: 1, glow: 0 } },
-  { id: 'aube',    name: 'Dawn',              cols: ['#0a1022', '#3b4a7a', '#f29e7a', '#fff1d6'], ink: '#ffd2b0', env: { sun: 0.7, stars: 0.2,  cloud: 0.25, rain: 0,   snow: 0, fog: 0.45, lightning: 0, glow: 0.7 } },
-  { id: 'sunset',  name: 'Sunset',            cols: ['#1a0619', '#6b1748', '#ff4f8b', '#ffc38a'], ink: '#ff9ab8', env: { sun: 1,   stars: 0.15, cloud: 0.15, rain: 0,   snow: 0, fog: 0.1,  lightning: 0, glow: 1 } },
-  { id: 'redline', name: 'Redline',           cols: ['#0a0202', '#4a0c0c', '#ff3b30', '#ffd0a0'], ink: '#ff7a6e', env: { sun: 0.3, stars: 0.5,  cloud: 0,    rain: 0,   snow: 0, fog: 0,    lightning: 0, glow: 0.6 } },
-  { id: 'sepia',   name: 'Dust',              cols: ['#120d08', '#4a3a2a', '#c9a882', '#fbefdc'], ink: '#e3c9a4', env: { sun: 0.5, stars: 0,    cloud: 0.1,  rain: 0,   snow: 0, fog: 0.6,  lightning: 0, glow: 0.5 } },
-  { id: 'sodium',  name: 'Sodium',           cols: ['#0a0502', '#4a2208', '#ff8a1f', '#ffe2b0'], ink: '#ffb066', env: { sun: 0,   stars: 0.2,  cloud: 0.2,  rain: 0,   snow: 0, fog: 0.25, lightning: 0, glow: 0.8 } },
-  { id: 'neige',   name: 'Snow',              cols: ['#0a0e16', '#4b5d78', '#bcd2ee', '#ffffff'], ink: '#d4e4f7', env: { sun: 0,   stars: 0.3,  cloud: 0.5,  rain: 0,   snow: 1, fog: 0.3,  lightning: 0, glow: 0.2 } }
+  { id: 'nuit',   name: 'Night',      cols: ['#04060b', '#131b2b', '#3e5878', '#c6d8ec'], ink: '#a9c4e0', env: { sun: 0,    stars: 1,   cloud: 0.1,  rain: 0,   snow: 0, fog: 0,    lightning: 0,   glow: 0.4 } },
+  { id: 'pluie',  name: 'Rain',       cols: ['#060709', '#1a2027', '#4c5964', '#cfd7dd'], ink: '#b4c0c9', env: { sun: 0,    stars: 0,   cloud: 0.9,  rain: 1,   snow: 0, fog: 0.25, lightning: 0,   glow: 0.25 } },
+  { id: 'brume',  name: 'Fog',        cols: ['#08090a', '#22272a', '#5c6663', '#d5dad5'], ink: '#bcc5c0', env: { sun: 0,    stars: 0.2, cloud: 0.4,  rain: 0,   snow: 0, fog: 0.85, lightning: 0,   glow: 0.2 } },
+  { id: 'sodium', name: 'Sodium',     cols: ['#090604', '#271a10', '#86603c', '#efd8ba'], ink: '#e0c098', env: { sun: 0,    stars: 0.3, cloud: 0.2,  rain: 0,   snow: 0, fog: 0.15, lightning: 0,   glow: 0.7 } },
+  { id: 'aube',   name: 'Dawn',       cols: ['#0a0a11', '#28243a', '#776c88', '#e6dce8'], ink: '#cbbfd6', env: { sun: 0.55, stars: 0.2, cloud: 0.3,  rain: 0,   snow: 0, fog: 0.35, lightning: 0,   glow: 0.4 } },
+  { id: 'neige',  name: 'Snow',       cols: ['#07090d', '#242e3d', '#7b8ca3', '#eef3f8'], ink: '#cfdbe8', env: { sun: 0,    stars: 0.2, cloud: 0.6,  rain: 0,   snow: 1, fog: 0.3,  lightning: 0,   glow: 0.3 } },
+  { id: 'orage',  name: 'Storm',      cols: ['#040506', '#171b21', '#434d58', '#dde3ea'], ink: '#b9c3cf', env: { sun: 0,    stars: 0,   cloud: 1,    rain: 1.6, snow: 0, fog: 0.15, lightning: 0.6, glow: 0.2 } }
 ];
 const ENV_KEYS = ['sun', 'stars', 'cloud', 'rain', 'snow', 'fog', 'lightning', 'glow'];
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + 0.5) / 16);
@@ -1271,7 +1309,7 @@ const ENV = { flash: 0 }, curCols = themeTarget.rgb.map(c => c.slice()), uiInk =
 for (const k of ENV_KEYS) ENV[k] = themeTarget.env[k];
 let PAL32 = curCols.map(packRGB);
 function updateTheme(dt, now) {
-  const a = 1 - Math.exp(-dt / 1.6);
+  const a = 1 - Math.exp(-dt / 7);
   for (const k of ENV_KEYS) ENV[k] = lerp(ENV[k], themeTarget.env[k], a);
   for (let i = 0; i < 4; i++) { for (let j = 0; j < 3; j++) curCols[i][j] = lerp(curCols[i][j], themeTarget.rgb[i][j], a); PAL32[i] = packRGB(curCols[i]); }
   for (let j = 0; j < 3; j++) uiInk[j] = lerp(uiInk[j], themeTarget.inkRgb[j], a);
@@ -1304,19 +1342,30 @@ function resize() {
   for (const s of SCENES) if (s.resize) s.resize();
 }
 
+/* lumières colorées : gyrophares, feux arrière, LED du volant… elles gardent leur couleur, tramées en deux intensités */
+// courbe de tons : les noirs de l'habitacle restent noirs, les gris de la route et du ciel remontent
+const TONE = new Float32Array(256); for (let i = 0; i < 256; i++) TONE[i] = Math.max(0, (Math.pow(i / 255, 0.62) - 0.12) * 1.16);
+const ACCENTS = [[255, 58, 48], [255, 164, 48], [96, 232, 128], [72, 128, 255]].map(c => [packRGB(c), packRGB(c.map(v => Math.round(v * 0.42)))]);
 function compose(srcA, srcB, mix, FR) {
   const W = V.W, H = V.H, pal = PAL32, L = pal.length - 1, out = OUT32, dis = DIS;
-  const gain = 1 + FR.pulse * 0.22, bias = FR.pulse * 0.04 + ENV.flash * 0.35;
+  const bias = ENV.flash * 0.35;
   for (let y = 0; y < H; y++) {
     const q = (y & 3) << 2, row = y * W;
     for (let x = 0; x < W; x++) {
       const i = row + x, j = i << 2, th = BAYER[q + (x & 3)];
       const src = (mix >= 0 && mix > dis[i]) ? srcB : srcA;
-      let v = (src[j] * 77 + src[j + 1] * 150 + src[j + 2] * 29) * (1 / 65280);
-      v = (v - 0.07) * 1.075 * gain + bias;
-      const s = (v < 0 ? 0 : v > 1 ? 1 : v) * L;
-      let b = s | 0; if (s - b > th) b++;
-      out[i] = pal[b > L ? L : b];
+      const r = src[j], g = src[j + 1], b = src[j + 2];
+      const mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b), sat = mx - mn;
+      if (sat > 44 && (sat - 44) * 0.011 > th) {
+        // teinte : rouge, ambre, vert ou bleu (un feu rouge sur fond gris reste rouge)
+        const k = r >= g && r >= b ? ((g - mn) > (r - mn) * 0.45 ? 1 : 0) : (g >= b ? 2 : 3);
+        out[i] = ACCENTS[k][mx * 0.0039 > 0.5 + (th - 0.5) * 0.5 ? 0 : 1];
+        continue;
+      }
+      const v = TONE[(r * 77 + g * 150 + b * 29) >> 8] + bias;
+      const s2 = (v < 0 ? 0 : v > 1 ? 1 : v) * L;
+      let bb = s2 | 0; if (s2 - bb > th) bb++;
+      out[i] = pal[bb > L ? L : bb];
     }
   }
 }
@@ -1410,103 +1459,6 @@ function stars(c, W, yMax, t, F, dens = 1) {
   }
 }
 
-function drawCarRear(c, cx, by, w, o) {
-  const h = w * 0.5, L = clamp(o.light, 0, 1);
-  c.save(); c.translate(cx, by); c.rotate((o.lean || 0) * 0.05);
-  c.fillStyle = 'rgba(0,0,0,0.75)'; c.beginPath(); c.ellipse(0, 0, Math.max(1, w * 0.62), Math.max(1, h * 0.1), 0, 0, Math.PI * 2); c.fill();
-  c.fillStyle = gs(0.03); c.fillRect(-w * 0.48, -h * 0.26, w * 0.17, h * 0.27); c.fillRect(w * 0.31, -h * 0.26, w * 0.17, h * 0.27);
-  c.fillStyle = gs(0.14); c.fillRect(-w * 0.48, -h * 0.26, w * 0.17, Math.max(1, h * 0.03)); c.fillRect(w * 0.31, -h * 0.26, w * 0.17, Math.max(1, h * 0.03));
-  c.fillStyle = gs(o.body != null ? o.body * 0.75 : 0.2);
-  poly(c, [[-w * 0.40, -h * 0.62], [-w * 0.27, -h * 1.0], [w * 0.27, -h * 1.0], [w * 0.40, -h * 0.62]]);
-  const gr = c.createLinearGradient(0, -h * 0.96, 0, -h * 0.66); gr.addColorStop(0, gs(0.04)); gr.addColorStop(1, gs(0.16));
-  c.fillStyle = gr; poly(c, [[-w * 0.34, -h * 0.66], [-w * 0.245, -h * 0.95], [w * 0.245, -h * 0.95], [w * 0.34, -h * 0.66]]);
-  c.fillStyle = gs(0.3); poly(c, [[-w * 0.2, -h * 0.66], [-w * 0.1, -h * 0.95], [-w * 0.05, -h * 0.95], [-w * 0.15, -h * 0.66]]);
-  c.fillStyle = gs(o.body != null ? o.body : 0.3); rrect(c, -w * 0.5, -h * 0.64, w, h * 0.46, w * 0.05);
-  c.fillStyle = gs(0.55); c.fillRect(-w * 0.47, -h * 0.64, w * 0.94, Math.max(1, h * 0.025));
-  c.fillStyle = gs(0.16); c.fillRect(-w * 0.3, -h * 0.8, w * 0.035, h * 0.17); c.fillRect(w * 0.265, -h * 0.8, w * 0.035, h * 0.17);
-  c.fillStyle = gs(0.34); c.fillRect(-w * 0.54, -h * 0.84, w * 1.08, Math.max(2, h * 0.07));
-  c.fillStyle = gs(0.62); c.fillRect(-w * 0.54, -h * 0.84, w * 1.08, Math.max(1, h * 0.02));
-  c.fillStyle = gs(0.35 + 0.65 * L);
-  c.fillRect(-w * 0.46, -h * 0.52, w * 0.92, Math.max(1, h * 0.055));
-  c.fillRect(-w * 0.47, -h * 0.55, w * 0.12, Math.max(2, h * 0.1)); c.fillRect(w * 0.35, -h * 0.55, w * 0.12, Math.max(2, h * 0.1));
-  c.fillStyle = gs(0.08); c.fillRect(-w * 0.38, -h * 0.27, w * 0.76, h * 0.1);
-  c.fillStyle = gs(0.22); for (let i = -3; i <= 3; i++) c.fillRect(i * w * 0.1, -h * 0.27, 1, h * 0.1);
-  c.fillStyle = gs(0.6); c.fillRect(-w * 0.09, -h * 0.42, w * 0.18, h * 0.08);
-  for (const s of [-1, 1]) { c.fillStyle = gs(0.55); circle(c, s * w * 0.16, -h * 0.2, w * 0.04); c.fillStyle = gs(0.02); circle(c, s * w * 0.16, -h * 0.2, w * 0.025); }
-  c.globalCompositeOperation = 'lighter';
-  if (o.wet > 0.05) for (const s of [-1, 1]) { const rg = c.createLinearGradient(0, 0, 0, h * 0.9); rg.addColorStop(0, wa(0.32 * o.wet * (0.5 + L))); rg.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = rg; c.fillRect(s * w * 0.41 - w * 0.05, 0, w * 0.1, h * 0.9); }
-  glow(c, -w * 0.41, -h * 0.5, w * 0.22 * (0.6 + L), 0.35 * L); glow(c, w * 0.41, -h * 0.5, w * 0.22 * (0.6 + L), 0.35 * L);
-  if (o.flame > 0.05) for (const s of [-1, 1]) glow(c, s * w * 0.16, -h * 0.2, w * 0.13 * o.flame + 1, 0.9 * o.flame);
-  c.globalCompositeOperation = 'source-over';
-  c.restore();
-}
-
-const SIDE_BODY = [[0.0, 0.13], [0.01, 0.2], [0.04, 0.255], [0.16, 0.27], [0.3, 0.36], [0.5, 0.375], [0.62, 0.3], [0.68, 0.265], [0.9, 0.215], [0.985, 0.17], [1.0, 0.12], [0.985, 0.08], [0.93, 0.06], [0.07, 0.06], [0.015, 0.08]];
-const SIDE_GLASS = [[0.31, 0.275], [0.36, 0.345], [0.49, 0.357], [0.585, 0.29], [0.6, 0.275]];
-function drawCarSide(c, x0, gy, L, o) {
-  const P = p => [x0 + p[0] * L, gy - p[1] * L];
-  const tl = P([0.005, 0.2]), hl = P([0.975, 0.16]);
-  c.fillStyle = 'rgba(0,0,0,0.8)'; c.beginPath(); c.ellipse(x0 + L * 0.5, gy + 1, Math.max(1, L * 0.55), Math.max(1, L * 0.025), 0, 0, Math.PI * 2); c.fill();
-  c.globalCompositeOperation = 'lighter';
-  let g = c.createLinearGradient(tl[0], 0, tl[0] - L * 0.9, 0); g.addColorStop(0, wa(0.4 * o.light)); g.addColorStop(1, 'rgba(255,255,255,0)');
-  c.fillStyle = g; c.fillRect(tl[0] - L * 0.9, tl[1], L * 0.9, Math.max(1, L * 0.012));
-  g = c.createLinearGradient(hl[0], 0, hl[0] + L * 0.9, 0); g.addColorStop(0, wa(0.28)); g.addColorStop(1, 'rgba(255,255,255,0)');
-  c.fillStyle = g; c.beginPath(); c.moveTo(hl[0], hl[1]); c.lineTo(hl[0] + L * 0.9, hl[1] - L * 0.05); c.lineTo(hl[0] + L * 0.9, gy); c.lineTo(hl[0], hl[1] + L * 0.03); c.closePath(); c.fill();
-  c.globalCompositeOperation = 'source-over';
-  c.beginPath(); SIDE_BODY.forEach((p, i) => { const q = P(p); i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.closePath();
-  c.fillStyle = gs(o.body != null ? o.body : 0.24); c.fill();
-  c.save(); c.clip();
-  for (const s of (o.sweeps || [])) {
-    const sx = x0 + s * L, w = L * 0.09;
-    const gg = c.createLinearGradient(sx - w, 0, sx + w, 0); gg.addColorStop(0, 'rgba(255,255,255,0)'); gg.addColorStop(0.5, wa(0.4)); gg.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = gg; c.fillRect(sx - w, gy - L * 0.5, w * 2, L * 0.5);
-  }
-  c.restore();
-  c.fillStyle = gs(0.07); poly(c, SIDE_GLASS.map(P));
-  c.fillStyle = gs(0.2); const bp = P([0.455, 0.355]); c.fillRect(bp[0], bp[1], Math.max(1, L * 0.008), L * 0.08);
-  c.strokeStyle = gs(0.62); c.lineWidth = 1; c.beginPath(); const a1 = P([0.04, 0.24]), a2 = P([0.93, 0.2]); c.moveTo(a1[0], a1[1]); c.lineTo(a2[0], a2[1]); c.stroke();
-  c.fillStyle = gs(0.1); const sk = P([0.22, 0.075]); c.fillRect(sk[0], sk[1], L * 0.55, Math.max(1, L * 0.015));
-  c.fillStyle = gs(0.32); const wg = P([0.0, 0.318]); c.fillRect(wg[0], wg[1], L * 0.13, Math.max(1, L * 0.014));
-  const ws = P([0.06, 0.305]); c.fillRect(ws[0], ws[1], Math.max(1, L * 0.008), L * 0.035);
-  for (const wx of [0.2, 0.8]) {
-    const [cx, cy] = P([wx, 0.075]), R = L * 0.078;
-    c.fillStyle = gs(0); circle(c, cx, cy, R * 1.12);
-    c.fillStyle = gs(0.04); circle(c, cx, cy, R);
-    c.fillStyle = gs(0.42); circle(c, cx, cy, R * 0.68);
-    c.fillStyle = gs(0.1); circle(c, cx, cy, R * 0.56);
-    c.strokeStyle = gs(0.58); c.lineWidth = Math.max(1, R * 0.12); c.beginPath();
-    for (let i = 0; i < 5; i++) { const a = o.rot + i * 1.2566; c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a) * R * 0.6, cy + Math.sin(a) * R * 0.6); }
-    c.stroke();
-    c.fillStyle = gs(0.75); circle(c, cx, cy, Math.max(0.6, R * 0.14));
-  }
-  c.fillStyle = gs(1); c.fillRect(hl[0] - L * 0.02, hl[1], L * 0.028, Math.max(1, L * 0.012));
-  c.fillStyle = gs(0.6 + 0.4 * o.light); c.fillRect(tl[0], tl[1], Math.max(1, L * 0.016), Math.max(1, L * 0.022));
-  c.globalCompositeOperation = 'lighter'; glow(c, tl[0], tl[1], L * 0.06, 0.4 * o.light); c.globalCompositeOperation = 'source-over';
-}
-
-function drawCarTop(c, x, y, L, a, o) {
-  const w = L * 0.46;
-  c.save(); c.translate(x, y); c.rotate(a);
-  c.globalCompositeOperation = 'lighter';
-  const g = c.createLinearGradient(0, -L * 0.5, 0, -L * 2.4); g.addColorStop(0, wa(0.22 * (o.beams != null ? o.beams : 1))); g.addColorStop(1, 'rgba(255,255,255,0)');
-  c.fillStyle = g; c.beginPath(); c.moveTo(-w * 0.4, -L * 0.5); c.lineTo(w * 0.4, -L * 0.5); c.lineTo(w * 1.3, -L * 2.4); c.lineTo(-w * 1.3, -L * 2.4); c.closePath(); c.fill();
-  c.globalCompositeOperation = 'source-over';
-  c.fillStyle = 'rgba(0,0,0,0.5)'; rrect(c, -w / 2 + 1, -L / 2 + 2, w, L, w * 0.3);
-  c.fillStyle = gs(0.03);
-  c.fillRect(-w * 0.62, -L * 0.36, w * 0.2, L * 0.2); c.fillRect(w * 0.42, -L * 0.36, w * 0.2, L * 0.2);
-  c.fillRect(-w * 0.62, L * 0.16, w * 0.2, L * 0.22); c.fillRect(w * 0.42, L * 0.16, w * 0.2, L * 0.22);
-  c.fillStyle = gs(o.body); rrect(c, -w / 2, -L / 2, w, L, w * 0.3);
-  c.fillStyle = gs(o.body * 0.6); c.fillRect(-Math.max(0.5, w * 0.06), -L * 0.48, Math.max(1, w * 0.12), L * 0.96);
-  c.fillStyle = gs(0.08); c.beginPath(); c.ellipse(0, -L * 0.02, Math.max(0.5, w * 0.28), Math.max(0.5, L * 0.17), 0, 0, Math.PI * 2); c.fill();
-  c.fillStyle = gs(Math.min(1, o.body + 0.2));
-  c.fillRect(-w * 0.6, L * 0.4, w * 1.2, Math.max(1, L * 0.07));
-  c.fillRect(-w * 0.55, -L * 0.52, w * 1.1, Math.max(1, L * 0.05));
-  c.globalCompositeOperation = 'lighter';
-  glow(c, -w * 0.3, L * 0.48, Math.max(1.5, w * 0.35), 0.4 * o.light); glow(c, w * 0.3, L * 0.48, Math.max(1.5, w * 0.35), 0.4 * o.light);
-  c.globalCompositeOperation = 'source-over';
-  c.restore();
-}
-
 /* =====================================================================
    SCÈNES : direction artistique Tokyo de nuit, drift, eurobeat
    Tout est dessiné en niveaux de gris puis tramé dans la palette de l'ambiance.
@@ -1523,632 +1475,819 @@ function addGlow(c, x, y, r, a) { c.globalCompositeOperation = 'lighter'; glow(c
 /* projection perspective commune : x latéral, y hauteur (relative à la caméra), z profondeur */
 function proj(x, y, z, vx, vy, k) { const s = 1 / (0.25 + Math.max(0.03, z) * 0.25); return [vx + x * k * s, vy - y * k * s, s]; }
 
-/* --- outils « anime 90 » : plans qui coupent toutes les 4 mesures, lignes de vitesse, intérieur de voiture --- */
-const BAR = 240 / 174;                  // une mesure de drum & bass (174 BPM), en secondes : la durée des plans
-const SHOT = BAR * 4;
-function shotOf(sc, dt, list) {
-  sc.shotT = (sc.shotT || 0) + dt;
-  if (sc.shotT > SHOT) { sc.shotT = 0; sc.shotI = ((sc.shotI || 0) + 1) % list.length; }
-  return list[(sc.shotI || 0) % list.length];
+/* =====================================================================
+   SCÈNE UNIQUE : la nuit, vue de l'habitacle (POV pilote)
+   Route générée sans fin (autoroute, tunnel, col, ville, pont, bord de mer), météo sur le pare-brise,
+   et à chaque changement de morceau, le pilote se retourne : la police au loin, gyrophares… il accélère.
+   Tout est dessiné dans un cadre virtuel 320 x 180, puis tramé. Les lumières colorées passent en « accent ».
+   ===================================================================== */
+const VW = 320, VH = 180;
+function glowTex(rgb) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(' + rgb + ',1)'); g.addColorStop(0.22, 'rgba(' + rgb + ',0.55)'); g.addColorStop(0.55, 'rgba(' + rgb + ',0.14)'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64); return c;
 }
-const SL = Array.from({ length: 90 }, (_, i) => ({ a: h1(i * 2.7) * 6.283, l: 0.25 + h1(i * 5.3) * 0.5, w: h1(i * 8.1) < 0.2 ? 2 : 1 }));
-/* lignes de vitesse manga sur les bords ; elles « bouillonnent » à 12 images/s comme un dessin animé */
-function speedLines(c, W, H, cx, cy, amt) {
-  if (amt < 0.03) return;
-  const D = Math.hypot(W, H) * 0.62, boil = Math.floor(performance.now() / 83);
-  c.strokeStyle = wa(0.55 * clamp(amt, 0, 1));
-  for (let i = 0; i < SL.length; i++) {
-    const l = SL[i], j = ih(i * 31 + boil * 7), a = l.a + (j - 0.5) * 0.05;
-    if (j < 0.35) continue;
-    const r0 = D * (0.48 + (1 - amt) * 0.3 + j * 0.12), r1 = D * 1.15;
-    c.lineWidth = l.w; c.beginPath(); c.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); c.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); c.stroke();
-  }
-}
-function hLines(c, W, H, amt, y0, y1) {
-  if (amt < 0.03) return;
-  const boil = Math.floor(performance.now() / 83);
-  c.strokeStyle = wa(0.4 * amt);
-  for (let i = 0; i < 26; i++) {
-    const j = ih(i * 17 + boil * 13), y = y0 + ih(i * 7 + boil) * (y1 - y0), len = W * (0.2 + j * 0.6), x = ih(i * 3 + boil * 5) * W;
-    c.lineWidth = j < 0.15 ? 2 : 1; c.beginPath(); c.moveTo(x, y); c.lineTo(x - len, y); c.stroke();
-  }
-}
-/* plan intérieur : montants, rétro, tableau de bord et volant en ombre chinoise */
-function cockpit(c, W, H, t, rpm, steer) {
-  c.fillStyle = gs(0.01);
-  poly(c, [[0, 0], [W, 0], [W, H * 0.07], [W * 0.88, H * 0.1], [W * 0.12, H * 0.1], [0, H * 0.07]]);
-  poly(c, [[0, 0], [W * 0.12, 0], [W * 0.17, H * 0.1], [W * 0.02, H * 0.62], [0, H * 0.66]]);
-  poly(c, [[W, 0], [W * 0.88, 0], [W * 0.83, H * 0.1], [W * 0.98, H * 0.62], [W, H * 0.66]]);
-  c.strokeStyle = gs(0.3); c.lineWidth = 1; c.beginPath();
-  c.moveTo(W * 0.17, H * 0.1); c.lineTo(W * 0.02, H * 0.62); c.moveTo(W * 0.83, H * 0.1); c.lineTo(W * 0.98, H * 0.62);
-  c.moveTo(W * 0.12, H * 0.1); c.lineTo(W * 0.88, H * 0.1); c.stroke();
-  c.fillStyle = gs(0.03); rrect(c, W * 0.42, H * 0.08, W * 0.16, H * 0.06, 2);
-  c.fillStyle = gs(0.12); c.fillRect(W * 0.43, H * 0.09, W * 0.14, H * 0.04);
-  c.fillStyle = gs(0.015); c.beginPath(); c.moveTo(0, H * 0.7); c.quadraticCurveTo(W * 0.5, H * 0.62, W, H * 0.7); c.lineTo(W, H); c.lineTo(0, H); c.closePath(); c.fill();
-  c.strokeStyle = gs(0.32); c.beginPath(); c.moveTo(0, H * 0.7); c.quadraticCurveTo(W * 0.5, H * 0.62, W, H * 0.7); c.stroke();
-  const gx = W * 0.4, gy = H * 0.8, gr = Math.min(W, H) * 0.08;
-  for (const [x, v] of [[gx - gr * 1.15, rpm], [gx + gr * 1.15, 0.55 + rpm * 0.4]]) {
-    c.strokeStyle = gs(0.35); c.lineWidth = 1; c.beginPath(); c.arc(x, gy, gr, Math.PI * 0.75, Math.PI * 2.25); c.stroke();
-    const a = Math.PI * (0.75 + 1.5 * clamp(v, 0, 1));
-    c.strokeStyle = gs(0.95); c.beginPath(); c.moveTo(x, gy); c.lineTo(x + Math.cos(a) * gr * 0.9, gy + Math.sin(a) * gr * 0.9); c.stroke();
-    addGlow(c, x, gy, gr * 1.1, 0.08);
-  }
-  c.save(); c.translate(gx, H * 1.02); c.rotate(steer);
-  c.strokeStyle = gs(0.22); c.lineWidth = Math.max(4, H * 0.05) + 2; c.beginPath(); c.arc(0, 0, H * 0.3, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
-  c.strokeStyle = gs(0.005); c.lineWidth = Math.max(3, H * 0.045); c.beginPath(); c.arc(0, 0, H * 0.3, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
-  c.fillStyle = gs(0.005); c.fillRect(-H * 0.05, -H * 0.3, H * 0.1, H * 0.3);
-  c.restore();
-}
+const GT = { white: glowTex('255,255,255'), warm: glowTex('255,236,210'), red: glowTex('255,50,40'), amber: glowTex('255,160,40'), green: glowTex('80,235,120'), blue: glowTex('60,120,255') };
+// à appeler avec globalCompositeOperation = 'lighter'
+function gl(c, tex, x, y, r, a) { if (!(a > 0.004) || !(r > 0.2)) return; c.globalAlpha = Math.min(1, a); c.drawImage(tex, x - r, y - r, r * 2, r * 2); c.globalAlpha = 1; }
+const COL = { red: 'rgb(255,50,40)', redD: 'rgb(150,26,22)', amber: 'rgb(255,160,40)', amberD: 'rgb(140,84,20)', green: 'rgb(80,235,120)', greenD: 'rgb(30,120,60)', blue: 'rgb(60,120,255)', blueD: 'rgb(28,58,140)' };
 
-/* --- 1. WANGAN : autoroute de nuit à fond, tunnels orange, un rival dans la voie d'à côté ---------------- */
-const SceneWangan = {
-  name: 'Wangan', jp: '湾岸', z: 0, sky: 0.36, cars: null, skyline: null, rot: 0,
-  SIGNS: ['湾岸線', '大黒', '芝浦', '横羽線', 'C1', '辰巳', '有明', '羽田'],
-  tunnelAt(z) { return ((z % 180) + 180) % 180 >= 110; },
-  draw(c, t, dt, F) {
-    const shot = shotOf(this, dt, ['chase', 'side', 'cockpit', 'chase', 'side']);
-    const spd = 13 + F.energy * 16;
-    this.z += dt * spd; this.rot += dt * spd * 1.6;
-    if (!this.cars) {
-      this.cars = Array.from({ length: 7 }, (_, i) => ({ lane: [-1.5, 0.5, 1.5][i % 3], z: 6 + i * 6 + Math.random() * 3, v: 0.45 + Math.random() * 0.3 }));
-      const r = mulberry32(11); this.skyline = Array.from({ length: 60 }, () => ({ w: 0.01 + r() * 0.035, h: 0.03 + r() * 0.18, s: (r() * 999) | 0 }));
-    }
-    if (shot === 'side') this.drawSide(c, t, dt, F, spd);
-    else this.drawChase(c, t, dt, F, spd, shot === 'cockpit');
+/* police bitmap 3x5 : le texte du tableau de bord reste net en pixels */
+const FONT5 = {
+  '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111', '4': '101101111001001', '5': '111100111001111',
+  '6': '111100111101111', '7': '111001010010010', '8': '111101111101111', '9': '111101111001111',
+  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
+  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
+  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', Q: '010101101110011', R: '110101110101101',
+  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
+  Y: '101101010010010', Z: '111001010100111', ':': '000010000010000', '.': '000000000000010', '-': '000000111000000', '/': '001001010100100',
+  '+': '000010111010000', '%': '101001010100101', ' ': '000000000000000'
+};
+function px5(c, str, x, y, s, col) {
+  c.fillStyle = col; let cx = x;
+  for (const ch of String(str).toUpperCase()) { const g = FONT5[ch]; if (g) for (let i = 0; i < 15; i++) if (g.charCodeAt(i) === 49) c.fillRect(cx + (i % 3) * s, y + ((i / 3) | 0) * s, s, s); cx += 4 * s; }
+}
+const px5w = (str, s) => String(str).length * 4 * s - s;
+
+/* bruit lisse 1D (déterministe) */
+function vnoise(x, seed) { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return lerp(ih(i * 7919 + seed * 104729) * 2 - 1, ih((i + 1) * 7919 + seed * 104729) * 2 - 1, u); }
+function fbm(x, seed) { return vnoise(x, seed) * 0.65 + vnoise(x * 2.3, seed + 3) * 0.25 + vnoise(x * 5.1, seed + 7) * 0.1; }
+
+/* ---------- les paysages ---------- */
+const SEG = 4;
+const BIOMES = {
+  highway: { len: [1700, 2600], w: 6.2, lanes: 3, k: 1 / 650, kScale: 520, hill: 4, hScale: 700, v: 255, lamps: 32, traffic: 7 },
+  tunnel:  { len: [650, 1100], w: 4.4, lanes: 2, k: 1 / 900, kScale: 600, hill: 1, hScale: 900, v: 245, lamps: 8, traffic: 4 },
+  touge:   { len: [1800, 2600], w: 3.5, lanes: 2, k: 1 / 55, kScale: 75, hill: 16, hScale: 260, v: 150, lamps: 0, traffic: 0 },
+  city:    { len: [1200, 1900], w: 5.0, lanes: 2, k: 1 / 400, kScale: 300, hill: 2, hScale: 500, v: 165, lamps: 28, traffic: 6 },
+  bridge:  { len: [900, 1400], w: 6.2, lanes: 3, k: 1 / 2500, kScale: 800, hill: 0, hScale: 900, v: 250, lamps: 24, traffic: 6 },
+  coast:   { len: [1500, 2300], w: 3.9, lanes: 2, k: 1 / 180, kScale: 160, hill: 7, hScale: 380, v: 200, lamps: 0, traffic: 2 }
+};
+const BIOME_KEYS = Object.keys(BIOMES);
+const SIGNS_HW = ['湾岸線', '首都高', '大黒', '辰巳', '横羽線', '芝浦', '羽田', '新木場'];
+const NEON = ['カラオケ', 'ラーメン', 'ホテル', '居酒屋', 'バー', '電気', 'ゲーム', '酒場', 'ドリフト', '夜'];
+
+const Road = {
+  plan: [], seed: (Math.random() * 1e6) | 0, cache: new Map(),
+  init() {
+    this.plan = [{ type: 'highway', s0: -3000, s1: 1800 }];
+    this.extend(8000);
   },
-  drawSkyline(c, W, vy, t, par) {
-    let x = -((t * 0.004 * par) % (W * 0.06)) - W * 0.06;
-    for (const b of this.skyline) {
-      const bw = b.w * W, bh = b.h * V.H;
-      c.fillStyle = gs(0.07); c.fillRect(x, vy - bh, bw, bh);
-      c.fillStyle = gs(0.3);
-      for (let wy = vy - bh + 2; wy < vy - 2; wy += 3) for (let wx = x + 1; wx < x + bw - 1; wx += 2) if (ih(b.s * 97 + wy * 13 + ((wx - x) | 0)) < 0.12) c.fillRect(wx | 0, wy | 0, 1, 1);
-      x += bw + 1; if (x > W) break;
+  extend(to) {
+    while (this.plan[this.plan.length - 1].s1 < to) {
+      const last = this.plan[this.plan.length - 1], n = this.plan.length;
+      let type, tries = 0; do { type = BIOME_KEYS[Math.floor(ih(this.seed + n * 31 + tries * 7) * BIOME_KEYS.length)]; tries++; } while (type === last.type && tries < 50);
+      if (n % 3 === 0 && last.type !== 'tunnel' && type !== 'tunnel' && ih(this.seed + n) < 0.6) type = 'tunnel';
+      const L = BIOMES[type].len, len = L[0] + ih(this.seed + n * 13) * (L[1] - L[0]);
+      this.plan.push({ type, s0: last.s1, s1: last.s1 + len });
     }
+    // on oublie le passé lointain
+    while (this.plan.length > 3 && this.plan[1].s1 < (to - 30000)) this.plan.shift();
   },
-  drawChase(c, t, dt, F, spd, inside) {
-    const W = V.W, H = V.H, k = W * 0.2;
-    const curve = Math.sin(t * 0.00017) * 0.9 + Math.sin(t * 0.00041) * 0.35;
-    const vx = W / 2 - curve * W * 0.05, vy = H * 0.4;
-    const bend = z => curve * z * z * 0.012;
-    const inT = this.tunnelAt(this.z);
-    let g = c.createLinearGradient(0, 0, 0, vy);
-    g.addColorStop(0, gs(0)); g.addColorStop(1, gs(0.05 + 0.14 * ENV.glow));
-    c.fillStyle = g; c.fillRect(0, 0, W, vy);
-    this.drawSkyline(c, W, vy, t, 1 + curve * 0.3);
-    c.fillStyle = gs(0.015); c.fillRect(0, vy, W, H - vy);
-    const P = (X, Y, z) => proj(X + bend(z), Y, z, vx, vy, k);
-    const line = (X, Y, z0, z1, val, lw) => { const a = P(X, Y, z0), b = P(X, Y, z1); c.strokeStyle = gs(val); c.lineWidth = Math.max(1, lw * a[2]); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); };
-    // coques de tunnel (de loin vers près)
-    for (let z = 44; z > 0.3; z -= 1) {
-      if (!this.tunnelAt(this.z + z)) continue;
-      const z1 = Math.max(0.3, z - 1);
-      const wl = [P(-2.7, -0.6, z), P(-2.7, 1.9, z), P(-2.7, 1.9, z1), P(-2.7, -0.6, z1)], wr = [P(2.7, -0.6, z), P(2.7, 1.9, z), P(2.7, 1.9, z1), P(2.7, -0.6, z1)];
-      const ce = [P(-2.7, 1.9, z), P(2.7, 1.9, z), P(2.7, 1.9, z1), P(-2.7, 1.9, z1)];
-      const v = 0.05 + 0.03 * ((Math.floor(this.z + z) & 1));
-      c.fillStyle = gs(v); poly(c, wl); poly(c, wr); c.fillStyle = gs(v * 0.7); poly(c, ce);
-      if (!this.tunnelAt(this.z + z + 1)) {
-        // sortie du tunnel vue de l'intérieur : rien à faire (le ciel est derrière) ; entrée vue de dehors : la façade
-      }
-      if (!this.tunnelAt(this.z + z - 1) && z > 1.2) {
-        const o0 = P(-6, -0.6, z), o1 = P(6, 4.2, z), i0 = P(-2.7, -0.6, z), i1 = P(2.7, 1.9, z);
-        c.fillStyle = gs(0.09); c.beginPath(); c.rect(o0[0], o1[1], o1[0] - o0[0], o0[1] - o1[1]); c.rect(i1[0], i1[1], i0[0] - i1[0], i0[1] - i1[1]); c.fill('evenodd');
-        c.fillStyle = gs(0.6); if (o0[2] > 0.4) txt(c, this.SIGNS[Math.floor((this.z + z) / 180) % this.SIGNS.length] + 'トンネル', (o0[0] + o1[0]) / 2, (o1[1] + i1[1]) / 2, Math.max(4, (i1[1] - o1[1]) * 0.45));
-      }
-    }
-    for (let z = 40; z > 0.3; z -= 1) { if (!this.tunnelAt(this.z + z)) { line(-2.6, -0.2, z, z - 1, 0.18, 0.03); line(2.6, -0.2, z, z - 1, 0.18, 0.03); } line(-2.2, -0.6, z, z - 1, 0.45, 0.025); line(2.2, -0.6, z, z - 1, 0.45, 0.025); }
-    const ph = this.z % 3;
-    for (let i = 0; i < 16; i++) { const z0 = i * 3 - ph; if (z0 < 0.3) continue; for (const X of [-1, 0, 1]) line(X, -0.6, z0, z0 + 1.2, 0.5, 0.03); }
-    // portiques
-    const gp = 26, gz = gp - (this.z % gp);
-    for (const z0 of [gz, gz + gp]) {
-      if (z0 > 42 || z0 < 0.4 || this.tunnelAt(this.z + z0)) continue;
-      const a = P(-2.3, 1.7, z0), b = P(0.6, 1.15, z0);
-      c.fillStyle = gs(0.1); c.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
-      c.strokeStyle = gs(0.55); c.lineWidth = Math.max(1, a[2] * 1.2); c.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
-      if (a[2] > 0.5) { c.fillStyle = gs(0.85); txt(c, this.SIGNS[Math.floor((this.z + z0) / gp) % this.SIGNS.length], (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (b[1] - a[1]) * 0.55); }
-      const p1 = P(-2.3, -0.6, z0); c.fillStyle = gs(0.12); c.fillRect(a[0], a[1], Math.max(1, a[2] * 1.5), p1[1] - a[1]);
-    }
-    c.globalCompositeOperation = 'lighter';
-    // lampes : poteaux sodium dehors, rampe au plafond dans le tunnel
-    const streak = 0.6 + spd * 0.06;
-    for (let i = 0; i < 26; i++) {
-      const lp = 2, z0 = lp - (this.z % lp) + i * lp; if (z0 < 0.35) continue;
-      const tun = this.tunnelAt(this.z + z0);
-      if (!tun && (Math.floor((this.z + z0) / lp) & 1)) continue;
-      for (const X of tun ? [-1.1, 1.1] : [-2.4, 2.4]) {
-        const Y = tun ? 1.85 : 1.6, a = P(X, Y, z0), b = P(X, Y, z0 + streak * (tun ? 1.4 : 1));
-        c.strokeStyle = wa(Math.min(1, 0.45 + a[2] * 0.4)); c.lineWidth = Math.max(1, a[2] * 1.5);
-        c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
-        glow(c, a[0], a[1], Math.max(3, a[2] * (tun ? 6 : 9)), tun ? 0.18 : 0.24);
-      }
-    }
-    // circulation
-    for (const car of this.cars) {
-      car.z -= dt * (spd * (1 - car.v)) * 0.5;
-      if (car.z < 0.6) { car.z = 34 + Math.random() * 12; car.lane = [-1.5, 0.5, 1.5][(Math.random() * 3) | 0]; car.v = 0.45 + Math.random() * 0.3; }
-      for (const dx of [-0.28, 0.28]) {
-        const a = P(car.lane + dx, -0.25, car.z);
-        c.fillStyle = gs(1); c.fillRect(a[0] - 0.5, a[1] - 0.5, Math.max(1, a[2] * 0.9), Math.max(1, a[2] * 0.5));
-        glow(c, a[0], a[1], Math.max(2, a[2] * 4), 0.35);
-        const b = P(car.lane + dx, -0.25, car.z + 1.4);
-        c.strokeStyle = wa(0.25); c.lineWidth = Math.max(1, a[2] * 0.5); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
-      }
-    }
-    c.globalCompositeOperation = 'source-over';
-    // le rival, voie de gauche, qui avance et recule par rapport à nous
-    const rz = 3.4 + Math.sin(t * 0.00035) * 1.6 + Math.sin(t * 0.0009) * 0.4, rx = -1 + Math.sin(t * 0.0006) * 0.15;
-    const ra = P(rx, -0.6, rz);
-    drawCarRear(c, ra[0], ra[1], 0.95 * k * ra[2] / 1, { light: 0.85, lean: Math.sin(t * 0.0021) * 0.8, body: 0.5, wet: ENV.rain });
-    if (inside) { cockpit(c, W, H, t, clamp(0.55 + F.drive * 0.4, 0, 1), -curve * 0.25 + Math.sin(t * 0.003) * 0.03); }
-    else {
-      const hood = H * 0.86, near = 1 - (this.z % 2) / 2;
-      c.fillStyle = gs(0.02); poly(c, [[W * 0.12, H], [W * 0.28, hood], [W * 0.72, hood], [W * 0.88, H]]);
-      c.fillStyle = gs(0.2 + 0.4 * Math.pow(near, 6)); c.fillRect(W * 0.28, hood, W * 0.44, 1);
-    }
-    speedLines(c, W, H, vx, vy, F.rush * 0.9);
-    c.fillStyle = gs(0.08); txt(c, '湾岸', W * 0.08, H * 0.14, H * 0.07, JP_FONT, 'left');
+  entry(s) { const p = this.plan; for (let i = p.length - 1; i >= 0; i--) if (s >= p[i].s0) return p[i]; return p[0]; },
+  typeAt(s) { return this.entry(s).type; },
+  // poids de mélange aux frontières (100 m) pour que courbes et reliefs restent continus
+  blend(s, f) {
+    const e = this.entry(s), X = 120, idx = this.plan.indexOf(e);
+    let v = f(BIOMES[e.type], e);
+    if (s - e.s0 < X / 2 && idx > 0) { const p = this.plan[idx - 1], w = smooth(0.5 + (s - e.s0) / X); v = lerp(f(BIOMES[p.type], p), v, w); }
+    else if (e.s1 - s < X / 2 && idx < this.plan.length - 1) { const nx = this.plan[idx + 1], w = smooth(0.5 - (e.s1 - s) / X); v = lerp(v, f(BIOMES[nx.type], nx), w); }
+    return v;
   },
-  drawSide(c, t, dt, F, spd) {
-    const W = V.W, H = V.H, gy = H * 0.78, inT = this.tunnelAt(this.z);
-    c.fillStyle = gs(0.02); c.fillRect(0, 0, W, H);
-    if (inT) {
-      // paroi du tunnel qui défile, rampe de lampes en traits
-      c.fillStyle = gs(0.07); c.fillRect(0, H * 0.12, W, gy - H * 0.12);
-      c.fillStyle = gs(0.11); for (let x = -((this.z * W * 0.09) % (W * 0.18)); x < W; x += W * 0.18) c.fillRect(x, H * 0.12, 1, gy - H * 0.12);
-      c.globalCompositeOperation = 'lighter';
-      for (let x = -((this.z * W * 0.3) % (W * 0.22)); x < W; x += W * 0.22) { c.strokeStyle = wa(0.8); c.lineWidth = 2; c.beginPath(); c.moveTo(x, H * 0.2); c.lineTo(x + W * 0.12, H * 0.2); c.stroke(); glow(c, x + W * 0.06, H * 0.2, W * 0.08, 0.2); }
-      c.globalCompositeOperation = 'source-over';
-    } else {
-      const g = c.createLinearGradient(0, 0, 0, gy); g.addColorStop(0, gs(0)); g.addColorStop(1, gs(0.08 + 0.12 * ENV.glow));
-      c.fillStyle = g; c.fillRect(0, 0, W, gy);
-      stars(c, W, gy * 0.5, t, F, 0.6);
-      // ville lointaine (lente) puis pylônes du pont (rapides)
-      this.drawSkyline(c, W, gy - H * 0.12, t * 3, 1);
-      c.fillStyle = gs(0.05); c.fillRect(0, gy - H * 0.12, W, H * 0.12);
-      const pp = W * 0.7, px = -((this.z * W * 0.12) % pp);
-      for (let x = px; x < W + pp; x += pp) {
-        c.fillStyle = gs(0.1); c.fillRect(x, H * 0.05, Math.max(2, W * 0.012), gy - H * 0.05);
-        c.strokeStyle = gs(0.22); c.lineWidth = 1;
-        for (let i = 1; i <= 6; i++) { c.beginPath(); c.moveTo(x + W * 0.006, H * 0.07 + i * 2); c.lineTo(x + W * 0.006 + pp * 0.48 * (i / 6), gy - H * 0.03); c.stroke(); c.beginPath(); c.moveTo(x + W * 0.006, H * 0.07 + i * 2); c.lineTo(x + W * 0.006 - pp * 0.48 * (i / 6), gy - H * 0.03); c.stroke(); }
-      }
+  curv(s) { return this.blend(s, b => b.k * clamp(fbm(s / b.kScale, this.seed + 1) * 1.6, -1, 1)); },
+  height(s) { return this.blend(s, b => b.hill * fbm(s / b.hScale, this.seed + 2)); },
+  width(s) { return this.blend(s, b => b.w); },
+  seg(i) {
+    let g = this.cache.get(i);
+    if (g) return g;
+    const s = i * SEG, type = this.typeAt(s);
+    g = { i, s, k: this.curv(s + SEG / 2), y: this.height(s), w: this.width(s), type, sp: this.sprites(i, s, type) };
+    this.cache.set(i, g);
+    if (this.cache.size > 1600) for (const key of this.cache.keys()) if (Math.abs(key - i) > 700) this.cache.delete(key);
+    return g;
+  },
+  sprites(i, s, type) {
+    const b = BIOMES[type], w = b.w, r = k => ih(i * 131 + k * 977 + this.seed), out = [];
+    if (b.lamps && i % (b.lamps / SEG) === 0) {
+      if (type === 'tunnel') out.push({ t: 'tlamp' });
+      else for (const sd of type === 'highway' || type === 'bridge' ? [-1, 1] : [1, -1].slice(0, i % (2 * b.lamps / SEG) === 0 ? 2 : 1)) out.push({ t: 'lamp', x: sd * (w + 1.4), sd, warm: type !== 'city' });
     }
-    // glissière et poteaux au premier plan, très rapides
-    c.fillStyle = gs(0.3); c.fillRect(0, gy - H * 0.06, W, Math.max(1, H * 0.012));
-    c.fillStyle = gs(0.16); for (let x = -((this.z * W * 0.8) % (W * 0.1)); x < W; x += W * 0.1) c.fillRect(x, gy - H * 0.06, Math.max(1, W * 0.006), H * 0.06);
-    c.fillStyle = gs(0.03); c.fillRect(0, gy, W, H - gy);
-    c.fillStyle = gs(0.45); for (let x = -((this.z * W * 0.6) % (W * 0.3)); x < W; x += W * 0.3) c.fillRect(x, gy + H * 0.1, W * 0.12, Math.max(1, H * 0.01));
-    // le rival en arrière-plan, un peu derrière, puis nous
-    const L = Math.min(W * 0.62, H * 1.25), bob = Math.sin(t * 0.017) * 0.6;
-    const rx = W * 0.5 - L * 0.95 + Math.sin(t * 0.0004) * L * 0.25;
-    drawCarSide(c, rx, gy - H * 0.035, L * 0.72, { rot: this.rot, light: 0.8, sweeps: [], body: 0.13 });
-    const sweep = ((t * 0.0011) % 2.2) - 0.6;
-    drawCarSide(c, W * 0.5 - L * 0.42, gy + bob, L, { rot: this.rot, light: 0.9, sweeps: [sweep], body: 0.3 });
-    hLines(c, W, H, 0.35 + F.rush * 0.6, H * 0.06, H * 0.95);
+    if (type === 'highway') {
+      if (i % 47 === 0) out.push({ t: 'gantry', txt: SIGNS_HW[(i / 47 | 0) % SIGNS_HW.length], km: 1 + (i % 7) });
+      if (i % 12 === 0) out.push({ t: 'joint' });
+      if (r(1) < 0.05) out.push({ t: 'reflector', x: (r(2) < 0.5 ? -1 : 1) * (w + 0.9) });
+    } else if (type === 'tunnel') {
+      if (i % 50 === 0) out.push({ t: 'exitsign', sd: i % 100 === 0 ? 1 : -1 });
+      if (i % 33 === 0) out.push({ t: 'fan' });
+    } else if (type === 'touge') {
+      for (let k = 0; k < 3; k++) if (r(10 + k) < 0.55) { const sd = r(20 + k) < 0.5 ? -1 : 1; out.push({ t: 'tree', x: sd * (w + 2.5 + r(30 + k) * 22), h: 7 + r(40 + k) * 9 }); }
+      if (i % 3 === 0) for (const sd of [-1, 1]) out.push({ t: 'post', x: sd * (w + 0.7) });
+      if (r(5) < 0.004) out.push({ t: 'vending', x: (w + 3.2) * (r(6) < 0.5 ? -1 : 1) });
+    } else if (type === 'city') {
+      for (const sd of [-1, 1]) if (i % 4 === 0 && r(sd + 50) < 0.85) out.push({ t: 'bldg', x: sd * (w + 5 + r(sd + 60) * 6), sd, h: 12 + r(sd + 70) * 46, d: 10 + r(sd + 80) * 16, seed: i * 3 + sd });
+      for (const sd of [-1, 1]) if (r(sd + 90) < 0.09) out.push({ t: 'neon', x: sd * (w + 3.6), sd, h: 4 + r(sd + 95) * 7, txt: NEON[Math.floor(r(sd + 99) * NEON.length)], col: ['red', 'blue', 'green', 'amber'][Math.floor(r(sd + 97) * 4)] });
+      if (i % 60 === 0) out.push({ t: 'signal', col: r(7) < 0.5 ? 'green' : 'amber' }, { t: 'zebra' });
+    } else if (type === 'bridge') {
+      if (i % 110 === 30) out.push({ t: 'tower' });
+      if (i % 2 === 0) out.push({ t: 'cable' });
+      if (i % 12 === 0) out.push({ t: 'joint' });
+    } else if (type === 'coast') {
+      if (i % 3 === 0) out.push({ t: 'post', x: -(w + 0.7) });
+      if (r(4) < 0.18) out.push({ t: 'rock', x: w + 3 + r(5) * 4, h: 4 + r(6) * 10 });
+    }
+    return out;
   }
 };
 
-/* --- 2. TOUGE : descente de col la nuit, caméra derrière la voiture, glissade dans les épingles ---------- */
-const SceneTouge = {
-  name: 'Touge', jp: '峠', pos: 0, camX: 0, yaw: 0, smoke: [], rot: 0,
-  s: 0, drift: 0, ang: 0, marks: [],
-  C(i) { return 0.0042 * Math.sin(i * 0.0095) + 0.0026 * Math.sin(i * 0.023 + 1) + 0.0012 * Math.sin(i * 0.051 + 2); },
-  Hh(i) { return -i * 0.03 + 0.9 * Math.sin(i * 0.017) + 0.25 * Math.sin(i * 0.043 + 1); },
+/* ---------- la scène ---------- */
+const SceneDrive = {
+  name: 'Night drive', jp: '夜走', indoor: true,
+  S: 0, v: 62, gear: 5, rpm: 6000, shiftT: 0, lane: 0, camX: 0, camXV: 0, heading: 0, steer: 0, gLat: 0, pitchV: 0, bump: 0, lapT: 0, last: 0,
+  traffic: [], drops: [], streaks: [], flakes: [], wiper: { a: -0.95, phase: 0, t: 0 }, lb: null, pol: 0, boostT: -1e9, offA: null, offB: null, mirrorLight: 0,
+  resize() {
+    for (const k of ['offA', 'offB']) { const c = document.createElement('canvas'); c.width = V.W; c.height = V.H; this[k] = c; this[k + 'x'] = c.getContext('2d'); }
+  },
+  /* appelée à chaque nouveau morceau : le pilote se retourne */
+  lookBack() { if (this.lb) return; this.lb = { t: 0 }; this.pol = 0; },
+  view(ctx) {
+    const k = Math.max(V.W / VW, V.H / VH);
+    ctx.setTransform(k, 0, 0, k, (V.W - VW * k) / 2, (V.H - VH * k) / 2);
+  },
+  /* géométrie locale autour de la voiture : centre de la route, cap, hauteur, à chaque segment */
+  build(dir, N) {
+    const S = this.S, base = Math.floor(S / SEG), pts = [];
+    let x = 0, z = 0, phi = 0, s = S;
+    const y0 = Road.height(S);
+    pts.push({ s, x, z, phi, y: y0, seg: Road.seg(base) });
+    for (let n = 1; n <= N; n++) {
+      const idx = dir > 0 ? base + n : base + 1 - n, sNext = idx * SEG;
+      const ds = Math.abs(sNext - s), g = Road.seg(dir > 0 ? idx - 1 : idx);
+      phi += dir * g.k * ds; x += dir * Math.sin(phi) * ds; z += dir * Math.cos(phi) * ds;
+      s = sNext;
+      pts.push({ s, x, z, phi, y: Road.height(s), seg: Road.seg(dir > 0 ? idx : idx - 1) });
+    }
+    return pts;
+  },
+  update(dt, F) {
+    const S = this.S, type = Road.typeAt(S), b = BIOMES[type];
+    Road.extend(S + 6000);
+    // vitesse cible : le paysage, la musique (WAV) ou la conduite simulée, les virages à venir, le boost après la police
+    let kMax = 0; for (let d = 20; d <= 140; d += 10) kMax = Math.max(kMax, Math.abs(Road.curv(S + d)) * (1 - d / 220));
+    const vCurve = kMax > 0 ? Math.sqrt(11.5 / kMax) : 999;
+    const boost = clamp(1 - (performance.now() - this.boostT) / 14000, 0, 1);
+    let target = Math.min(b.v / 3.6 * (0.88 + 0.22 * (F.drive != null ? F.drive : 0.5)), vCurve) + boost * 17;
+    if (type !== 'touge') target = Math.max(target, 30);
+    const acc = target > this.v ? (4.8 * (1 - this.v / 100) + boost * 3) : -8.5;
+    this.v = clamp(this.v + clamp(target - this.v, -Math.abs(acc) * dt, Math.abs(acc) * dt), 12, 95);
+    const kmh = this.v * 3.6, R = [0, 14, 20, 26, 31, 35.5, 39.5];
+    this.rpm = kmh / R[this.gear] * 1000;
+    if (this.rpm > 8250 && this.gear < 6) { this.gear++; this.shiftT = performance.now(); this.bump -= 0.7; }
+    else if (this.rpm < 4700 && this.gear > 2) { this.gear--; this.shiftT = performance.now(); }
+    this.rpm = clamp(kmh / R[this.gear] * 1000, 1500, 8600);
+    this.S += this.v * dt; this.lapT += dt;
+    const k = Road.curv(this.S);
+    this.heading += k * this.v * dt;
+    this.gLat = lerp(this.gLat, this.v * this.v * k, 1 - Math.exp(-dt * 4));
+    // circulation et choix de la voie
+    const w = Road.width(this.S), lanes = BIOMES[Road.typeAt(this.S)].lanes, lw = (w * 2) / lanes;
+    const laneX = j => -w + lw * (j + 0.5);
+    this.traffic = this.traffic.filter(c => c.s > this.S - 60 && c.s < this.S + 700 && BIOMES[Road.typeAt(c.s)].traffic);
+    if (b.traffic && this.traffic.length < b.traffic && Math.random() < dt * 0.9) {
+      const j = Math.floor(Math.random() * lanes), sp = this.S + 260 + Math.random() * 220;
+      if (!this.traffic.some(c => Math.abs(c.s - sp) < 40 && c.j === j)) this.traffic.push({ s: sp, j, v: (85 + Math.random() * 80) / 3.6, body: 0.1 + Math.random() * 0.35, shape: (Math.random() * 3) | 0 });
+    }
+    for (const c of this.traffic) { c.j = Math.min(c.j, lanes - 1); c.s += c.v * dt; c.L = laneX(c.j); }
+    if (this.lane >= lanes) this.lane = lanes - 1;
+    const blocked = j => this.traffic.some(c => c.j === j && c.s - this.S > -8 && c.s - this.S < 90);
+    if (blocked(this.lane)) { const opts = [this.lane - 1, this.lane + 1].filter(j => j >= 0 && j < lanes && !blocked(j)); if (opts.length) this.lane = opts[(Math.random() * opts.length) | 0]; }
+    const tx = laneX(this.lane), prev = this.camX;
+    this.camX = lerp(this.camX, tx, 1 - Math.exp(-dt * 1.6));
+    this.camXV = (this.camX - prev) / Math.max(dt, 1e-3);
+    this.steer = lerp(this.steer, clamp(k * 140 + this.camXV * 0.12, -1.25, 1.25), 1 - Math.exp(-dt * 5));
+    this.bump = lerp(this.bump, 0, 1 - Math.exp(-dt * 9));
+  },
   draw(c, t, dt, F) {
-    const shot = shotOf(this, dt, ['chase', 'chase', 'drone', 'chase', 'low']);
-    const spd = 20 + F.energy * 26;
-    this.pos += dt * spd; this.s += dt * spd * 5.5; this.rot += dt * spd;
-    if (shot === 'drone') this.drawTop(c, t, dt, F);
-    else this.drawChase(c, t, dt, F, shot === 'low');
+    if (!Road.plan.length) Road.init();
+    if (!this.offA || this.offA.width !== V.W || this.offA.height !== V.H) this.resize();
+    dt = Math.min(dt, 0.05);
+    this.update(dt, F);
+    this.weather(dt, t);
+    const lb = this.lb;
+    let pan = 0;
+    if (lb) {
+      lb.t += dt;
+      const T = lb.t;
+      if (T < 0.55) pan = smooth(T / 0.55); else if (T < 3.35) pan = 1; else if (T < 3.9) pan = 1 - smooth((T - 3.35) / 0.55); else { this.lb = null; this.boostT = performance.now(); this.gear = Math.max(3, this.gear - 1); this.shiftT = performance.now(); }
+      this.pol = T;
+    }
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if (pan <= 0.001) { this.drawFront(c, t, dt, F); return; }
+    if (pan >= 0.999) { this.drawRear(c, t); return; }
+    // panoramique filé, comme un mouvement de tête rapide
+    this.drawFront(this.offAx, t, dt, F); this.drawRear(this.offBx, t);
+    const W = V.W, H = V.H, off = pan * W * 1.08;
+    c.fillStyle = gs(0); c.fillRect(0, 0, W, H);
+    for (let k = 3; k >= 0; k--) {
+      c.globalAlpha = k ? 0.22 : 1;
+      c.drawImage(this.offA, -off + k * W * 0.035, 0); c.drawImage(this.offB, W * 1.08 - off + k * W * 0.035, 0);
+    }
+    c.globalAlpha = 1;
+    c.fillStyle = 'rgba(255,255,255,0.18)';
+    for (let i = 0; i < 18; i++) { const y = ih(i * 7 + Math.floor(t / 60)) * H; c.fillRect(0, y | 0, W, 1); }
   },
-  drawChase(c, t, dt, F, low) {
-    const W = V.W, H = V.H, N = 110, base = Math.floor(this.pos), fr = this.pos - base;
-    const camH = low ? 0.55 : 1.45, D = W * 0.62, hor = H * (low ? 0.42 : 0.33), RW = 1.7;
-    // ciel, lune, crêtes
-    const g = c.createLinearGradient(0, 0, 0, hor); g.addColorStop(0, gs(0)); g.addColorStop(1, gs(0.06 + 0.1 * ENV.glow));
-    c.fillStyle = g; c.fillRect(0, 0, W, hor + 2);
-    stars(c, W, hor * 0.8, t, F, 0.7);
-    let curAcc = 0; for (let i = 0; i < 40; i++) curAcc += this.C(base + i);
-    this.bg = (this.bg || 0) + curAcc * dt * (20 + F.energy * 26) * 40;
-    ridge(c, W, hor + 2, H * 0.16, 0.05, this.bg * W * 0.3, 2.1);
-    ridge(c, W, hor + 4, H * 0.1, 0.08, this.bg * W * 0.6, 4.7);
-    c.fillStyle = gs(0.02); c.fillRect(0, hor + 3, W, H - hor);
-    // projection des segments
-    const pts = []; let x = 0, dx = 0;
-    const h0 = this.Hh(base + fr);
-    for (let i = 0; i <= N; i++) {
-      const idx = base + i; dx += this.C(idx); x += dx;
-      const z = (i + 1 - fr) * 1.0; const y = this.Hh(idx) - h0;
-      pts.push({ x, y, z, idx });
-    }
-    const carZ = low ? 2.4 : 3.2, ci = Math.max(0, Math.floor(carZ - 1 + fr));
-    const target = pts[ci].x;
-    this.camX = lerp(this.camX, target, 1 - Math.exp(-dt * 6));
-    for (const p of pts) { const s = D / p.z; p.sx = W / 2 + (p.x - this.camX) * s; p.sy = hor + (camH - p.y) * s; p.w = RW * s; p.s = s; }
-    const fog = clamp(ENV.fog * settings.weather, 0, 1);
-    const shade = (v, z) => { const light = 0.3 + 0.7 * Math.exp(-z / 10); return lerp(v * light, 0.1, fog * smooth(z / 60)); };
-    for (let i = N - 1; i >= 0; i--) {
-      const a = pts[i], b = pts[i + 1];
-      if (b.sy >= a.sy - 0.01 && i > 0) { /* segment caché derrière une bosse */ }
-      const band = (a.idx >> 2) & 1;
-      c.fillStyle = gs(shade(band ? 0.05 : 0.065, a.z)); c.fillRect(0, Math.min(a.sy, b.sy) | 0, W, Math.abs(a.sy - b.sy) + 1);
-      const q = (o0, o1, v) => { c.fillStyle = gs(shade(v, a.z)); poly(c, [[a.sx + a.w * o0, a.sy], [a.sx + a.w * o1, a.sy], [b.sx + b.w * o1, b.sy], [b.sx + b.w * o0, b.sy]]); };
-      q(-1.18, 1.18, 0.03);
-      q(-1, 1, band ? 0.16 : 0.18);
-      const rb = (a.idx >> 1) & 1;
-      q(-1.08, -0.96, rb ? 0.62 : 0.24); q(0.96, 1.08, rb ? 0.62 : 0.24);
-      if (band) q(-0.025, 0.025, 0.7);
-      // glissières et poteaux
-      if (a.z < 60) {
-        for (const sd of [-1, 1]) {
-          const ra = [a.sx + sd * a.w * 1.25, a.sy - a.s * 0.5], rbp = [b.sx + sd * b.w * 1.25, b.sy - b.s * 0.5];
-          c.strokeStyle = gs(shade(0.5, a.z)); c.lineWidth = Math.max(1, a.s * 0.08); c.beginPath(); c.moveTo(ra[0], ra[1]); c.lineTo(rbp[0], rbp[1]); c.stroke();
-          if (a.idx % 3 === 0) { c.fillStyle = gs(shade(0.3, a.z)); c.fillRect(ra[0] - Math.max(0.5, a.s * 0.03), ra[1], Math.max(1, a.s * 0.06), a.s * 0.5); c.fillStyle = gs(shade(0.95, a.z)); c.fillRect(ra[0] - 0.5, ra[1] - 0.5, Math.max(1, a.s * 0.05), Math.max(1, a.s * 0.05)); }
-          // cèdres
-          if (ih(a.idx * 13 + (sd > 0 ? 7 : 0)) < 0.28 && a.z > 1.5) {
-            const tx = a.sx + sd * a.w * (1.6 + ih(a.idx * 3 + sd) * 2.2), th = a.s * (2.4 + ih(a.idx * 5) * 2.5), tw = th * 0.32;
-            c.fillStyle = gs(lerp(0.035, 0.1, fog * smooth(a.z / 60))); poly(c, [[tx, a.sy - th], [tx + tw, a.sy], [tx - tw, a.sy]]);
-          }
-        }
-      }
-    }
-    // phares sur la route
-    const cp = pts[ci], cx = W / 2 + (cp.x - this.camX) * cp.s, cy = cp.sy;
-    c.globalCompositeOperation = 'lighter';
-    const ahead = pts[Math.min(N, ci + 14)];
-    const lg = c.createLinearGradient(0, cy, 0, ahead.sy); lg.addColorStop(0, wa(0.2)); lg.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = lg; poly(c, [[cx - cp.w * 0.5, cy - cp.s * 0.2], [cx + cp.w * 0.5, cy - cp.s * 0.2], [ahead.sx + ahead.w * 1.1, ahead.sy], [ahead.sx - ahead.w * 1.1, ahead.sy]]);
-    c.globalCompositeOperation = 'source-over';
-    // la voiture : l'arrière glisse vers l'extérieur du virage
-    let cv = 0; for (let i = ci; i < ci + 12; i++) cv += this.C(base + i);
-    this.yaw = lerp(this.yaw, clamp(cv * 9, -0.55, 0.55), 1 - Math.exp(-dt * 3));
-    const w = cp.s * 1.15, slide = -this.yaw * w * 0.5;
-    if (Math.abs(this.yaw) > 0.12) {
-      // flanc visible quand la voiture est en travers
-      const sd = this.yaw > 0 ? -1 : 1, side = Math.abs(this.yaw) * w * 0.9;
-      c.fillStyle = gs(0.18); poly(c, [[cx + slide + sd * w * 0.48, cy - w * 0.47], [cx + slide + sd * (w * 0.48 + side), cy - w * 0.42], [cx + slide + sd * (w * 0.48 + side), cy - w * 0.04], [cx + slide + sd * w * 0.48, cy]]);
-      c.fillStyle = gs(0.02); circle(c, cx + slide + sd * (w * 0.48 + side * 0.55), cy - w * 0.05, w * 0.1);
-      for (const k2 of [0, 1]) if (Math.random() < Math.abs(this.yaw) * 1.4) this.smoke.push({ x: cx + slide + (k2 ? 1 : -1) * w * 0.3, y: cy - w * 0.05, r: w * 0.12, vx: -sd * w * (0.4 + Math.random() * 0.8), vy: -w * (0.15 + Math.random() * 0.3), life: 1 });
-    }
-    this.smoke = this.smoke.filter(s => (s.life -= dt * 0.9) > 0).slice(-70);
-    for (const s of this.smoke) {
-      s.x += s.vx * dt; s.y += s.vy * dt; s.r += dt * w * 0.9;
-      const gg = c.createRadialGradient(s.x, s.y, 0, s.x, s.y, Math.max(1, s.r));
-      gg.addColorStop(0, 'rgba(210,210,210,' + (0.32 * s.life).toFixed(3) + ')'); gg.addColorStop(1, 'rgba(210,210,210,0)');
-      c.fillStyle = gg; c.fillRect(s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
-    }
-    drawCarRear(c, cx + slide, cy, w, { light: 0.75, lean: this.yaw * 4, body: 0.82, wet: ENV.rain });
-    speedLines(c, W, H, W / 2, hor, F.rush * 0.8);
-    c.fillStyle = gs(0.1); vtxt(c, '峠', W * 0.07, H * 0.16, H * 0.15);
-    c.fillStyle = gs(0.55); txt(c, 'DRIFT ' + Math.round(Math.abs(this.yaw) * 80) + '°', W * 0.93, H * 0.1, H * 0.035, UI_FONT, 'right');
-  },
-  /* plan drone : le même col vu du ciel, traces de pneus et fumée */
-  path(u) { return [Math.sin(u * 0.0062) * 170 + Math.sin(u * 0.0141 + 1) * 80 + Math.sin(u * 0.029 + 2) * 22, u]; },
-  tan(u) { const a = this.path(u - 3), b = this.path(u + 3); return Math.atan2(b[0] - a[0], b[1] - a[1]); },
-  drawTop(c, t, dt, F) {
-    const W = V.W, H = V.H, sc = Math.min(W, H) / 230;
-    const u = this.s, th = this.tan(u), cv = this.tan(u + 25) - this.tan(u - 25);
-    this.drift = lerp(this.drift, clamp(cv * 2.4, -0.95, 0.95) + Math.sin(t * 0.002) * 0.06, 1 - Math.exp(-dt * 2.2));
-    this.ang = lerp(this.ang, th, 1 - Math.exp(-dt * 3));
-    const p = this.path(u), nx = Math.cos(th), ny = -Math.sin(th), off = -this.drift * 10;
-    const cx = p[0] + nx * off, cy = p[1] + ny * off;
-    c.fillStyle = gs(0.015); c.fillRect(0, 0, W, H);
+  /* ---------- vue avant ---------- */
+  drawFront(c, t, dt, F) {
+    const sx = (vnoise(t * 0.011, 4) * 0.5 + vnoise(t * 0.031, 5) * 0.25) * (0.25 + this.v / 95 * 0.8);
+    const sy = (vnoise(t * 0.013, 6) * 0.5 + vnoise(t * 0.037, 8) * 0.3) * (0.3 + this.v / 95 * 0.9) + this.bump;
+    const lean = -this.gLat * 0.18, roll = clamp(this.gLat * 0.0035, -0.06, 0.06);
+    this.view(c);
     c.save();
-    c.translate(W / 2, H * 0.64); c.rotate(-this.ang); c.scale(sc, -sc); c.translate(-cx, -cy);
-    const ch = 70, c0 = Math.floor((u - 160) / ch), c1 = Math.floor((u + 360) / ch);
-    c.fillStyle = gs(0.1);
-    for (let j = c0; j <= c1; j++) {
-      const r = mulberry32(j * 7919 + 13);
-      for (let i = 0; i < 26; i++) { const wy = j * ch + r() * ch, side = r() < 0.5 ? -1 : 1, d = 34 + r() * 140, b0 = this.path(wy); const s2 = 1.5 + r() * 2.5; c.fillRect(b0[0] + side * d, wy, s2, s2); }
-    }
-    const pts = []; for (let w = u - 170; w <= u + 380; w += 6) pts.push(this.path(w));
-    const stroke = (o, lw, val, dash) => {
-      c.beginPath();
-      pts.forEach((q, i) => { const a = Math.atan2((pts[Math.min(i + 1, pts.length - 1)][0] - pts[Math.max(i - 1, 0)][0]), 12); const x = q[0] + Math.cos(a) * o, y = q[1] - Math.sin(a) * o; i ? c.lineTo(x, y) : c.moveTo(x, y); });
-      c.strokeStyle = gs(val); c.lineWidth = lw; c.setLineDash(dash || []); c.lineDashOffset = 0; c.stroke(); c.setLineDash([]);
+    c.translate(sx + lean, sy);
+    c.translate(160, 40); c.rotate(roll); c.translate(-160, -40);
+    this.drawWorld(c, t, 1);
+    c.restore();
+    // l'habitacle bouge moins que la route, et sur des pixels entiers pour que l'écran reste net
+    c.save(); c.translate(Math.round((sx + lean) * 0.4), Math.round(sy * 0.5));
+    this.drawGlass(c, t, dt);
+    this.drawCockpit(c, t);
+    c.restore();
+    this.view(c);
+    this.vignette(c);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+  },
+  /* ---------- vue arrière (pendant qu'il se retourne) ---------- */
+  drawRear(c, t) {
+    this.view(c);
+    const T = this.pol, sx = vnoise(t * 0.006, 9) * 1.6, sy = vnoise(t * 0.008, 10) * 1.2 + vnoise(t * 0.03, 11) * 0.4;
+    c.save(); c.translate(sx, sy);
+    // la police au loin : elle se rapproche un peu pendant qu'on la regarde
+    const dist = 125 - clamp(T, 0, 3.5) * 9;
+    this._pc = c;
+    this.drawWorld(c, t, -1, (P, pts) => this.policeItem(P, pts, t, dist));
+    c.restore();
+    this.drawRearCabin(c, t);
+    this.vignette(c);
+    c.setTransform(1, 0, 0, 1, 0, 0);
+  },
+  /* ---------- le monde ---------- */
+  drawWorld(c, t, dir, extra) {
+    const N = 115, pts = this.build(dir, N), S = this.S, D = 165, Y0 = 40, cx = 160, h = 1.12;
+    const type = Road.typeAt(S), camY = Road.height(S) + h;
+    // tangage : la caméra suit la pente dans le sens où elle regarde
+    const slope = (Road.height(S + 6 * dir) - Road.height(S)) / 6;
+    const yaw = dir > 0 ? clamp(-this.steer * 0.025, -0.05, 0.05) : 0;
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), camX = this.camX;
+    const fog = clamp(ENV.fog * settings.weather, 0, 1.2), rain = clamp(ENV.rain * settings.weather, 0, 2);
+    const P = (p, L, yy) => {
+      let rx = p.x + L * Math.cos(p.phi) - camX, rz = p.z - L * Math.sin(p.phi);
+      if (dir < 0) { rx = -rx; rz = -rz; }
+      const vx = rx * cy - rz * sy, vz = rz * cy + rx * sy;
+      if (vz < 0.5) return null;
+      return [cx + D * vx / vz, Y0 + D * ((camY - (p.y + yy)) / vz + slope), D / vz, vz];
     };
-    stroke(0, 50, 0.17); stroke(-22, 1.6, 0.6); stroke(22, 1.6, 0.6); stroke(0, 1.2, 0.4, [10, 14]);
-    stroke(-30, 1, 0.25, [2, 10]); stroke(30, 1, 0.25, [2, 10]);
-    if (Math.abs(this.drift) > 0.22) {
-      const rb = -9, hx = Math.sin(th + this.drift), hy = Math.cos(th + this.drift);
-      for (const sd of [-4, 4]) this.marks.push([cx + hx * rb + hy * sd, cy + hy * rb - hx * sd]);
-      if (this.marks.length > 1400) this.marks.splice(0, 200);
-      if (Math.random() < Math.abs(this.drift) * 0.9) this.tsmoke = (this.tsmoke || []).concat([{ x: cx - hx * 10 + (Math.random() - 0.5) * 6, y: cy - hy * 10, r: 4, life: 1, vx: (Math.random() - 0.5) * 18 - nx * this.drift * 20, vy: (Math.random() - 0.5) * 18 }]);
-    } else if (this.marks.length) this.marks.push(null, null);
-    c.fillStyle = gs(0.05);
-    for (const m of this.marks) if (m && m[1] > u - 200) c.fillRect(m[0] - 1.2, m[1] - 1.2, 2.4, 2.4);
-    this.marks = this.marks.filter(m => !m || m[1] > u - 220);
-    this.tsmoke = (this.tsmoke || []).filter(s => (s.life -= dt * 0.55) > 0).slice(-60);
-    for (const s of this.tsmoke) {
-      s.x += s.vx * dt; s.y += s.vy * dt; s.r += dt * 26;
-      const gg = c.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r);
-      gg.addColorStop(0, 'rgba(200,200,200,' + (0.38 * s.life).toFixed(3) + ')'); gg.addColorStop(1, 'rgba(200,200,200,0)');
-      c.fillStyle = gg; c.fillRect(s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
-    }
-    c.restore();
-    const carA = th + this.drift - this.ang, L = 22 * sc, Wd = L * 0.46, X = W / 2, Y = H * 0.64;
-    c.save(); c.translate(X, Y); c.rotate(carA);
-    c.globalCompositeOperation = 'lighter';
-    const hb = c.createLinearGradient(0, -L * 0.5, 0, -L * 3.2); hb.addColorStop(0, wa(0.32)); hb.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = hb; c.beginPath(); c.moveTo(-Wd * 0.4, -L * 0.5); c.lineTo(Wd * 0.4, -L * 0.5); c.lineTo(Wd * 1.6, -L * 3.2); c.lineTo(-Wd * 1.6, -L * 3.2); c.closePath(); c.fill();
-    c.globalCompositeOperation = 'source-over';
-    c.fillStyle = 'rgba(0,0,0,0.6)'; rrect(c, -Wd / 2 + 1, -L / 2 + 2, Wd, L, Wd * 0.2);
-    c.fillStyle = gs(0.04); rrect(c, -Wd / 2 - 1, -L / 2, Wd + 2, L, Wd * 0.2);
-    c.fillStyle = gs(0.92); rrect(c, -Wd / 2 + 1, -L / 2 + 1, Wd - 2, L - 2, Wd * 0.18);
-    c.fillStyle = gs(0.06); c.fillRect(-Wd * 0.36, -L * 0.18, Wd * 0.72, L * 0.12); c.fillRect(-Wd * 0.34, L * 0.18, Wd * 0.68, L * 0.08);
-    c.fillStyle = gs(0.75); c.fillRect(-Wd * 0.34, -L * 0.06, Wd * 0.68, L * 0.24);
-    c.fillStyle = gs(0.1); c.fillRect(-Wd * 0.38, -L * 0.47, Wd * 0.18, L * 0.06); c.fillRect(Wd * 0.2, -L * 0.47, Wd * 0.18, L * 0.06);
-    addGlow(c, -Wd * 0.3, L * 0.5, Math.max(2, Wd * 0.5), 0.5); addGlow(c, Wd * 0.3, L * 0.5, Math.max(2, Wd * 0.5), 0.5);
-    c.restore();
-    c.fillStyle = gs(0.09); vtxt(c, '峠', W * 0.07, H * 0.16, H * 0.15);
-    c.fillStyle = gs(0.5); txt(c, 'DRIFT ' + Math.round(Math.abs(this.drift) * 48) + '°', W * 0.93, H * 0.1, H * 0.035, UI_FONT, 'right');
-  }
-};
-
-/* --- 3. GAS GAS : lignes de vitesse manga, un mot qui entre toutes les deux mesures -------------------- */
-const SceneGas = {
-  name: 'Gas gas', jp: '全開', lines: null, word: 0, wordT: 0, smoke: [],
-  WORDS: ['ドリフト', 'ガスガス', '全開', '加速', '限界', '夜', '峠', '湾岸', 'DRFT'],
-  draw(c, t, dt, F) {
-    const W = V.W, H = V.H, cx = W / 2, cy = H * 0.46, D = Math.hypot(W, H) * 0.62;
-    if (!this.lines) this.lines = Array.from({ length: 170 }, () => ({ a: Math.random() * 6.283, r: Math.random(), len: 0.1 + Math.random() * 0.5, w: Math.random() < 0.15 ? 2 : 1, b: 0.4 + Math.random() * 0.6 }));
-    c.fillStyle = gs(0.012); c.fillRect(0, 0, W, H);
-    this.wordT += dt;
-    if (this.wordT > BAR * 2) { this.wordT = 0; this.word = (this.word + 1) % this.WORDS.length; }
-    const w = this.WORDS[this.word], wsz = Math.min(H * 0.42, W * 0.9 / Math.max(2, [...w].length));
-    // entrée façon anime : le mot arrive de la droite en 0,2 s avec une traînée, puis se pose
-    const e = smooth(this.wordT / 0.22), wx = cx + (1 - e) * W * 0.6;
-    if (e < 1) { c.fillStyle = gs(0.05); for (let k = 1; k <= 3; k++) txt(c, w, wx + k * W * 0.05 * (1 - e), cy, wsz); }
-    c.fillStyle = gs(0.08 + 0.08 * F.drive); txt(c, w, wx, cy, wsz);
-    c.strokeStyle = gs(0.42); c.lineWidth = 1; c.strokeText(w, wx, cy);
-    const v = 0.9 + F.energy * 2.2;
-    for (const l of this.lines) {
-      l.r += dt * v * (0.35 + l.len);
-      if (l.r > 1.3) { l.r = 0.04 + Math.random() * 0.1; l.a = Math.random() * 6.283; l.len = 0.1 + Math.random() * 0.5; }
-      const r0 = l.r * D, r1 = r0 + l.len * D * (0.4 + F.rush * 0.5), ca = Math.cos(l.a), sa = Math.sin(l.a);
-      c.strokeStyle = gs(l.b * Math.min(1, l.r * 1.6)); c.lineWidth = l.w;
-      c.beginPath(); c.moveTo(cx + ca * r0, cy + sa * r0); c.lineTo(cx + ca * r1, cy + sa * r1); c.stroke();
-    }
-    const lean = Math.sin(t * 0.0012) * 3.2, cw = Math.min(W * 0.34, H * 0.62), by = H * 0.9;
-    if (Math.random() < 0.15 + F.drive * 0.35) for (const sd of [-1, 1]) this.smoke.push({ x: cx + sd * cw * 0.42, y: by - cw * 0.05, r: cw * 0.05, vx: sd * W * (0.08 + Math.random() * 0.12), vy: -H * 0.03, life: 1 });
-    this.smoke = this.smoke.filter(s => (s.life -= dt * 0.8) > 0).slice(-60);
-    for (const s of this.smoke) {
-      s.x += s.vx * dt; s.y += s.vy * dt; s.r += dt * W * 0.07;
-      const gg = c.createRadialGradient(s.x, s.y, 0, s.x, s.y, Math.max(1, s.r));
-      gg.addColorStop(0, 'rgba(190,190,190,' + (0.33 * s.life).toFixed(3) + ')'); gg.addColorStop(1, 'rgba(190,190,190,0)');
-      c.fillStyle = gg; c.fillRect(s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
-    }
-    drawCarRear(c, cx, by + Math.sin(t * 0.019) * 0.6, cw, { light: 0.8, flame: 0.25 + 0.15 * Math.sin(t * 0.031), lean, body: 0.42 });
-  }
-};
-
-/* --- 4. TACHO : le compte-tours suit une vraie conduite (montée des rapports, rétrogradages avant les virages) */
-const SceneTacho = {
-  name: 'Tacho', jp: '回転計', rpm: 3000, gear: 2, shiftT: 0, rot: 0, phase: 0,
-  draw(c, t, dt, F) {
-    const W = V.W, H = V.H, R = Math.min(W * 0.4, H * 0.42), cx = W * 0.5, cy = H * 0.54;
-    this.phase += dt;
-    const braking = (this.phase % (BAR * 16)) > BAR * 13.5;
-    if (braking) {
-      this.rpm = lerp(this.rpm, 4200, 1 - Math.exp(-dt * 3));
-      if (this.gear > 3 && t - this.shiftT > 380) { this.gear--; this.shiftT = t; this.rpm = Math.min(8600, this.rpm + 2300); }
-    } else {
-      const rate = (1300 + 2600 * F.drive) / (0.6 + this.gear * 0.25);
-      this.rpm += dt * rate + Math.sin(t * 0.03) * 6;
-      if (this.rpm > 8200) { if (this.gear < 6) { this.gear++; this.shiftT = t; this.rpm = 5600; } else this.rpm = 7900 + Math.sin(t * 0.004) * 150; }
-    }
-    this.rot += dt * (0.1 + F.drive * 0.25);
-    c.fillStyle = gs(0.01); c.fillRect(0, 0, W, H);
-    c.save(); c.translate(cx, cy); c.rotate(this.rot);
-    for (let i = 1; i <= 6; i++) { c.strokeStyle = gs(0.05 + i * 0.008); c.lineWidth = 1; c.setLineDash([2 + i, 6 + i * 2]); c.beginPath(); c.arc(0, 0, R * (0.25 + i * 0.22), 0, Math.PI * 2); c.stroke(); }
-    c.setLineDash([]); c.restore();
-    const A = r => (135 + r / 9000 * 270) * Math.PI / 180;
-    c.strokeStyle = gs(0.25); c.lineWidth = Math.max(2, R * 0.035); c.beginPath(); c.arc(cx, cy, R * 0.8, A(0), A(this.rpm)); c.stroke();
-    c.strokeStyle = gs(0.75); c.lineWidth = Math.max(2, R * 0.06); c.beginPath(); c.arc(cx, cy, R * 0.95, A(7500), A(9000)); c.stroke();
-    for (let r = 0; r <= 9000; r += 250) {
-      const major = r % 1000 === 0, a = A(r), r0 = R * (major ? 0.83 : 0.88), r1 = R * 0.97;
-      c.strokeStyle = gs(r >= 7500 ? 0.95 : major ? 0.75 : 0.4); c.lineWidth = major ? Math.max(1, R * 0.02) : 1;
-      c.beginPath(); c.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); c.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); c.stroke();
-      if (major) { c.fillStyle = gs(0.8); txt(c, String(r / 1000), cx + Math.cos(a) * R * 0.68, cy + Math.sin(a) * R * 0.68, R * 0.13, UI_FONT); }
-    }
-    const a = A(this.rpm);
-    c.strokeStyle = gs(1); c.lineWidth = Math.max(2, R * 0.025);
-    c.beginPath(); c.moveTo(cx - Math.cos(a) * R * 0.12, cy - Math.sin(a) * R * 0.12); c.lineTo(cx + Math.cos(a) * R * 0.92, cy + Math.sin(a) * R * 0.92); c.stroke();
-    addGlow(c, cx + Math.cos(a) * R * 0.9, cy + Math.sin(a) * R * 0.9, R * 0.12, 0.35);
-    c.fillStyle = gs(0.2); circle(c, cx, cy, R * 0.07);
-    const fresh = t - this.shiftT < 250;
-    c.fillStyle = gs(0.92); txt(c, String(this.gear), cx + (fresh ? R * 0.03 : 0), cy + R * 0.42, R * (fresh ? 0.52 : 0.48));
-    c.fillStyle = gs(0.5); txt(c, braking ? 'DOWNSHIFT' : 'GEAR', cx, cy + R * 0.12, R * 0.08, UI_FONT);
-    c.fillStyle = gs(0.75); txt(c, Math.round(this.gear * 34 + this.rpm / 9000 * 70) + ' KM/H', cx, cy + R * 0.78, R * 0.1, UI_FONT);
-    const n = 10, sw = R * 0.13, sx = cx - (n * sw * 1.3) / 2, sy = cy - R * 1.12;
-    for (let i = 0; i < n; i++) { const on = this.rpm > 4600 + i * 380; c.fillStyle = gs(on ? (i < 4 ? 0.5 : i < 8 ? 0.72 : 1) : 0.07); c.fillRect(sx + i * sw * 1.3, sy, sw, sw * 0.6); }
-    c.fillStyle = gs(0.12); vtxt(c, '回転計', W * 0.07, H * 0.2, H * 0.09);
-    c.fillStyle = gs(0.45); txt(c, 'x1000 r/min', cx, cy - R * 0.32, R * 0.07, UI_FONT);
-  }
-};
-
-/* --- 5. NÉO-TOKYO : une moto file entre les néons et laisse une traînée rouge de feu arrière --------- */
-const SceneNeo = {
-  name: 'Neo Tokyo', jp: '新東京', z: 0, sky: 0.3, blocks: null, hist: [], histT: 0,
-  SIGNS: ['カラオケ', 'ラーメン', 'ホテル', 'パチンコ', 'ドリフト', '居酒屋', 'バー', '電気', '東京', '湾岸', '夜', '酒場', 'ゲーム', '新東京'],
-  build() {
-    const r = mulberry32(5); this.blocks = [];
-    let z = 0;
-    while (z < 120) { const d = 2 + r() * 3; this.blocks.push({ z, d, h: 2.5 + r() * 7, side: this.blocks.length % 2 ? 1 : -1, sign: r() < 0.75 ? this.SIGNS[(r() * this.SIGNS.length) | 0] : null, sh: 1.2 + r() * 1.6, sy: 0.8 + r() * 2, ph: r() * 6.28, b: r() }); z += r() < 0.5 ? 0 : d * 0.6; }
-    this.len = z;
-  },
-  bikeX(t) { return Math.sin(t * 0.0011) * 0.85 + Math.sin(t * 0.0029 + 1) * 0.35; },
-  draw(c, t, dt, F) {
-    if (!this.blocks) this.build();
-    const spd = 7 + F.energy * 10;
-    this.z += dt * spd;
-    this.histT += dt;
-    while (this.histT > 0.02) { this.histT -= 0.02; this.hist.unshift(this.bikeX(t)); if (this.hist.length > 60) this.hist.pop(); }
-    const shot = shotOf(this, dt, ['chase', 'side', 'chase']);
-    if (shot === 'side') this.drawSide(c, t, dt, F, spd); else this.drawChase(c, t, dt, F, spd);
-  },
-  drawChase(c, t, dt, F, spd) {
-    const W = V.W, H = V.H, k = W * 0.18, vx = W / 2 + Math.sin(t * 0.0002) * W * 0.02, vy = H * 0.48;
-    const g = c.createLinearGradient(0, 0, 0, vy); g.addColorStop(0, gs(0)); g.addColorStop(1, gs(0.06 + 0.1 * ENV.glow));
-    c.fillStyle = g; c.fillRect(0, 0, W, vy);
-    c.fillStyle = gs(0.025); c.fillRect(0, vy, W, H - vy);
+    // ciel et lointain
+    this.drawSky(c, t, dir, type, Y0 + D * slope);
+    // sol
+    const gy = Y0 + D * slope - 1;
+    const ground = type === 'bridge' || type === 'coast' ? 0.03 : type === 'city' ? 0.05 : 0.035;
+    c.fillStyle = gs(ground); c.fillRect(-20, gy, VW + 40, VH + 20 - gy);
+    if (type === 'bridge' || type === 'coast') this.drawWater(c, t, gy, dir, type);
+    // liste à peindre, du plus loin au plus près
     const items = [];
-    for (const b of this.blocks) for (const rep of [0, this.len]) { const z0 = b.z + rep - (this.z % this.len); if (z0 < -b.d || z0 > 45) continue; items.push([z0, b]); }
-    items.sort((p, q) => q[0] - p[0]);
-    const camY = 1.1;
-    for (const [z0, b] of items) {
-      const X = b.side * 3, za = Math.max(0.12, z0), zb = Math.max(0.12, z0 + b.d);
-      const a0 = proj(X, -camY, za, vx, vy, k), a1 = proj(X, b.h - camY, za, vx, vy, k), b0 = proj(X, -camY, zb, vx, vy, k), b1 = proj(X, b.h - camY, zb, vx, vy, k);
-      c.fillStyle = gs(0.04 + b.b * 0.05); poly(c, [a0, a1, b1, b0]);
-      c.fillStyle = gs(0.32);
-      for (let fy = 0.4; fy < b.h - 0.3; fy += 0.55) for (let fz = 0.2; fz < b.d; fz += 0.5) {
-        if (ih(((b.z * 10) | 0) * 131 + ((fy * 10) | 0) * 17 + ((fz * 10) | 0)) > 0.18) continue;
-        const q = proj(X, fy - camY, z0 + fz, vx, vy, k); if (z0 + fz > 0.15) c.fillRect(q[0] | 0, q[1] | 0, Math.max(1, q[2] * 0.4), Math.max(1, q[2] * 0.3));
-      }
-      if (b.sign && z0 > 0.25) {
-        const sx = X - b.side * 0.55, s0 = proj(sx - 0.25, b.sy + b.sh - camY, z0 + b.d * 0.4, vx, vy, k), s1 = proj(sx + 0.25, b.sy - camY, z0 + b.d * 0.4, vx, vy, k);
-        const x0 = Math.min(s0[0], s1[0]), w = Math.abs(s1[0] - s0[0]), y0 = s0[1], h = s1[1] - s0[1];
-        if (w > 1 && h > 2) {
-          const flick = Math.sin(t * 0.004 + b.ph) > -0.92 ? 1 : 0.3;
-          c.fillStyle = gs(0.08); c.fillRect(x0, y0, w, h);
-          c.strokeStyle = gs(0.85 * flick); c.lineWidth = 1; c.strokeRect(x0 + 0.5, y0 + 0.5, w - 1, h - 1);
-          const ch = [...b.sign], cs = Math.min(w * 0.75, h / (ch.length * 1.1));
-          if (cs > 3) { c.fillStyle = gs(0.95 * flick); ch.forEach((m, i) => txt(c, m, x0 + w / 2, y0 + h * (i + 0.5) / ch.length, cs)); }
-          addGlow(c, x0 + w / 2, y0 + h / 2, Math.max(w, h) * 0.9, 0.16 * flick);
-          const gy = proj(sx, -camY, z0 + b.d * 0.4, vx, vy, k)[1], rh = h * 0.8;
-          c.globalCompositeOperation = 'lighter';
-          const rg = c.createLinearGradient(0, gy, 0, gy + rh); rg.addColorStop(0, wa(0.22 * flick * (0.5 + ENV.rain * 0.5))); rg.addColorStop(1, 'rgba(255,255,255,0)');
-          c.fillStyle = rg; c.fillRect(x0, gy, w, rh);
-          c.globalCompositeOperation = 'source-over';
-        }
-      }
+    const light = (vz, s) => {
+      let L = dir > 0 ? 0.06 * Math.exp(-vz / 45) : 0.03 * Math.exp(-vz / 25);
+      const g = Road.seg(Math.floor(s / SEG)), b = BIOMES[g.type];
+      if (b.lamps && g.type !== 'tunnel') { const ph = ((s % b.lamps) + b.lamps) % b.lamps / b.lamps; L += 0.11 * Math.pow(Math.cos(ph * Math.PI), 8); }
+      if (g.type === 'tunnel') L += 0.06;
+      return L;
+    };
+    const fogMix = (v, vz) => { const f = 1 - Math.exp(-vz * (0.003 + fog * 0.012)); return lerp(v * (0.45 + 0.55 * Math.exp(-vz / 260)), 0.05 + fog * 0.1, Math.min(1, f * (0.4 + fog))); };
+    for (let k = 0; k < N; k++) {
+      const a = pts[k], bq = pts[k + 1], g = bq.seg, w = g.w;
+      const pa = P(a, 0, 0), pb = P(bq, 0, 0);
+      if (!pa || !pb) continue;
+      const vz = (pa[3] + pb[3]) / 2;
+      if (vz > 480) continue;
+      items.push({ d: vz, f: () => this.drawSegment(c, P, a, bq, g, vz, light(vz, g.s), fogMix, dir, t, rain) });
+      for (const sp of g.sp) items.push({ d: vz - 0.01, f: () => this.drawSprite(c, P, a, bq, g, sp, vz, fogMix, t, dir, rain, pts, k) });
     }
-    // marquages au sol qui défilent
-    const cz = 3 - (this.z % 3);
-    for (let i = 0; i < 12; i++) { const z0 = cz + i * 3; if (z0 < 0.4) continue; const a = proj(0, -camY, z0, vx, vy, k), b = proj(0, -camY, z0 + 1.3, vx, vy, k); c.strokeStyle = gs(0.4); c.lineWidth = Math.max(1, a[2] * 0.12); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
-    // traînée du feu arrière : les positions passées de la moto, de plus en plus près de la caméra
-    const bz = 2.3, step = (bz - 0.3) / this.hist.length;
-    c.globalCompositeOperation = 'lighter';
-    let prev = null;
-    this.hist.forEach((x, i) => {
-      const z0 = bz - i * step, q = proj(x, 0.62 - camY, z0, vx, vy, k);
-      if (prev) { c.strokeStyle = wa(0.85 * (1 - i / this.hist.length)); c.lineWidth = Math.max(1, q[2] * 0.22); c.beginPath(); c.moveTo(prev[0], prev[1]); c.lineTo(q[0], q[1]); c.stroke(); }
-      prev = q;
-    });
-    c.globalCompositeOperation = 'source-over';
-    const bx = this.hist[0] || 0, bp = proj(bx, -camY, bz, vx, vy, k), sz = bp[2] * k * 0.85;
-    this.drawBikeRear(c, bp[0], bp[1], sz, (this.hist[0] - (this.hist[4] || 0)) * 6);
-    speedLines(c, W, H, vx, vy, 0.25 + F.rush * 0.7);
-  },
-  drawBikeRear(c, x, y, s, lean) {
-    c.save(); c.translate(x, y); c.rotate(clamp(lean, -0.5, 0.5));
-    c.fillStyle = 'rgba(0,0,0,0.7)'; c.beginPath(); c.ellipse(0, 0, Math.max(1, s * 0.35), Math.max(1, s * 0.05), 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = gs(0.03); rrect(c, -s * 0.11, -s * 0.36, s * 0.22, s * 0.36, s * 0.08);
-    c.fillStyle = gs(0.22); poly(c, [[-s * 0.3, -s * 0.38], [s * 0.3, -s * 0.38], [s * 0.2, -s * 0.66], [-s * 0.2, -s * 0.66]]);
-    c.fillStyle = gs(0.12); poly(c, [[-s * 0.24, -s * 0.64], [s * 0.24, -s * 0.64], [s * 0.15, -s * 0.98], [-s * 0.15, -s * 0.98]]);
-    c.fillStyle = gs(0.3); circle(c, 0, -s * 1.08, s * 0.17);
-    c.fillStyle = gs(0.6); c.fillRect(-s * 0.12, -s * 1.12, s * 0.24, Math.max(1, s * 0.04));
-    c.fillStyle = gs(1); c.fillRect(-s * 0.26, -s * 0.46, s * 0.52, Math.max(1, s * 0.06));
-    addGlow(c, 0, -s * 0.44, s * 0.6, 0.45);
-    c.restore();
-  },
-  drawSide(c, t, dt, F, spd) {
-    const W = V.W, H = V.H, gy = H * 0.76;
-    const g = c.createLinearGradient(0, 0, 0, gy); g.addColorStop(0, gs(0)); g.addColorStop(1, gs(0.08 + 0.1 * ENV.glow));
-    c.fillStyle = g; c.fillRect(0, 0, W, gy);
-    // tours géantes au loin (lentes), façades avec enseignes au premier plan (rapides)
-    for (let i = 0; i < 9; i++) { const bw = W * (0.08 + ih(i * 3) * 0.08), x = ((i * W * 0.17 - this.z * W * 0.01) % (W * 1.5) + W * 1.5) % (W * 1.5) - W * 0.25, bh = H * (0.4 + ih(i * 7) * 0.5); c.fillStyle = gs(0.05); c.fillRect(x, gy - bh, bw, bh); c.fillStyle = gs(0.25); for (let wy = gy - bh + 3; wy < gy; wy += 4) for (let wx = x + 2; wx < x + bw - 1; wx += 3) if (ih(i * 991 + wy * 7 + wx) < 0.1) c.fillRect(wx | 0, wy | 0, 1, 1); }
-    const fw = W * 0.36, fx = -((this.z * W * 0.09) % fw);
-    for (let x = fx, n = Math.floor(this.z * W * 0.09 / fw); x < W; x += fw, n++) {
-      c.fillStyle = gs(0.035); c.fillRect(x, H * 0.08, fw - 2, gy - H * 0.08 - H * 0.08);
-      const sg = this.SIGNS[((n % this.SIGNS.length) + this.SIGNS.length) % this.SIGNS.length], ch = [...sg], cs = Math.min(fw * 0.16, (gy - H * 0.3) / (ch.length * 1.1));
-      c.strokeStyle = gs(0.8); c.lineWidth = 1; c.strokeRect(x + fw * 0.4, H * 0.14, cs * 1.4, cs * ch.length * 1.1 + 4);
-      c.fillStyle = gs(0.92); ch.forEach((m, i) => txt(c, m, x + fw * 0.4 + cs * 0.7, H * 0.14 + 2 + cs * (i + 0.55) * 1.1, cs));
-      addGlow(c, x + fw * 0.4 + cs * 0.7, H * 0.14 + cs * ch.length * 0.55, cs * 2.2, 0.14);
+    // voitures (devant uniquement)
+    if (dir > 0) for (const car of this.traffic) {
+      const ds = car.s - S; if (ds < 2 || ds > 460) continue;
+      const k = Math.floor(ds / SEG); const a = pts[k], bq = pts[k + 1]; if (!a || !bq) continue;
+      const f = (car.s - a.s) / SEG, p = { x: lerp(a.x, bq.x, f), z: lerp(a.z, bq.z, f), phi: lerp(a.phi, bq.phi, f), y: lerp(a.y, bq.y, f) };
+      const pp = P(p, car.L, 0); if (!pp) continue;
+      items.push({ d: pp[3] - 0.02, f: () => this.drawCar(c, pp, car, fogMix, rain) });
     }
-    c.fillStyle = gs(0.03); c.fillRect(0, gy, W, H - gy);
-    c.fillStyle = gs(0.4); for (let x = -((this.z * W * 0.5) % (W * 0.25)); x < W; x += W * 0.25) c.fillRect(x, gy + H * 0.12, W * 0.1, Math.max(1, H * 0.01));
-    // moto de profil, longue traînée rouge qui ondule derrière
-    const L = Math.min(W * 0.36, H * 0.9), bx = W * 0.56, by = gy + H * 0.06 + Math.sin(t * 0.02) * 0.6;
-    c.globalCompositeOperation = 'lighter';
-    c.strokeStyle = wa(0.9); c.lineWidth = Math.max(1, L * 0.035);
-    c.beginPath();
-    for (let i = 0; i < this.hist.length; i++) { const x = bx - L * 0.02 - i * W * 0.012, y = by - L * 0.33 + (this.hist[i] - this.hist[0]) * H * 0.06; i ? c.lineTo(x, y) : c.moveTo(x, y); }
-    c.stroke();
-    glow(c, bx - L * 0.02, by - L * 0.33, L * 0.25, 0.4);
-    c.globalCompositeOperation = 'source-over';
-    const R = L * 0.17, rot = t * 0.03;
-    for (const wx of [bx + R * 0.2, bx + L * 0.78]) { c.fillStyle = gs(0.02); circle(c, wx, by - R, R); c.strokeStyle = gs(0.5); c.lineWidth = 1; c.beginPath(); c.arc(wx, by - R, R * 0.92, 0, Math.PI * 2); c.stroke(); c.strokeStyle = gs(0.35); c.beginPath(); c.arc(wx, by - R, R * 0.55, rot, rot + 4); c.stroke(); }
-    c.fillStyle = gs(0.42); poly(c, [[bx, by - R * 1.6], [bx + L * 0.25, by - R * 2.6], [bx + L * 0.75, by - R * 2.4], [bx + L * 0.98, by - R * 1.4], [bx + L * 0.7, by - R * 0.9], [bx + L * 0.2, by - R]]);
-    c.fillStyle = gs(0.2); poly(c, [[bx + L * 0.28, by - R * 2.5], [bx + L * 0.5, by - R * 3.6], [bx + L * 0.66, by - R * 3.3], [bx + L * 0.6, by - R * 2.45]]);
-    c.fillStyle = gs(0.55); circle(c, bx + L * 0.62, by - R * 3.55, R * 0.42);
-    c.strokeStyle = gs(0.8); c.lineWidth = 1; c.beginPath(); c.moveTo(bx + L * 0.25, by - R * 2.6); c.lineTo(bx + L * 0.75, by - R * 2.4); c.stroke();
-    c.fillStyle = gs(1); c.fillRect(bx - L * 0.02, by - L * 0.35, Math.max(1, L * 0.03), Math.max(1, L * 0.04));
-    hLines(c, W, H, 0.45 + F.rush * 0.5, H * 0.05, H * 0.98);
-  }
-};
-
-/* --- 6. CYBER : course futuriste dans un tunnel de lumière, HUD de pilote ------------------------------ */
-const SceneCyber = {
-  name: 'Cyber', jp: '電脳', indoor: true, z: 0, lap: 0,
-  off(Z) { return [Math.sin(Z * 0.045) * 1.3 + Math.sin(Z * 0.11 + 1) * 0.35, Math.cos(Z * 0.033) * 0.55]; },
-  draw(c, t, dt, F) {
-    const W = V.W, H = V.H, D = W * 0.55;
-    const spd = 22 + F.energy * 40 + F.rush * 30;
-    this.z += dt * spd; this.lap += dt;
-    c.fillStyle = gs(0.01); c.fillRect(0, 0, W, H);
-    const o0 = this.off(this.z), base = Math.floor(this.z), fr = this.z - base, N = 44;
-    const rings = [];
-    for (let i = N; i >= 1; i--) {
-      const z = i - fr, o = this.off(base + i), s = D / z;
-      rings.push({ z, x: W / 2 + (o[0] - o0[0]) * s, y: H * 0.5 + (o[1] - o0[1]) * s, r: 1.6 * s, idx: base + i });
-    }
-    const streak = F.rush;
-    for (let k = 0; k < rings.length; k++) {
-      const R = rings[k], b = (0.08 + 0.75 * Math.exp(-R.z / 9)) * smooth((R.z - 0.6) / 2.4);
-      if (b < 0.01) continue;
-      const major = R.idx % 4 === 0;
-      c.strokeStyle = gs(b * (major ? 1 : 0.45)); c.lineWidth = major ? Math.max(1, R.r * 0.03) : 1;
-      c.beginPath();
-      for (let j = 0; j <= 8; j++) { const a = j / 8 * Math.PI * 2 + Math.PI / 8; const x = R.x + Math.cos(a) * R.r, y = R.y + Math.sin(a) * R.r * 0.82; j ? c.lineTo(x, y) : c.moveTo(x, y); }
-      c.stroke();
-      if (major) {
+    if (extra) { const it = extra(P, pts); if (it) items.push(it); }
+    items.sort((x, y) => y.d - x.d);
+    for (const it of items) it.f();
+    // pluie et neige dehors, brume
+    this.drawOutsideWeather(c, t, dir, Y0);
+    if (fog > 0.02) {
+      const g = c.createLinearGradient(0, 0, 0, 90); g.addColorStop(0, 'rgba(140,140,140,0)'); g.addColorStop(0.42, 'rgba(140,140,140,' + (0.28 * fog).toFixed(3) + ')'); g.addColorStop(1, 'rgba(140,140,140,' + (0.1 * fog).toFixed(3) + ')');
+      c.fillStyle = g; c.fillRect(-20, 0, VW + 40, 100);
+      if (dir > 0) { // faisceaux des phares dans la brume
         c.globalCompositeOperation = 'lighter';
-        for (let j = 0; j < 8; j++) {
-          const a = j / 8 * Math.PI * 2 + Math.PI / 8, x = R.x + Math.cos(a) * R.r, y = R.y + Math.sin(a) * R.r * 0.82;
-          glow(c, x, y, Math.max(1.5, R.r * 0.08), 0.5 * b);
-          if (streak > 0.05 && k < rings.length - 1) { const n = rings[Math.min(rings.length - 1, k + 2)]; const nx = n.x + Math.cos(a) * n.r, ny = n.y + Math.sin(a) * n.r * 0.82; c.strokeStyle = wa(0.5 * streak * b); c.lineWidth = 1; c.beginPath(); c.moveTo(x, y); c.lineTo(lerp(x, nx, 0.9), lerp(y, ny, 0.9)); c.stroke(); }
-        }
+        const hg = c.createLinearGradient(0, 70, 0, 38); hg.addColorStop(0, 'rgba(255,255,255,' + (0.12 * fog).toFixed(3) + ')'); hg.addColorStop(1, 'rgba(255,255,255,0)');
+        c.fillStyle = hg; poly(c, [[110, 74], [210, 74], [250, 38], [70, 38]]);
         c.globalCompositeOperation = 'source-over';
       }
     }
-    // rails de piste au fond du tube
-    for (const a of [Math.PI / 2 - 0.3, Math.PI / 2 + 0.3]) {
-      c.strokeStyle = gs(0.55); c.lineWidth = 1; c.beginPath();
-      rings.forEach((R, i) => { const x = R.x + Math.cos(a) * R.r, y = R.y + Math.sin(a) * R.r * 0.82; i ? c.lineTo(x, y) : c.moveTo(x, y); });
-      c.stroke();
+  },
+  drawSky(c, t, dir, type, hz) {
+    const glowAmt = type === 'city' ? 0.16 : type === 'highway' || type === 'bridge' ? 0.1 : 0.06;
+    const g = c.createLinearGradient(0, -10, 0, hz + 2);
+    const top = 0.012 + ENV.sun * 0.05, bot = 0.06 + glowAmt * (0.7 + ENV.glow * 0.7) + ENV.sun * 0.18 + ENV.flash * 0.45;
+    g.addColorStop(0, gs(top + ENV.flash * 0.2)); g.addColorStop(1, gs(bot));
+    c.fillStyle = g; c.fillRect(-20, -20, VW + 40, hz + 22);
+    if (type === 'tunnel') return;
+    const par = (this.heading * dir) * 165, star = ENV.stars * (1 - ENV.cloud * 0.85) * (type === 'city' ? 0.3 : 1);
+    if (star > 0.03) for (const st of STARS) {
+      const x = ((st.x * 900 - par * 0.98) % 900 + 900) % 900 - 290; if (x < -5 || x > VW + 5) continue;
+      const y = st.y * (hz - 6); const b = (0.15 + 0.5 * (0.5 + 0.5 * Math.sin(t * 0.0017 + st.p))) * star * (0.4 + st.s * 0.6);
+      c.fillStyle = gs(b); c.fillRect(x | 0, y | 0, 1, 1);
     }
-    // le bolide : un coin bas avec aileron et deux réacteurs
-    const cw = W * 0.3, cx = W / 2 + Math.sin(t * 0.0013) * W * 0.03, cy = H * 0.86, tilt = (this.off(this.z + 6)[0] - o0[0]) * 0.12;
-    c.save(); c.translate(cx, cy); c.rotate(clamp(tilt, -0.2, 0.2));
-    c.fillStyle = gs(0.06); poly(c, [[-cw * 0.5, 0], [cw * 0.5, 0], [cw * 0.36, -cw * 0.16], [-cw * 0.36, -cw * 0.16]]);
-    c.fillStyle = gs(0.3); poly(c, [[-cw * 0.22, -cw * 0.16], [cw * 0.22, -cw * 0.16], [cw * 0.12, -cw * 0.25], [-cw * 0.12, -cw * 0.25]]);
-    c.fillStyle = gs(0.5); c.fillRect(-cw * 0.55, -cw * 0.24, cw * 1.1, Math.max(1, cw * 0.025));
-    c.fillStyle = gs(0.2); c.fillRect(-cw * 0.42, -cw * 0.24, Math.max(1, cw * 0.02), cw * 0.1); c.fillRect(cw * 0.4, -cw * 0.24, Math.max(1, cw * 0.02), cw * 0.1);
+    // lune
+    if ((type === 'touge' || type === 'coast') && ENV.cloud < 0.7) {
+      const mx = ((250 - par * 0.9) % 900 + 900) % 900 - 290, my = hz * 0.32;
+      if (mx > -20 && mx < VW + 20) {
+        c.globalCompositeOperation = 'lighter'; gl(c, GT.warm, mx, my, 22, 0.14); c.globalCompositeOperation = 'source-over';
+        c.fillStyle = gs(0.85); circle(c, mx, my, 4.2); c.fillStyle = gs(top + 0.03); circle(c, mx + 1.8, my - 1, 3.6);
+      }
+    }
+    // nuages éclairés par en dessous
+    if (ENV.cloud > 0.05) {
+      for (let i = 0; i < 7; i++) {
+        const x = ((i * 170 - par * 0.7 + t * 0.002) % 1200 + 1200) % 1200 - 400, y = 4 + ih(i * 3) * (hz * 0.5);
+        c.fillStyle = 'rgba(' + Math.round(40 + glowAmt * 300) + ',' + Math.round(40 + glowAmt * 300) + ',' + Math.round(40 + glowAmt * 300) + ',' + (0.35 * ENV.cloud).toFixed(3) + ')';
+        c.beginPath(); c.ellipse(x, y, 60 + ih(i) * 50, 5 + ih(i + 9) * 5, 0, 0, Math.PI * 2); c.fill();
+      }
+    }
+    // silhouettes lointaines
+    if (type === 'touge' || type === 'coast') {
+      for (const [amp, val, sp, sd] of [[30, 0.075, 0.35, 3], [20, 0.05, 0.6, 7]]) {
+        c.fillStyle = gs(val); c.beginPath(); c.moveTo(-20, hz + 1);
+        for (let x = -20; x <= VW + 20; x += 4) { const u = (x + par * sp) * 0.012; c.lineTo(x, hz + 1 - (fbm(u, sd) * 0.5 + 0.55) * amp * (type === 'coast' && x < 160 ? 0.15 : 1)); }
+        c.lineTo(VW + 20, hz + 1); c.closePath(); c.fill();
+      }
+    } else {
+      // ville au loin : immeubles, fenêtres, feux rouges d'obstacle
+      const far = type === 'bridge' ? 0.9 : 1;
+      let x = -((par * 0.5) % 40) - 40, i = Math.floor(par * 0.5 / 40) * 9;
+      while (x < VW + 20) {
+        const bw = 6 + ih(i * 3) * 14, bh = (6 + ih(i * 7) * 26) * far;
+        c.fillStyle = gs(0.07); c.fillRect(x, hz - bh, bw, bh + 1);
+        c.fillStyle = gs(0.42); for (let wy = hz - bh + 2; wy < hz - 1; wy += 3) for (let wx = 1; wx < bw - 1; wx += 2) if (ih(i * 991 + wy * 13 + wx) < 0.14) c.fillRect((x + wx) | 0, wy | 0, 1, 1);
+        if (bh > 22 && (Math.floor(t / 1100 + i) & 1)) { c.fillStyle = COL.redD; c.fillRect((x + bw / 2) | 0, (hz - bh - 1) | 0, 1, 1); }
+        x += bw + 1 + ih(i * 5) * 4; i++;
+      }
+    }
+  },
+  drawWater(c, t, gy, dir, type) {
+    // reflets qui scintillent sur l'eau
+    for (let i = 0; i < 70; i++) {
+      const y = gy + 2 + Math.pow(ih(i * 3), 1.6) * 40, x = ((ih(i * 7) * 400 - this.heading * dir * 165 * 0.6) % 400 + 400) % 400 - 40;
+      const on = Math.sin(t * 0.004 + i) > 0.2;
+      if (!on) continue;
+      c.fillStyle = gs(0.12 + 0.15 * (1 - (y - gy) / 45)); c.fillRect(x | 0, y | 0, 2 + (ih(i) * 5) | 0, 1);
+    }
+  },
+  drawSegment(c, P, a, b, g, vz, L, fogMix, dir, t, rain) {
+    const w = g.w, type = g.type;
+    const q = (o0, o1, y0, y1, v) => {
+      const A = P(a, o0, y0), B = P(a, o1, y1), C2 = P(b, o1, y1), D2 = P(b, o0, y0);
+      if (!A || !B || !C2 || !D2) return;
+      c.fillStyle = gs(fogMix(v, vz)); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.lineTo(C2[0], C2[1]); c.lineTo(D2[0], D2[1]); c.closePath(); c.fill();
+    };
+    const wall = (off, y0, y1, v) => q(off, off, y0, y1, v);
+    const band = (g.i >> 1) & 1;
+    // accotements / terre-plein
+    if (type === 'touge') { q(-w - 3, -w, 0, 0, 0.035 + L * 0.3); q(w, w + 3, 0, 0, 0.035 + L * 0.3); }
+    else if (type === 'city') { q(-w - 4, -w, 0.15, 0.15, 0.06 + L * 0.4); q(w, w + 4, 0.15, 0.15, 0.06 + L * 0.4); }
+    else if (type === 'coast') q(w, w + 2, 0, 0, 0.04 + L * 0.3);
+    // chaussée (mouillée = plus sombre, plus brillante sous les lampes)
+    const asphalt = (rain > 0.1 ? 0.07 : 0.095) + L * (rain > 0.1 ? 1.4 : 1) + band * 0.008;
+    q(-w, w, 0, 0, asphalt);
+    if (dir > 0) {
+      // faisceau des phares : large, puis un cœur plus clair, centré sur notre voiture
+      const hb = Math.exp(-vz / 34), cx2 = this.camX;
+      if (hb > 0.03) {
+        c.globalCompositeOperation = 'lighter';
+        q(Math.max(-w, cx2 - 3.4), Math.min(w, cx2 + 3.4), 0.004, 0.004, 0.09 * hb * (rain > 0.1 ? 1.5 : 1));
+        q(Math.max(-w, cx2 - 1.6), Math.min(w, cx2 + 1.6), 0.005, 0.005, 0.1 * hb * (rain > 0.1 ? 1.5 : 1));
+        c.globalCompositeOperation = 'source-over';
+      }
+    }
+    // marquages
+    const lanes = BIOMES[type].lanes, lw = 2 * w / lanes, hb2 = dir > 0 ? Math.exp(-vz / 40) * 0.25 : 0, mv = 0.42 + L * 1.4 + hb2;
+    q(-w + 0.12, -w + 0.32, 0.01, 0.01, mv); q(w - 0.32, w - 0.12, 0.01, 0.01, mv);
+    if ((g.i % 4) < 2) for (let j = 1; j < lanes; j++) { const x = -w + lw * j; q(x - 0.1, x + 0.1, 0.01, 0.01, type === 'touge' ? 0.5 + L + hb2 : mv); }
+    // murs, rails, tunnels
+    if (type === 'tunnel') {
+      const W2 = w + 1.1, H2 = 5.2;
+      wall(-W2, 0, H2, 0.07 + L * 0.6 + band * 0.01); wall(W2, 0, H2, 0.07 + L * 0.6 + band * 0.01);
+      q(-W2, W2, H2, H2, 0.05 + L * 0.4);
+      wall(-W2 + 0.01, 0.9, 1.2, 0.2 + L); wall(W2 - 0.01, 0.9, 1.2, 0.2 + L);
+      q(-W2, -w, 0.2, 0.2, 0.09 + L); q(w, W2, 0.2, 0.2, 0.09 + L);
+      // portail à l'entrée/sortie
+      const prev = Road.typeAt(g.s - SEG), next = Road.typeAt(g.s + SEG);
+      if ((prev !== 'tunnel' && dir > 0) || (next !== 'tunnel' && dir < 0)) {
+        const A = P(a, -W2 - 6, 0), B = P(a, W2 + 6, H2 + 5), I0 = P(a, -W2, 0), I1 = P(a, W2, H2);
+        if (A && B && I0 && I1) { c.fillStyle = gs(fogMix(0.08, vz)); c.beginPath(); c.rect(A[0], B[1], B[0] - A[0], A[1] - B[1]); c.rect(I1[0], I1[1], I0[0] - I1[0], I0[1] - I1[1]); c.fill('evenodd'); }
+      }
+    } else if (type === 'highway') {
+      wall(-w - 0.6, 0, 0.9, 0.15 + L * 0.8); q(-w - 0.6, -w - 0.3, 0.9, 0.9, 0.24 + L * 0.8);
+      wall(w + 0.8, 0.55, 0.8, 0.4 + L); if (g.i % 2 === 0) { const A = P(a, w + 0.8, 0), B = P(a, w + 0.8, 0.8); if (A && B) { c.fillStyle = gs(fogMix(0.14, vz)); c.fillRect(A[0], B[1], Math.max(0.6, A[2] * 0.12), A[1] - B[1]); } }
+      if (Math.floor(g.s / 700) % 3 === 1) wall(w + 3.2, 0, 3.4, 0.06 + L * 0.3);
+    } else if (type === 'bridge') {
+      for (const sd of [-1, 1]) { wall(sd * (w + 0.8), 0, 1.1, 0.12 + L * 0.6); wall(sd * (w + 0.8), 1.0, 1.15, 0.32 + L); }
+    } else if (type === 'touge') {
+      for (const sd of [-1, 1]) wall(sd * (w + 0.7), 0.5, 0.78, 0.28 + L * 1.4);
+    } else if (type === 'coast') {
+      wall(-(w + 0.7), 0.5, 0.78, 0.28 + L * 1.4);
+      wall(w + 2.2, 0, 9 + 5 * (0.5 + 0.5 * vnoise(g.s / 40, 3)), 0.035 + L * 0.2);
+    }
+    // passage piéton
+    if (g.sp.some(s => s.t === 'zebra')) for (let x = -w + 0.4; x < w - 0.4; x += 1.1) q(x, x + 0.55, 0.01, 0.01, 0.4 + L);
+    // reflets des lampes sur la route mouillée
+    if (rain > 0.1 && g.sp.some(s => s.t === 'lamp') && dir > 0) {
+      c.globalCompositeOperation = 'lighter';
+      for (const sp of g.sp) if (sp.t === 'lamp') { const A = P(a, sp.x * 0.62, 0), B = P(a, sp.x * 0.62, 0); if (A) { c.fillStyle = sp.warm ? 'rgba(255,170,70,' + (0.22 * Math.min(1, rain)).toFixed(3) + ')' : 'rgba(255,255,255,' + (0.18 * Math.min(1, rain)).toFixed(3) + ')'; c.fillRect(A[0] - A[2] * 0.25, A[1], Math.max(1, A[2] * 0.5), Math.min(30, A[2] * 3.2)); } }
+      c.globalCompositeOperation = 'source-over';
+    }
+  },
+  drawSprite(c, P, a, b, g, sp, vz, fogMix, t, dir, rain, pts, k) {
+    const w = g.w, fz = Math.exp(-vz / 300), type = g.type;
+    if (sp.t === 'lamp') {
+      const base = P(a, sp.x, 0), top = P(a, sp.x, 9.5), arm = P(a, sp.x - sp.sd * 2.2, 9.6);
+      if (!base || !top || !arm) return;
+      c.strokeStyle = gs(fogMix(0.12, vz)); c.lineWidth = Math.max(0.5, base[2] * 0.18);
+      c.beginPath(); c.moveTo(base[0], base[1]); c.lineTo(top[0], top[1]); c.lineTo(arm[0], arm[1]); c.stroke();
+      c.globalCompositeOperation = 'lighter';
+      gl(c, sp.warm ? GT.amber : GT.white, arm[0], arm[1], Math.max(1.5, arm[2] * 2.6), 0.6 * fz + 0.15);
+      c.fillStyle = sp.warm ? COL.amber : '#fff'; c.fillRect(arm[0] - Math.max(0.5, arm[2] * 0.4), arm[1], Math.max(1, arm[2] * 0.8), Math.max(0.6, arm[2] * 0.2));
+      c.globalCompositeOperation = 'source-over';
+    } else if (sp.t === 'tlamp') {
+      c.globalCompositeOperation = 'lighter';
+      for (const x of [-1.8, 1.8]) { const A = P(a, x, 5.1), B = P(b, x, 5.1); if (A && B) { c.strokeStyle = 'rgba(255,170,70,' + (0.55 * fz + 0.2).toFixed(3) + ')'; c.lineWidth = Math.max(0.7, A[2] * 0.25); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(lerp(A[0], B[0], 0.6), lerp(A[1], B[1], 0.6)); c.stroke(); gl(c, GT.amber, A[0], A[1], Math.max(1, A[2] * 1.4), 0.35 * fz); } }
+      c.globalCompositeOperation = 'source-over';
+    } else if (sp.t === 'fan') {
+      for (const x of [-1.5, 1.5]) { const A = P(a, x - 0.6, 4.4), B = P(a, x + 0.6, 5.1); if (A && B) { c.fillStyle = gs(fogMix(0.09, vz)); rrect(c, A[0], B[1], B[0] - A[0], A[1] - B[1], 1); } }
+    } else if (sp.t === 'exitsign') {
+      const A = P(a, sp.sd * (w + 1.05), 2.4), B = P(a, sp.sd * (w + 1.05), 3.0); if (!A || !B) return;
+      c.globalCompositeOperation = 'lighter'; c.fillStyle = COL.green; const sz = Math.max(1, A[2] * 0.7); c.fillRect(A[0] - sz / 2, B[1], sz, Math.max(1, A[1] - B[1])); gl(c, GT.green, A[0], B[1], Math.max(1.5, A[2] * 1.4), 0.4 * fz); c.globalCompositeOperation = 'source-over';
+    } else if (sp.t === 'gantry') {
+      const L0 = P(a, -w - 0.8, 0), L1 = P(a, -w - 0.8, 6.4), R0 = P(a, w + 0.8, 0), R1 = P(a, w + 0.8, 6.4);
+      if (!L0 || !L1 || !R0 || !R1) return;
+      c.strokeStyle = gs(fogMix(0.12, vz)); c.lineWidth = Math.max(0.5, L0[2] * 0.25);
+      c.beginPath(); c.moveTo(L0[0], L0[1]); c.lineTo(L1[0], L1[1]); c.lineTo(R1[0], R1[1]); c.lineTo(R0[0], R0[1]); c.stroke();
+      const A = P(a, -w * 0.9, 6.2), B = P(a, w * 0.15, 4.4); if (!A || !B) return;
+      c.fillStyle = vz < 200 ? COL.greenD : gs(fogMix(0.08, vz)); c.fillRect(A[0], A[1], B[0] - A[0], B[1] - A[1]);
+      c.strokeStyle = gs(fogMix(0.6, vz)); c.lineWidth = 0.6; c.strokeRect(A[0] + 0.5, A[1] + 0.5, B[0] - A[0] - 1, B[1] - A[1] - 1);
+      const hgt = B[1] - A[1];
+      if (hgt > 6) { c.fillStyle = gs(0.92); txt(c, sp.txt, (A[0] + B[0]) / 2, A[1] + hgt * 0.42, hgt * 0.42); if (hgt > 11) px5(c, sp.km + 'KM', Math.round((A[0] + B[0]) / 2 - px5w(sp.km + 'KM', 1) / 2), Math.round(A[1] + hgt * 0.72), 1, gs(0.85)); }
+      c.globalCompositeOperation = 'lighter'; gl(c, GT.white, (A[0] + B[0]) / 2, B[1] + 1, Math.max(2, (B[0] - A[0]) * 0.5), 0.12 * fz); c.globalCompositeOperation = 'source-over';
+    } else if (sp.t === 'joint') {
+      if (dir > 0 && vz < 9 && !sp.hit) { sp.hit = true; this.bump += 0.55 * (this.v / 70); setTimeout(() => { sp.hit = false; }, 3000); }
+      const A = P(a, -w, 0.01), B = P(a, w, 0.01); if (A && B) { c.strokeStyle = gs(fogMix(0.16, vz)); c.lineWidth = Math.max(0.5, A[2] * 0.06); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); }
+    } else if (sp.t === 'reflector' || sp.t === 'post') {
+      const A = P(a, sp.x, 0), B = P(a, sp.x, 1.0); if (!A || !B) return;
+      c.fillStyle = gs(fogMix(0.2, vz)); c.fillRect(A[0] - Math.max(0.4, A[2] * 0.06), B[1], Math.max(0.8, A[2] * 0.12), A[1] - B[1]);
+      if (dir > 0) { c.globalCompositeOperation = 'lighter'; const lit = Math.exp(-vz / 70); c.fillStyle = sp.x < 0 ? 'rgba(255,160,40,' + (0.9 * lit).toFixed(3) + ')' : 'rgba(255,255,255,' + (0.9 * lit).toFixed(3) + ')'; c.fillRect(B[0] - Math.max(0.5, A[2] * 0.08), B[1], Math.max(1, A[2] * 0.16), Math.max(1, A[2] * 0.12)); c.globalCompositeOperation = 'source-over'; }
+    } else if (sp.t === 'tree') {
+      const A = P(a, sp.x, 0), B = P(a, sp.x, sp.h); if (!A || !B) return;
+      const hw = (A[1] - B[1]) * 0.28;
+      c.fillStyle = gs(fogMix(0.03 + 0.02 * Math.exp(-vz / 40), vz));
+      c.beginPath(); c.moveTo(B[0], B[1]); c.lineTo(A[0] + hw, A[1] - (A[1] - B[1]) * 0.15); c.lineTo(A[0] - hw, A[1] - (A[1] - B[1]) * 0.15); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(B[0], B[1] + (A[1] - B[1]) * 0.3); c.lineTo(A[0] + hw * 1.25, A[1]); c.lineTo(A[0] - hw * 1.25, A[1]); c.closePath(); c.fill();
+    } else if (sp.t === 'rock') {
+      const A = P(a, sp.x, 0), B = P(a, sp.x, sp.h); if (!A || !B) return;
+      c.fillStyle = gs(fogMix(0.04, vz)); const hw = (A[1] - B[1]) * 0.8; c.beginPath(); c.ellipse(A[0], A[1], Math.max(1, hw), Math.max(1, A[1] - B[1]), 0, Math.PI, Math.PI * 2); c.fill();
+    } else if (sp.t === 'vending') {
+      const A = P(a, sp.x, 0), B = P(a, sp.x, 1.9); if (!A || !B) return;
+      const ww = Math.max(1, A[2] * 1.0);
+      c.fillStyle = gs(0.75); c.fillRect(A[0] - ww / 2, B[1], ww, A[1] - B[1]);
+      c.fillStyle = COL.blueD; c.fillRect(A[0] - ww / 2 + ww * 0.1, B[1] + (A[1] - B[1]) * 0.1, ww * 0.8, (A[1] - B[1]) * 0.45);
+      c.globalCompositeOperation = 'lighter'; gl(c, GT.white, A[0], (A[1] + B[1]) / 2, Math.max(3, A[2] * 4), 0.45); c.globalCompositeOperation = 'source-over';
+    } else if (sp.t === 'bldg') {
+      // façade parallèle à la route, de ce segment à 4 segments plus loin (dans le sens du regard)
+      const pf = pts[Math.min(pts.length - 1, k + 4)];
+      const A0 = P(a, sp.x, 0), A1 = P(a, sp.x, sp.h), F0 = P(pf, sp.x, 0), F1 = P(pf, sp.x, sp.h);
+      if (!A0 || !A1 || !F0 || !F1) return;
+      c.fillStyle = gs(fogMix(0.045 + ih(sp.seed) * 0.03, vz)); poly(c, [A0, A1, F1, F0]);
+      const cols = 6, rows = Math.min(22, Math.floor(sp.h / 2.6));
+      c.fillStyle = gs(fogMix(0.32, vz));
+      for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) {
+        if (ih(sp.seed * 977 + r * 31 + q) > 0.28) continue;
+        const u = (q + 0.3) / cols, vv = (r + 0.5) / (rows + 0.5);
+        const x = lerp(lerp(A0[0], F0[0], u), lerp(A1[0], F1[0], u), vv), y = lerp(lerp(A0[1], F0[1], u), lerp(A1[1], F1[1], u), vv);
+        const sz = Math.max(0.6, lerp(A0[2], F0[2], u) * 0.7);
+        c.fillRect(x, y, sz, sz * 0.8);
+      }
+    } else if (sp.t === 'neon') {
+      const A = P(a, sp.x, sp.h - 2.2), B = P(a, sp.x, sp.h + 2.2); if (!A || !B) return;
+      const hgt = A[1] - B[1]; if (hgt < 1.5) return;
+      const ww = Math.max(1, hgt * 0.3), x0 = A[0] - ww / 2;
+      const on = Math.sin(t * 0.003 + sp.h * 9) > -0.95, fz2 = Math.exp(-vz / 140);
+      c.fillStyle = on ? COL[sp.col + 'D'] : gs(0.04); c.fillRect(x0, B[1], ww, hgt);
+      c.globalCompositeOperation = 'lighter';
+      if (on) {
+        const ch = [...sp.txt], cs = Math.min(ww * 0.78, hgt / (ch.length * 1.08));
+        c.fillStyle = COL[sp.col];
+        if (cs > 4.5) ch.forEach((m, i) => txt(c, m, A[0], B[1] + hgt * (i + 0.5) / ch.length, cs));
+        else c.fillRect(A[0] - Math.max(0.5, ww * 0.18), B[1] + hgt * 0.1, Math.max(1, ww * 0.36), hgt * 0.8);
+        gl(c, GT[sp.col], A[0], (A[1] + B[1]) / 2, Math.max(2, hgt * 0.75), 0.3 * fz2);
+      }
+      c.globalCompositeOperation = 'source-over';
+    } else if (sp.t === 'signal') {
+      const A = P(a, w * 0.3, 5.6); if (!A) return;
+      c.fillStyle = gs(0.04); c.fillRect(A[0] - A[2] * 0.9, A[1] - A[2] * 0.3, A[2] * 1.8, A[2] * 0.6);
+      c.globalCompositeOperation = 'lighter'; const x = sp.col === 'green' ? A[0] - A[2] * 0.6 : A[0]; c.fillStyle = COL[sp.col]; c.fillRect(x - A[2] * 0.15, A[1] - A[2] * 0.15, Math.max(1, A[2] * 0.3), Math.max(1, A[2] * 0.3)); gl(c, GT[sp.col], x, A[1], Math.max(1.5, A[2] * 1.5), 0.6 * Math.exp(-vz / 150)); c.globalCompositeOperation = 'source-over';
+    } else if (sp.t === 'tower') {
+      for (const sd of [-1, 1]) {
+        const A = P(a, sd * (w + 1.6), 0), B = P(a, sd * (w + 1.6), 62); if (!A || !B) continue;
+        c.fillStyle = gs(fogMix(0.08, vz)); c.fillRect(A[0] - Math.max(0.7, A[2] * 0.8), B[1], Math.max(1.4, A[2] * 1.6), A[1] - B[1] + 1);
+        c.globalCompositeOperation = 'lighter'; if (Math.floor(t / 900) & 1) { c.fillStyle = COL.red; c.fillRect(B[0] - 0.5, B[1] - 1, 1.2, 1.2); gl(c, GT.red, B[0], B[1], 3, 0.6); } c.globalCompositeOperation = 'source-over';
+      }
+      const A = P(a, -w - 1.6, 52), B = P(a, w + 1.6, 55); if (A && B) { c.fillStyle = gs(fogMix(0.08, vz)); c.fillRect(A[0], B[1], B[0] - A[0], Math.max(1, A[1] - B[1])); }
+    } else if (sp.t === 'cable') {
+      // câbles porteurs : chaînette entre deux pylônes (tous les 440 m)
+      const H = s => { const u = ((s - 30 * SEG) % 440 + 440) % 440 / 440; return 4 + 54 * Math.pow(2 * u - 1, 2); };
+      for (const sd of [-1, 1]) {
+        const A = P(a, sd * (w + 1.6), H(a.s)), B = P(b, sd * (w + 1.6), H(b.s)); if (!A || !B) continue;
+        c.strokeStyle = gs(fogMix(0.3, vz)); c.lineWidth = Math.max(0.5, A[2] * 0.1); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke();
+        if (g.i % 4 === 0) { const D0 = P(a, sd * (w + 1.6), 1.1); if (D0) { c.lineWidth = Math.max(0.4, A[2] * 0.04); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(D0[0], D0[1]); c.stroke(); } }
+      }
+    }
+  },
+  drawCar(c, p, car, fogMix, rain) {
+    const sc = p[2], w = 1.8 * sc, h = 1.3 * sc, x = p[0], y = p[1], vz = p[3];
+    if (w < 0.6) { c.globalCompositeOperation = 'lighter'; c.fillStyle = COL.red; c.fillRect(x - 1, y - 1, 1, 1); c.fillRect(x + 0.5, y - 1, 1, 1); c.globalCompositeOperation = 'source-over'; return; }
+    c.fillStyle = 'rgba(0,0,0,0.6)'; c.fillRect(x - w * 0.55, y - h * 0.08, w * 1.1, h * 0.12);
+    const lit = Math.exp(-vz / 45) * 0.35;
+    c.fillStyle = gs(fogMix(car.body * 0.45 + lit, vz)); c.fillRect(x - w / 2, y - h * 0.62, w, h * 0.5);
+    const rw = car.shape === 2 ? 0.62 : 0.72;
+    poly(c, [[x - w * rw / 2, y - h * 0.62], [x + w * rw / 2, y - h * 0.62], [x + w * rw * 0.42, y - h], [x - w * rw * 0.42, y - h]]);
+    c.fillStyle = gs(fogMix(0.03, vz)); poly(c, [[x - w * rw * 0.45, y - h * 0.65], [x + w * rw * 0.45, y - h * 0.65], [x + w * rw * 0.38, y - h * 0.94], [x - w * rw * 0.38, y - h * 0.94]]);
+    if (car.shape === 1) { c.fillStyle = gs(fogMix(car.body * 0.5, vz)); c.fillRect(x - w * 0.5, y - h * 0.78, w, Math.max(0.6, h * 0.06)); }
+    c.fillStyle = gs(0.02); c.fillRect(x - w * 0.47, y - h * 0.14, w * 0.18, h * 0.16); c.fillRect(x + w * 0.29, y - h * 0.14, w * 0.18, h * 0.16);
+    c.fillStyle = gs(0.6); c.fillRect(x - w * 0.09, y - h * 0.32, w * 0.18, Math.max(0.6, h * 0.08));
     c.globalCompositeOperation = 'lighter';
-    for (const sd of [-1, 1]) { glow(c, sd * cw * 0.24, -cw * 0.06, cw * (0.14 + 0.08 * F.drive), 0.7); c.fillStyle = wa(0.9); c.fillRect(sd * cw * 0.24 - cw * 0.05, -cw * 0.08, cw * 0.1, Math.max(1, cw * 0.04)); }
+    const brake = (car.s - this.S) < 30 ? 1 : 0.6;
+    c.fillStyle = COL.red;
+    c.fillRect(x - w * 0.48, y - h * 0.55, w * 0.2, Math.max(0.8, h * 0.1)); c.fillRect(x + w * 0.28, y - h * 0.55, w * 0.2, Math.max(0.8, h * 0.1));
+    gl(c, GT.red, x - w * 0.38, y - h * 0.5, Math.max(1.5, w * 0.45), 0.45 * brake); gl(c, GT.red, x + w * 0.38, y - h * 0.5, Math.max(1.5, w * 0.45), 0.45 * brake);
+    if (rain > 0.1) { c.fillStyle = 'rgba(255,50,40,' + (0.25 * Math.min(1, rain)).toFixed(3) + ')'; c.fillRect(x - w * 0.45, y, w * 0.12, Math.min(25, h * 1.6)); c.fillRect(x + w * 0.33, y, w * 0.12, Math.min(25, h * 1.6)); }
+    c.globalCompositeOperation = 'source-over';
+  },
+  /* une voiture de police japonaise au loin : phares blancs, rampe rouge qui tourne */
+  policeItem(P, pts, t, dist) {
+    // on la place là où on la voit vraiment par la lunette (sur un col, la route tourne derrière nous)
+    let best = null;
+    for (let d = dist; d >= 35 && !best; d -= 6) {
+      const k = Math.floor(d / SEG), a = pts[k], b = pts[k + 1];
+      if (!a || !b) continue;
+      const f = (d - k * SEG) / SEG, p = { x: lerp(a.x, b.x, f), z: lerp(a.z, b.z, f), phi: lerp(a.phi, b.phi, f), y: lerp(a.y, b.y, f) };
+      const lanes = BIOMES[a.seg.type].lanes, w = a.seg.w, L = -w + (2 * w / lanes) * (Math.min(lanes - 1, 1) + 0.5);
+      const pp = P(p, L, 0);
+      if (pp && pp[0] > 90 && pp[0] < 230 && pp[1] > 32 && pp[1] < 98) best = pp;
+    }
+    if (!best) return null;
+    return { d: best[3] - 0.03, f: () => this.drawPolice(this._pc, best, t) };
+  },
+  drawPolice(c, pp, t) {
+    const sc = pp[2], sx = pp[0], sy = pp[1], w = Math.max(1.4, 1.8 * sc), hh = Math.max(1.1, 1.45 * sc);
+    // carrosserie bicolore (bas noir, haut blanc), vue de face
+    c.fillStyle = gs(0.05); c.fillRect(sx - w / 2, sy - hh * 0.5, w, hh * 0.45);
+    c.fillStyle = gs(0.75); c.fillRect(sx - w * 0.42, sy - hh * 0.95, w * 0.84, hh * 0.42);
+    c.fillStyle = gs(0.12); c.fillRect(sx - w * 0.34, sy - hh * 0.9, w * 0.68, hh * 0.22);
+    c.globalCompositeOperation = 'lighter';
+    // phares blancs
+    for (const sd of [-1, 1]) { gl(c, GT.white, sx + sd * w * 0.36, sy - hh * 0.3, Math.max(6, w * 2.2), 0.95); c.fillStyle = '#fff'; c.fillRect(sx + sd * w * 0.36 - 1, sy - hh * 0.32, 2, 1.2); }
+    c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(sx - 26, sy - hh * 0.3, 52, 0.6);
+    // rampe rouge qui tourne : un côté puis l'autre
+    const ph = t * 0.0078, L = Math.max(0, Math.sin(ph)), R = Math.max(0, Math.sin(ph + Math.PI));
+    c.fillStyle = COL.redD; c.fillRect(sx - w * 0.4, sy - hh * 1.1, w * 0.8, Math.max(1, hh * 0.14));
+    for (const [sd, I] of [[-1, L], [1, R]]) {
+      const lx = sx + sd * w * 0.24, ly = sy - hh * 1.04;
+      gl(c, GT.red, lx, ly, Math.max(9, w * 4.5) * (0.6 + I * 0.7), 0.25 + I * 0.75);
+      if (I > 0.2) { c.fillStyle = COL.red; c.fillRect(lx - 1, ly - 0.8, 2, 1.6); c.fillStyle = 'rgba(255,50,40,' + (0.5 * I).toFixed(3) + ')'; c.fillRect(lx - 18 * I, ly - 0.3, 36 * I, 0.6); }
+    }
+    // la lumière rouge balaie la route et les murs autour d'elle
+    gl(c, GT.red, sx + Math.sin(ph) * 26, sy - 3, 30, 0.16);
+    c.globalCompositeOperation = 'source-over';
+  },
+  /* ---------- météo dehors ---------- */
+  weather(dt, t) {
+    const rain = clamp(ENV.rain * settings.weather, 0, 2), snow = clamp(ENV.snow * settings.weather, 0, 2), v = this.v;
+    // traînées de pluie qui foncent vers nous
+    const nS = Math.round(rain * 70 + snow * 60);
+    while (this.streaks.length < nS) this.streaks.push({ a: Math.random() * Math.PI * 2, r: Math.random() * 120, s: Math.random() });
+    if (this.streaks.length > nS) this.streaks.length = nS;
+    for (const p of this.streaks) { p.r += dt * (20 + p.r * 2.2) * (v / 60) * (snow > rain ? 0.55 : 1); if (p.r > 190) { p.r = 2 + Math.random() * 8; p.a = Math.random() * Math.PI * 2; p.s = Math.random(); } }
+    // gouttes sur le pare-brise : l'air les fait remonter, elles glissent vers les côtés, la gravité les retient à basse vitesse
+    const wet = rain + snow * 0.4;
+    if (wet > 0.02 && !this.lb) {
+      const rate = wet * (18 + v * 0.9);
+      let n = rate * dt; while (n > 0) { if (Math.random() < n) this.drops.push({ x: 40 + Math.random() * 250, y: 14 + Math.random() * 56, r: 0.3 + Math.random() * Math.random() * 1.4, vx: 0, vy: 0, stick: Math.random() * 0.4, life: 1, snow: snow > rain && Math.random() < 0.6 }); n -= 1; }
+    }
+    const air = Math.max(0, v - 14);
+    for (const d of this.drops) {
+      if (d.stick > 0) { d.stick -= dt; continue; }
+      const up = air * air * 0.0045 * (0.35 + d.r) - 6;
+      const tvy = -up, tvx = (d.x - 160) * 0.0045 * Math.max(0, up);
+      d.vy = lerp(d.vy, tvy, 1 - Math.exp(-dt * 3)); d.vx = lerp(d.vx, tvx, 1 - Math.exp(-dt * 3));
+      d.y += d.vy * dt; d.x += d.vx * dt;
+      if (Math.random() < dt * 0.6) d.stick = Math.random() * 0.25;
+      if (d.snow) d.life -= dt * 0.25;
+    }
+    this.drops = this.drops.filter(d => d.y > 9 && d.x > 20 && d.x < 305 && d.life > 0).slice(-220);
+    // essuie-glace
+    const W = this.wiper;
+    if (wet > 0.15) {
+      W.t += dt;
+      const period = wet > 1.2 ? 1.6 : wet > 0.6 ? 2.6 : 5;
+      if (W.phase === 0 && W.t > period) { W.phase = 1; W.t = 0; }
+    }
+    if (W.phase) {
+      const p = W.t / 0.95; const prev = W.a;
+      W.a = -0.95 - Math.sin(Math.min(1, p) * Math.PI) * 1.95;
+      if (p >= 1) { W.phase = 0; W.t = 0; W.a = -0.95; }
+      const lo = Math.min(prev, W.a), hi = Math.max(prev, W.a), px = 204, py = 80;
+      this.drops = this.drops.filter(d => { const ang = Math.atan2(d.y - py, d.x - px), r = Math.hypot(d.x - px, d.y - py); return !(r < 98 && ang >= lo - 0.06 && ang <= hi + 0.06); });
+    }
+  },
+  drawOutsideWeather(c, t, dir, Y0) {
+    if (!this.streaks.length) return;
+    const snow = ENV.snow > ENV.rain;
+    c.strokeStyle = snow ? 'rgba(235,235,235,0.75)' : 'rgba(200,200,200,0.35)'; c.fillStyle = 'rgba(235,235,235,0.85)'; c.lineWidth = 0.7;
+    c.beginPath();
+    for (const p of this.streaks) {
+      const ca = Math.cos(p.a), sa = Math.sin(p.a) * 0.75 + (snow ? 0.15 : 0.45);
+      const x = 160 + ca * p.r, y = Y0 + sa * p.r;
+      if (snow) { const s = 0.6 + p.r / 90; c.rect(x, y, s, s); }
+      else { const l = 2 + p.r * 0.09 * (this.v / 60); c.moveTo(x, y); c.lineTo(x + ca * l, y + sa * l); }
+    }
+    snow ? c.fill() : c.stroke();
+  },
+  /* ---------- pare-brise : gouttes, essuie-glace, reflet du tableau de bord ---------- */
+  drawGlass(c, t, dt) {
+    // reflet très léger du tableau de bord dans le pare-brise
+    c.globalCompositeOperation = 'lighter';
+    c.fillStyle = 'rgba(255,255,255,0.035)'; c.fillRect(118, 52, 44, 8);
+    c.globalCompositeOperation = 'source-over';
+    for (const d of this.drops) {
+      const b = d.snow ? 0.8 : 0.35 + ih((d.x * 7) | 0) * 0.35;
+      const moving = Math.abs(d.vy) > 4;
+      if (moving && !d.snow) { c.fillStyle = 'rgba(200,200,200,0.12)'; c.fillRect(d.x, d.y, 0.6, Math.min(9, Math.abs(d.vy) * 0.06)); }
+      if (d.r < 0.7) { c.fillStyle = gs(b); c.fillRect(d.x, d.y, 1, 1); }
+      else { c.fillStyle = gs(0.02); c.fillRect(d.x, d.y + 0.5, d.r * 1.6, d.r * 1.3); c.fillStyle = gs(b + 0.15); c.fillRect(d.x, d.y, Math.max(1, d.r * 0.8), Math.max(1, d.r * 0.6)); }
+    }
+    // essuie-glace (bras pivotant en bas, à droite du centre)
+    const px = 204, py = 80, a = this.wiper.a, L = 96;
+    const ex = px + Math.cos(a) * L, ey = py + Math.sin(a) * L;
+    c.strokeStyle = gs(0.015); c.lineWidth = 2.4; c.beginPath(); c.moveTo(px, py); c.lineTo(px + Math.cos(a) * L * 0.55, py + Math.sin(a) * L * 0.55); c.stroke();
+    c.lineWidth = 1.4; c.beginPath(); c.moveTo(px + Math.cos(a) * L * 0.3, py + Math.sin(a) * L * 0.3); c.lineTo(ex, ey); c.stroke();
+    c.strokeStyle = gs(0.16); c.lineWidth = 0.5; c.beginPath(); c.moveTo(px + Math.cos(a) * L * 0.3 + 0.8, py + Math.sin(a) * L * 0.3 - 0.6); c.lineTo(ex + 0.8, ey - 0.6); c.stroke();
+  },
+  /* ---------- l'habitacle ---------- */
+  drawCockpit(c, t) {
+    const now = performance.now();
+    // toit et montants
+    c.fillStyle = gs(0.012);
+    c.beginPath(); c.moveTo(-20, -20); c.lineTo(VW + 20, -20); c.lineTo(VW + 20, 6); c.quadraticCurveTo(160, 14, -20, 8); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-20, -20); c.lineTo(46, -20); c.lineTo(62, 9); c.lineTo(18, 96); c.lineTo(-20, 118); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(VW + 20, -20); c.lineTo(282, -20); c.lineTo(268, 8); c.lineTo(304, 80); c.lineTo(VW + 20, 92); c.closePath(); c.fill();
+    // arceau cage (tube) à gauche, avec reflets
+    c.strokeStyle = gs(0.03); c.lineWidth = 6; c.beginPath(); c.moveTo(36, -10); c.lineTo(-6, 92); c.stroke();
+    c.strokeStyle = gs(0.12); c.lineWidth = 0.8; c.beginPath(); c.moveTo(39, -10); c.lineTo(-3, 92); c.stroke();
+    c.strokeStyle = gs(0.08); c.beginPath(); c.moveTo(62, 9); c.lineTo(18, 96); c.stroke();
+    // feux rouges des voitures devant : reflet sur l'arceau
+    const red = this.traffic.reduce((m, car) => { const d = car.s - this.S; return d > 3 && d < 70 ? Math.max(m, 1 - d / 70) : m; }, 0);
+    if (red > 0.02) { c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,50,40,' + (0.55 * red).toFixed(3) + ')'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(38, -4); c.lineTo(8, 70); c.stroke(); c.globalCompositeOperation = 'source-over'; }
+    // tableau de bord : bord supérieur courbe et masse sombre
+    c.fillStyle = gs(0.016);
+    c.beginPath(); c.moveTo(-20, 120); c.lineTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.lineTo(VW + 20, 92); c.lineTo(VW + 20, VH + 20); c.lineTo(-20, VH + 20); c.closePath(); c.fill();
+    const dg = c.createLinearGradient(0, 62, 0, 84); dg.addColorStop(0, 'rgba(255,255,255,0.07)'); dg.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = dg; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.lineTo(304, 92); c.quadraticCurveTo(160, 70, 18, 110); c.closePath(); c.fill();
+    c.strokeStyle = gs(0.12); c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.stroke();
+    c.strokeStyle = gs(0.035); c.beginPath(); c.moveTo(40, 100); c.quadraticCurveTo(160, 66, 300, 88); c.stroke();
+    // aérations à droite
+    c.fillStyle = gs(0.03); poly(c, [[196, 72], [244, 74], [250, 84], [200, 84]]);
+    c.strokeStyle = gs(0.06); c.lineWidth = 0.5; for (let i = 0; i < 5; i++) { c.beginPath(); c.moveTo(199 + i, 74 + i * 2); c.lineTo(246 + i * 0.6, 75 + i * 2); c.stroke(); }
+    // rétroviseur intérieur
+    c.save(); c.translate(292, 9); c.rotate(0.08);
+    c.fillStyle = gs(0.16); rrect(c, -28.5, -9.5, 57, 21, 4);
+    c.fillStyle = gs(0.015); rrect(c, -28, -9, 56, 20, 4);
+    const mg = c.createLinearGradient(0, -7, 0, 9); mg.addColorStop(0, gs(0.1)); mg.addColorStop(1, gs(0.05));
+    c.fillStyle = mg; rrect(c, -26, -7, 52, 16, 3);
+    c.globalCompositeOperation = 'lighter';
+    const behind = 0.5 + 0.5 * Math.sin(now * 0.0004);
+    gl(c, GT.white, -6, 2, 4 + behind * 2, 0.35 + behind * 0.2); gl(c, GT.white, 4, 2, 4 + behind * 2, 0.35 + behind * 0.2);
+    const pf = this.policeFade(now);
+    if (pf > 0) { const ph = now * 0.0075; gl(c, GT.red, -3 + Math.sin(ph) * 3, -2, 7, pf * (0.5 + 0.5 * Math.sin(ph))); gl(c, GT.red, 3 - Math.sin(ph) * 3, -2, 7, pf * (0.5 - 0.5 * Math.sin(ph))); }
     c.globalCompositeOperation = 'source-over';
     c.restore();
-    // HUD
-    const fs = Math.max(5, H * 0.04);
-    c.fillStyle = gs(0.85); txt(c, Math.round(320 + spd * 3.2) + ' KM/H', W * 0.06, H * 0.1, fs * 1.4, UI_FONT, 'left');
-    c.fillStyle = gs(0.5); txt(c, 'LAP ' + fmtTime(this.lap % 95) + '.' + String(Math.floor((this.lap * 100) % 100)).padStart(2, '0'), W * 0.06, H * 0.1 + fs * 1.6, fs, UI_FONT, 'left');
-    c.fillStyle = gs(0.5); txt(c, 'BOOST', W * 0.94, H * 0.1, fs, UI_FONT, 'right');
-    const bw = W * 0.16; c.strokeStyle = gs(0.5); c.strokeRect(W * 0.94 - bw, H * 0.1 + fs, bw, fs * 0.6);
-    c.fillStyle = gs(0.9); c.fillRect(W * 0.94 - bw + 1, H * 0.1 + fs + 1, (bw - 2) * clamp(F.drive, 0, 1), fs * 0.6 - 2);
-    c.strokeStyle = gs(0.3); c.beginPath(); c.ellipse(W * 0.9, H * 0.72, W * 0.05, H * 0.07, 0, 0, Math.PI * 2); c.stroke();
-    const la = this.lap * 0.4; c.fillStyle = gs(1); c.fillRect(W * 0.9 + Math.cos(la) * W * 0.05 - 1, H * 0.72 + Math.sin(la) * H * 0.07 - 1, 2, 2);
-    c.fillStyle = gs(0.1); vtxt(c, '電脳', W * 0.06, H * 0.32, H * 0.1);
+    // le volant tourne avec la route
+    const wa = this.steer * 0.55, wx = 150, wy = 182;
+    c.save(); c.translate(wx, wy); c.rotate(wa);
+    c.strokeStyle = gs(0.03); c.lineWidth = 9; c.beginPath(); c.arc(0, 0, 70, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+    c.strokeStyle = gs(0.1); c.lineWidth = 0.8; c.beginPath(); c.arc(0, 0, 74.5, Math.PI * 1.12, Math.PI * 1.88); c.stroke();
+    c.strokeStyle = gs(0.045); c.lineWidth = 5; c.beginPath(); c.moveTo(-66, -18); c.lineTo(-22, -12); c.moveTo(66, -18); c.lineTo(22, -12); c.stroke();
+    c.strokeStyle = gs(0.12); c.lineWidth = 0.6; c.beginPath(); c.moveTo(-64, -21); c.lineTo(-24, -15); c.stroke();
+    // boutons du volant (accents de couleur)
+    c.globalCompositeOperation = 'lighter';
+    const btn = (x, y, col, r) => { c.fillStyle = COL[col + 'D']; c.fillRect(x - r, y - r, r * 2, r * 2); c.fillStyle = COL[col]; c.fillRect(x - r * 0.5, y - r * 0.5, r, r); gl(c, GT[col], x, y, r * 3, 0.32); };
+    for (let r = 0; r < 6; r++) for (let q = 0; q < 2; q++) btn(50 + q * 9, -72 + r * 6.2, 'blue', 1.6);
+    btn(-50, -41, 'green', 2.2); btn(-57, -48, 'blue', 1.7); btn(-42, -20, 'red', 2); btn(-42, -12, 'amber', 1.8); btn(40, -22, 'amber', 2); btn(51, -27, 'red', 1.9);
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = gs(0.35); for (let r = 0; r < 6; r++) c.fillRect(50, -72.5 + r * 6.2, 0.7, 0.7);
+    c.restore();
+    // écran du tableau de bord
+    this.drawDisplay(c, now);
+    // reflets rouges des gyrophares dans l'habitacle, qui s'estompent
+    if (pf > 0.01) {
+      // la lumière vient de derrière : elle accroche les montants, l'arceau, le bord du toit et le dessus de planche
+      const ph = now * 0.0075, L = Math.max(0, Math.sin(ph)), R = Math.max(0, Math.sin(ph + Math.PI));
+      const rim = (a, x1, y1, x2, y2, w) => { if (a < 0.02) return; c.strokeStyle = 'rgba(255,50,40,' + Math.min(1, a).toFixed(3) + ')'; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+      c.globalCompositeOperation = 'lighter';
+      gl(c, GT.red, 26, 46, 64, pf * (0.15 + L * 0.75)); gl(c, GT.red, 298, 40, 58, pf * (0.15 + R * 0.7)); gl(c, GT.red, 160, 4, 80, pf * 0.3);
+      rim(pf * L, 39, -10, -3, 92, 1); rim(pf * L * 0.8, 62, 9, 18, 96, 0.8); rim(pf * R * 0.8, 268, 8, 304, 80, 0.8);
+      rim(pf * (L + R) * 0.45, 30, 7.5, 290, 7.5, 0.7);
+      c.strokeStyle = 'rgba(255,50,40,' + (pf * 0.35).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.stroke();
+      c.globalCompositeOperation = 'source-over';
+    }
+  },
+  policeFade(now) { const since = (now - this.boostT) / 1000; return since < 0 || since > 24 ? 0 : clamp(Math.exp(-since / 7), 0, 1) * smooth((24 - since) / 4); },
+  /* l'écran : couleurs posées exactement sur les tons de la palette, pour un texte net, sans trame */
+  drawDisplay(c, now) {
+    const T1 = gs(0.236), T2 = gs(0.557), T3 = gs(1);
+    const x0 = 106, y0 = 86, w = 68, h = 26;
+    c.fillStyle = gs(0); c.fillRect(x0 - 2, y0 - 7, w + 4, h + 9);
+    c.globalCompositeOperation = 'lighter';
+    // témoins de passage de rapport
+    const n = 10, frac = clamp((this.rpm - 5200) / 3000, 0, 1), lit = Math.round(frac * n), lim = this.rpm > 8150 && Math.floor(now / 70) % 2 === 0;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + 12 + i * 4.6 + (i >= 5 ? 3 : 0), y = y0 - 4;
+      const col = lim ? 'blue' : i < 3 || i > 6 ? 'green' : 'amber';
+      const on = lim || (i < 5 ? i < lit / 2 + 0.01 : n - 1 - i < lit / 2 + 0.01);
+      c.fillStyle = on ? COL[col] : 'rgb(20,20,20)'; c.fillRect(Math.round(x), y, 2, 1);
+      if (on) gl(c, GT[col], x + 1, y + 0.5, 3, 0.35);
+    }
+    c.globalCompositeOperation = 'source-over';
+    // cadres des cases
+    c.strokeStyle = T1; c.lineWidth = 0.5;
+    c.strokeRect(x0 + 26.5, y0 + 0.5, 16, 7); c.strokeRect(x0 + 26.5, y0 + 8.5, 16, 17);
+    // colonne gauche
+    const lab = ['ABS', 'TC', 'MAP', 'BB'], val = ['3', '2', '1', '54'];
+    for (let i = 0; i < 4; i++) { px5(c, lab[i], x0 + 1, y0 + 2 + i * 6, 1, T1); px5(c, val[i], x0 + 15, y0 + 2 + i * 6, 1, T2); }
+    // vitesse et rapport
+    const kmh = String(Math.round(this.v * 3.6));
+    px5(c, kmh, Math.round(x0 + 34.5 - px5w(kmh, 1) / 2), y0 + 2, 1, T3);
+    const fresh = now - this.shiftT < 180;
+    if (fresh) { c.fillStyle = T1; c.fillRect(x0 + 27, y0 + 9, 15, 16); }
+    px5(c, String(this.gear), x0 + 30, y0 + 10, 3, T3);
+    // chrono et écart
+    const lap = this.lapT % 118, mm = Math.floor(lap / 60), ss = (lap % 60).toFixed(2).padStart(5, '0');
+    px5(c, 'LAP', x0 + 45, y0 + 1, 1, T1);
+    px5(c, mm + ':' + ss, x0 + 45, y0 + 7, 1, T2);
+    const delta = (Math.sin(this.lapT * 0.07) * 0.6).toFixed(2), dCol = +delta < 0 ? COL.green : COL.red;
+    c.globalCompositeOperation = 'lighter'; px5(c, (+delta > 0 ? '+' : '') + delta, x0 + 46, y0 + 14, 1, dCol); c.globalCompositeOperation = 'source-over';
+    c.strokeStyle = COL.amberD; c.lineWidth = 0.5; c.strokeRect(x0 + 44.5, y0 + 12.5, 22, 7);
+    px5(c, 'DRFT', x0 + 47, y0 + 21, 1, T1);
+  },
+  drawRearCabin(c, t) {
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.0075);
+    // habitacle arrière : cage, lunette, siège
+    c.fillStyle = gs(0.012);
+    c.beginPath(); c.rect(-20, -20, VW + 40, VH + 40);
+    c.moveTo(78, 22); c.lineTo(246, 22); c.lineTo(262, 102); c.lineTo(62, 102); c.closePath();
+    c.fill('evenodd');
+    c.strokeStyle = gs(0.16); c.lineWidth = 0.8; c.beginPath(); c.moveTo(78, 22); c.lineTo(246, 22); c.lineTo(262, 102); c.lineTo(62, 102); c.closePath(); c.stroke();
+    c.fillStyle = gs(0.035); c.fillRect(-20, 102, VW + 40, 4); c.fillStyle = gs(0.1); c.fillRect(-20, 102, VW + 40, 0.7);
+    // tubes de l'arceau
+    const tube = (x1, y1, x2, y2, wd) => { c.strokeStyle = gs(0.03); c.lineWidth = wd; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); c.strokeStyle = gs(0.2); c.lineWidth = 0.7; c.beginPath(); c.moveTo(x1, y1 - wd * 0.35); c.lineTo(x2, y2 - wd * 0.35); c.stroke(); };
+    tube(40, 14, 284, 14, 6); tube(46, 12, 34, 190, 7); tube(278, 12, 290, 190, 7); tube(46, 18, 282, 140, 5); tube(34, 140, 290, 140, 5);
+    // siège baquet à gauche (on regarde par-dessus l'épaule droite)
+    c.fillStyle = gs(0.025); c.beginPath(); c.moveTo(-20, 40); c.quadraticCurveTo(40, 30, 58, 70); c.lineTo(66, 190); c.lineTo(-20, 190); c.closePath(); c.fill();
+    c.strokeStyle = gs(0.09); c.lineWidth = 0.7; c.beginPath(); c.moveTo(-20, 40); c.quadraticCurveTo(40, 30, 58, 70); c.lineTo(66, 190); c.stroke();
+    // harnais
+    c.strokeStyle = gs(0.06); c.lineWidth = 3; c.beginPath(); c.moveTo(30, 60); c.lineTo(46, 190); c.stroke();
+    // lueur rouge de la police dans l'habitacle
+    c.globalCompositeOperation = 'lighter';
+    gl(c, GT.red, 160, 30, 110, 0.1 + 0.16 * pulse); gl(c, GT.red, 286, 60, 46, 0.35 * pulse); gl(c, GT.red, 38, 60, 46, 0.35 * (1 - pulse));
+    c.strokeStyle = 'rgba(255,50,40,' + (0.5 * pulse).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(278, 8); c.lineTo(290, 190); c.stroke();
+    c.strokeStyle = 'rgba(255,50,40,' + (0.5 * (1 - pulse)).toFixed(3) + ')'; c.beginPath(); c.moveTo(46, 8); c.lineTo(34, 190); c.stroke();
+    // nos propres feux arrière éclairent le bas de la lunette
+    gl(c, GT.red, 96, 98, 22, 0.25); gl(c, GT.red, 228, 98, 22, 0.25);
+    c.globalCompositeOperation = 'source-over';
+  },
+  vignette(c) {
+    const g = c.createRadialGradient(160, 80, 60, 160, 90, 210);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
+    c.fillStyle = g; c.fillRect(-20, -20, VW + 40, VH + 40);
   }
 };
 
@@ -2158,71 +2297,21 @@ const Eyecatch = {
   show(s) { this.cur = s; this.t0 = performance.now(); },
   draw(c, now) {
     const p = (now - this.t0) / this.dur; if (p < 0 || p > 1 || !this.cur) return;
-    const W = V.W, H = V.H, inn = smooth(p / 0.14), out = smooth((p - 0.86) / 0.14), k = inn * (1 - out);
-    const off = (1 - inn) * W * 1.2 - out * W * 1.2;
+    const inn = smooth(p / 0.16), out = smooth((p - 0.84) / 0.16);
+    SceneDrive.view(c);
+    const off = (1 - inn) * 340 - out * 340;
     c.save(); c.translate(off, 0);
-    c.fillStyle = gs(0.02); poly(c, [[-W * 0.1, H * 0.18], [W * 1.1, H * 0.08], [W * 1.1, H * 0.86], [-W * 0.1, H * 0.94]]);
-    c.fillStyle = gs(0.85); poly(c, [[-W * 0.1, H * 0.18], [W * 1.1, H * 0.08], [W * 1.1, H * 0.1], [-W * 0.1, H * 0.2]]);
-    poly(c, [[-W * 0.1, H * 0.92], [W * 1.1, H * 0.84], [W * 1.1, H * 0.86], [-W * 0.1, H * 0.94]]);
-    const big = Math.min(H * 0.24, W * 0.13);
-    c.fillStyle = gs(0.95); txt(c, 'ドリフトFM', W * 0.5, H * 0.43, big);
-    c.fillStyle = gs(0.55); txt(c, 'DRFT FM', W * 0.5, H * 0.6, big * 0.36, UI_FONT);
-    c.fillStyle = gs(0.75); txt(c, this.cur.jp + '  ·  ' + this.cur.name, W * 0.5, H * 0.72, big * 0.22, UI_FONT);
-    c.fillStyle = gs(0.35); for (let i = 0; i < 12; i++) c.fillRect(W * (0.08 + i * 0.07), H * 0.8, W * 0.035, Math.max(1, H * 0.008));
+    c.fillStyle = 'rgba(0,0,0,0.78)'; poly(c, [[-10, 20], [330, 14], [330, 46], [-10, 52]]);
+    c.fillStyle = gs(0.85); poly(c, [[-10, 20], [330, 14], [330, 15], [-10, 21]]); poly(c, [[-10, 51], [330, 45], [330, 46], [-10, 52]]);
+    c.fillStyle = gs(0.95); txt(c, 'ドリフトFM', 118, 33, 15);
+    px5(c, 'DRFT FM', 186, 26, 1, gs(0.6));
+    px5(c, this.cur.name, 186, 34, 1, gs(0.85));
     c.restore();
-    return k;
+    c.setTransform(1, 0, 0, 1, 0, 0);
   }
 };
 
-const IMGS = [];
-const SceneImages = {
-  name: 'Garage', jp: '車庫', i: 0, prev: -1, timer: 0, fade: 1, kb: null, kbPrev: null, hold: 11,
-  newKB() { return { s0: 1.03 + Math.random() * 0.04, s1: 1.12 + Math.random() * 0.1, x0: Math.random(), x1: Math.random(), y0: Math.random(), y1: Math.random() }; },
-  drawKB(c, img, kb, p) {
-    const W = V.W, H = V.H, cover = Math.max(W / img.width, H / img.height), s = cover * lerp(kb.s0, kb.s1, clamp(p, 0, 1));
-    const dw = img.width * s, dh = img.height * s;
-    c.drawImage(img, -lerp(kb.x0, kb.x1, clamp(p, 0, 1)) * (dw - W), -lerp(kb.y0, kb.y1, clamp(p, 0, 1)) * (dh - H), dw, dh);
-  },
-  draw(c, t, dt, F) {
-    const W = V.W, H = V.H;
-    c.fillStyle = gs(0); c.fillRect(0, 0, W, H);
-    if (!IMGS.length) {
-      c.globalCompositeOperation = 'lighter';
-      const gg = c.createLinearGradient(0, 0, 0, H); gg.addColorStop(0, wa(0.25)); gg.addColorStop(1, 'rgba(255,255,255,0)');
-      const sx = W / 2 + Math.sin(t * 0.0006) * W * 0.12;
-      c.fillStyle = gg; c.beginPath(); c.moveTo(sx - 4, 0); c.lineTo(sx + 4, 0); c.lineTo(sx + W * 0.35, H * 0.85); c.lineTo(sx - W * 0.35, H * 0.85); c.closePath(); c.fill();
-      c.globalCompositeOperation = 'source-over';
-      c.fillStyle = gs(0.08); c.fillRect(0, H * 0.82, W, H * 0.18);
-      const L = Math.min(W * 0.5, H * 0.95);
-      drawCarSide(c, W / 2 - L / 2, H * 0.82, L, { rot: t * 0.0005, light: 0.7, sweeps: [((sx - (W / 2 - L / 2)) / L)], body: 0.26 });
-      const fs = Math.max(6, Math.round(Math.min(W, H * 1.4) * 0.035));
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.font = fs + 'px ' + UI_FONT; c.fillStyle = gs(0.9);
-      c.fillText('DROP YOUR CAR SHOTS HERE', W / 2, H * 0.18);
-      c.font = Math.max(5, Math.round(fs * 0.7)) + 'px ' + UI_FONT; c.fillStyle = gs(0.55);
-      c.fillText('MENU › VISUALS › + IMAGES', W / 2, H * 0.18 + fs * 1.6);
-      return;
-    }
-    if (this.i >= IMGS.length) this.i = 0;
-    if (!this.kb) this.kb = this.newKB();
-    this.timer += dt;
-    if (this.timer > this.hold && IMGS.length > 1) { this.timer = 0; this.prev = this.i; this.kbPrev = this.kb; this.i = (this.i + 1) % IMGS.length; this.kb = this.newKB(); this.fade = 0; }
-    this.fade = Math.min(1, this.fade + dt / 1.6);
-    if (this.prev >= 0 && this.fade < 1 && IMGS[this.prev]) this.drawKB(c, IMGS[this.prev], this.kbPrev, 1);
-    c.globalAlpha = this.fade; this.drawKB(c, IMGS[this.i], this.kb, this.timer / this.hold); c.globalAlpha = 1;
-    if (F.pulse > 0.55) {
-      const n = 2 + ((F.pulse * 4) | 0);
-      for (let k = 0; k < n; k++) { const y = (Math.random() * H) | 0, h = 1 + ((Math.random() * H * 0.04) | 0), dx = (Math.random() - 0.5) * W * 0.05 * F.pulse; c.drawImage(c.canvas, 0, y, W, h, dx, y, W, h); }
-    }
-    const sy = (t * 0.03) % (H + 20) - 10;
-    c.globalCompositeOperation = 'lighter';
-    const g = c.createLinearGradient(0, sy - 6, 0, sy + 6); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, wa(0.1)); g.addColorStop(1, 'rgba(255,255,255,0)');
-    c.fillStyle = g; c.fillRect(0, sy - 6, W, 12);
-    c.globalCompositeOperation = 'source-over';
-  }
-};
-
-const SCENES = [SceneWangan, SceneTouge, SceneNeo, SceneCyber, SceneGas, SceneTacho, SceneImages];
+const SCENES = [SceneDrive];
 
 /* =====================================================================
    ANALYSE AUDIO -> paramètres visuels
@@ -2280,11 +2369,7 @@ function goScene(idx) {
   settings.scene = idx; saveSettings(); sceneTimer = 0;
   UI.renderScenes();
 }
-function nextScene(dir = 1) {
-  const base = trans ? trans.to : sceneIdx;
-  let i = base;
-  for (let n = 0; n < SCENES.length; n++) { i = (i + dir + SCENES.length) % SCENES.length; if (SCENES[i] !== SceneImages || IMGS.length) break; }
-  goScene(i);
+function nextScene() { /* une seule scène */
 }
 
 let costAvg = 8, slowFrames = 0;
@@ -2308,10 +2393,9 @@ function frame(now) {
     }
     compose(a, b, wipe, FR);
     vctx.putImageData(OUT, 0, 0);
-    sceneTimer += dt;
-    if (settings.cycle !== 'off' && sceneTimer > 24) nextScene();
     themeTimer += dt;
-    if ((settings.themeCycle === '60' && themeTimer > 60) || (settings.themeCycle === '120' && themeTimer > 120)) nextTheme(true);
+    // l'ambiance (couleurs + météo) change toutes les 4 minutes environ, en fondu lent
+    if (settings.themeCycle !== 'off' && themeTimer > 240) nextTheme(true);
     UI.frame(now);
     // garde-fou anti-lag : si le rendu devient trop lourd, on grossit les pixels
     costAvg = lerp(costAvg, performance.now() - w0, 0.05);
@@ -2412,7 +2496,7 @@ const UI = {
     const p = Radio.onAir(), key = p ? p.tr : null;
     if (key !== this.lastP) {
       this.lastP = key;
-      if (p) { this.showTrack(p.tr); this.trackChanges++; if (this.trackChanges > 1) { if (settings.cycle !== 'off') nextScene(); if (settings.themeCycle === 'track') nextTheme(true); } }
+      if (p) { this.showTrack(p.tr); this.trackChanges++; if (this.trackChanges > 1 && Radio.playing) SceneDrive.lookBack(); }
     }
     if (p) {
       const info = p.posInfo(Radio.ctx ? Radio.ctx.currentTime : 0), d = info.dur || 0;
@@ -2452,23 +2536,13 @@ const UI = {
       const jp = document.createElement('i'); jp.textContent = src.jp;
       const a = document.createElement('span'); a.textContent = src.name.toUpperCase();
       const sm = document.createElement('small');
-      sm.textContent = src.id === 'local' ? String(Radio.files.length) : !Sp.connected() ? 'SET UP' : src.id === 'radio' ? 'DRFT FM' : (Sp.plName ? Sp.plName.toUpperCase() : 'CHOOSE');
+      sm.textContent = src.id === 'local' ? String(Radio.files.length) : !Sp.connected() ? 'SET UP' : src.id === 'radio' ? (Sp.radioName ? 'FROM ' + Sp.radioName.toUpperCase() : 'CHOOSE') : (Sp.plName ? Sp.plName.toUpperCase() : 'CHOOSE');
       b.append(jp, a, sm); b.addEventListener('click', () => pickSource(src.id));
       el.appendChild(b);
     });
     $('#npStation').textContent = this.stationName(Radio.cur && Radio.cur.tr);
   },
-  renderScenes() {
-    const el = $('#sceneTiles'); el.innerHTML = '';
-    const target = trans ? trans.to : sceneIdx;
-    SCENES.forEach((s, i) => {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'tile scene';
-      const jp = document.createElement('b'); jp.textContent = s.jp || ''; const nm = document.createElement('span'); nm.textContent = s.name.toUpperCase();
-      b.append(jp, nm); b.title = s.name; b.setAttribute('aria-pressed', i === target ? 'true' : 'false');
-      b.addEventListener('click', () => goScene(i));
-      el.appendChild(b);
-    });
-  },
+  renderScenes() { /* une seule scène */ },
   renderThemes() {
     const el = $('#themeTiles'); el.innerHTML = '';
     THEMES.forEach(t => {
@@ -2556,7 +2630,7 @@ const UI = {
       el.appendChild(mk('p', 'mini', 'Spotify Premium needed. Login and playback stay between this browser and Spotify.'));
       return;
     }
-    head.appendChild(mk('span', 'lbl', (settings.src === 'radio' ? 'RADIO STYLE' : 'YOUR PLAYLISTS') + (Sp.user ? ' · ' + String(Sp.user).toUpperCase() : '')));
+    head.appendChild(mk('span', 'lbl', (settings.src === 'radio' ? 'DRFT FM' : 'YOUR PLAYLISTS') + (Sp.user ? ' · ' + String(Sp.user).toUpperCase() : '')));
     const out = mk('button', 'btn ghost sm', 'DISCONNECT'); out.type = 'button'; out.addEventListener('click', () => Sp.logout());
     head.appendChild(out); el.appendChild(head);
     if (settings.src === 'playlist') {
@@ -2572,24 +2646,25 @@ const UI = {
       el.appendChild(list);
       return;
     }
-    const fd = mk('div', 'field'), inp = mk('input'); inp.id = 'spKw'; inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.value = Sp.keywords.join(', '); inp.placeholder = 'ARTISTS OR STYLES, COMMA SEPARATED'; inp.setAttribute('aria-label', 'Radio style: artists or styles');
-    const set = mk('button', 'btn sm', 'SET'); set.type = 'button';
-    const apply = () => setKeywords(inp.value);
-    set.addEventListener('click', apply); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } e.stopPropagation(); });
-    fd.append(inp, set); fd.style.marginTop = '0'; el.appendChild(fd);
+    el.appendChild(mk('p', 'mini', 'The radio plays your reference playlist and tracks close to it, half and half: other tracks by its artists, and artists Spotify files under the same styles. It runs with the clock, like a real station.'));
     const r = Sp.resolved, sum = mk('div', 'sp-sum');
-    if (Sp.building) sum.appendChild(mk('span', null, 'Searching Spotify for this style…'));
-    else if (r && r.items) {
-      const label = { artist: 'artist', genre: 'style', text: 'keyword' };
-      for (const it of r.items) {
-        const line = mk('span'); line.appendChild(mk('b', null, String(it.kw).toUpperCase()));
-        line.append(' → ' + (it.type === 'genre' ? 'style · ' + it.n + ' artists' : it.type === 'text' ? (it.n ? 'keyword · ' + it.n + ' tracks' : 'nothing found') : label[it.type]));
-        sum.appendChild(line);
-      }
-      sum.appendChild(mk('span', null, r.tracks + ' tracks from ' + r.artists + ' artists' + (r.styles && r.styles.length ? ' · styles: ' + r.styles.slice(0, 6).join(', ') : '')));
+    if (Sp.building) sum.appendChild(mk('span', null, 'Listening to your playlist and searching similar tracks…'));
+    else if (r && r.own != null && Sp.radioPl) {
+      const l1 = mk('span'); l1.appendChild(mk('b', null, String(r.name || Sp.radioName).toUpperCase())); l1.append(' · ' + r.own + ' tracks of yours + ' + r.sim + ' similar tracks from ' + r.artists + ' artists'); sum.appendChild(l1);
+      if (r.styles && r.styles.length) sum.appendChild(mk('span', null, 'Styles: ' + r.styles.join(', ')));
     }
     el.appendChild(sum);
-    el.appendChild(mk('p', 'mini', 'Type artists or styles (liquid funk, jungle, atmospheric dnb…). The radio only plays artists it can verify in those styles, never the same track twice in a row, instrumentals first. It runs with the clock, like a real station.'));
+    el.appendChild(mk('div', 'lbl', 'RADIO BASED ON'));
+    if (!Sp.playlists) { el.appendChild(mk('p', 'mini', 'Loading your playlists…')); return; }
+    if (!Sp.playlists.length) { el.appendChild(mk('p', 'mini', 'No playlist of yours on this Spotify account. Create one named DRFT in Spotify, then reopen this menu.')); return; }
+    const list = mk('div', 'list');
+    for (const pl of Sp.playlists) {
+      const b = mk('button', 'li-btn'); b.type = 'button'; b.appendChild(mk('b', null, pl.name)); b.appendChild(mk('small', null, Sp.radioPl === pl.id ? 'The radio is based on it' : 'Base the radio on it'));
+      b.setAttribute('aria-pressed', Sp.radioPl === pl.id ? 'true' : 'false');
+      b.addEventListener('click', () => setRadioBase(pl));
+      list.appendChild(b);
+    }
+    el.appendChild(list);
   }
 };
 
@@ -2609,6 +2684,12 @@ function pickSource(id, force) {
   const same = settings.src === id && Radio.cur === SpPlayer && Radio.playing;
   setSrc(id); UI.renderStations(); UI.renderSpotify(); UI.renderStart();
   if (!Sp.connected()) { Radio.station = 'spotify'; setDrawer(true, 'music'); UI.focusSpotify(); return; }
+  if (id === 'radio' && !Sp.radioPl) {
+    setDrawer(true, 'music');
+    const ask = () => { if (Sp.radioPl) pickSource('radio', true); else UI.toast('CHOOSE THE PLAYLIST THE RADIO IS BASED ON'); };
+    if (!Sp.playlists) Sp.loadPlaylists().then(ask); else ask();
+    return;
+  }
   if (id === 'playlist' && !Sp.plId) { setDrawer(true, 'music'); if (!Sp.playlists) Sp.loadPlaylists(); UI.toast('CHOOSE ONE OF YOUR PLAYLISTS'); return; }
   if (same && !force) return;
   if (Radio.cur === SpPlayer) {
@@ -2623,15 +2704,13 @@ function choosePlaylist(pl) {
   UI.toast('PLAYLIST · ' + pl.name.toUpperCase());
   pickSource('playlist', true);
 }
-function setKeywords(txt) {
-  const list = [...new Set(String(txt || '').split(',').map(x => x.trim()).filter(Boolean))].slice(0, 10);
-  Sp.keywords = list.length ? list : SP_KEYWORDS.slice(); store.set('sp_kw', Sp.keywords);
+function setRadioBase(pl) {
+  Sp.setRadioBase(pl);
   Sp.resolved = null; store.set('sp_resolved', null);
   if (!Sp.connected()) { UI.renderSpotify(); return; }
-  const go = Sp.getPool('fm'); UI.renderSpotify(); UI.toast('SEARCHING THIS STYLE…');
+  const go = Sp.getPool('fm'); UI.renderSpotify(); UI.toast('RADIO · BASED ON ' + pl.name.toUpperCase());
   go.then(() => {
     UI.renderSpotify();
-    const r = Sp.resolved; if (r) UI.toast('RADIO · ' + r.tracks + ' TRACKS FROM ' + r.artists + ' ARTISTS');
     if (Radio.cur === SpPlayer && Sp.source === 'fm') { Radio.playing = true; UI.syncPlay(); UI.loading(); Sp.playFresh().catch(e => Radio.spFail(e)); }
   }, e => { UI.renderSpotify(); Radio.spFail(e); });
 }
@@ -2654,7 +2733,7 @@ function setTheme(id, quiet) {
 }
 function nextTheme(quiet) { const i = THEMES.indexOf(themeTarget); setTheme(THEMES[(i + 1) % THEMES.length].id, quiet); }
 function setThemeCycle(v) { settings.themeCycle = v; saveSettings(); themeTimer = 0; UI.renderSeg('#themeCycleSeg', [['60', 'AUTO'], ['off', 'FIXED']], settings.themeCycle === 'off' ? 'off' : '60', setThemeCycle); }
-function setCycle(v) { settings.cycle = v; saveSettings(); sceneTimer = 0; UI.renderSeg('#cycleSeg', [['auto', 'AUTO'], ['off', 'FIXED']], settings.cycle === 'off' ? 'off' : 'auto', setCycle); }
+function setCycle(v) { settings.cycle = 'auto'; }
 function setXfade(v) { settings.xfade = +v; saveSettings(); UI.renderSeg('#xfadeSeg', [[0, '0 S'], [2, '2 S'], [4, '4 S'], [8, '8 S']], settings.xfade, setXfade); }
 function setPx(v) { settings.px = +v; saveSettings(); resize(); UI.renderSeg('#pxSeg', [[2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], settings.px, setPx); }
 function setReact(v) { settings.react = +v; saveSettings(); UI.renderSeg('#reactSeg', [[0.5, 'SOFT'], [1, 'NORMAL'], [1.6, 'STRONG']], settings.react, setReact); }
@@ -2805,58 +2884,9 @@ function removeTrack(item) {
   updateCounts(); UI.renderStations(); UI.renderLibrary();
   if (!Radio.files.length && Radio.station === 'local') Radio.setStation('spotify');
 }
-function loadImg(blob) {
-  return new Promise((res, rej) => {
-    const u = URL.createObjectURL(blob), im = new Image();
-    im.onload = () => { res(im); setTimeout(() => URL.revokeObjectURL(u), 1000); };
-    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('image')); };
-    im.src = u;
-  });
-}
-async function blobToCanvas(blob, max) {
-  const im = await loadImg(blob);
-  const iw = im.naturalWidth || im.width, ihh = im.naturalHeight || im.height;
-  if (!iw || !ihh) throw new Error('image vide');
-  const s = Math.min(1, max / Math.max(iw, ihh)), c = document.createElement('canvas');
-  c.width = Math.max(1, Math.round(iw * s)); c.height = Math.max(1, Math.round(ihh * s));
-  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-  return c;
-}
-function processImage(src) {
-  const w = src.width, h = src.height, x = src.getContext('2d', { willReadFrequently: true }), d = x.getImageData(0, 0, w, h), p = d.data;
-  const hist = new Uint32Array(256), n = w * h;
-  for (let i = 0; i < p.length; i += 4) hist[(p[i] * 77 + p[i + 1] * 150 + p[i + 2] * 29) >> 8]++;
-  let acc = 0, lo = 0, hi = 255;
-  for (let i = 0; i < 256; i++) { acc += hist[i]; if (acc > n * 0.02) { lo = i; break; } }
-  acc = 0; for (let i = 255; i >= 0; i--) { acc += hist[i]; if (acc > n * 0.02) { hi = i; break; } }
-  const span = Math.max(1, hi - lo);
-  for (let i = 0; i < p.length; i += 4) {
-    const l = (p[i] * 77 + p[i + 1] * 150 + p[i + 2] * 29) >> 8, v = Math.pow(clamp((l - lo) / span, 0, 1), 1.15) * 255;
-    p[i] = p[i + 1] = p[i + 2] = v;
-  }
-  x.putImageData(d, 0, 0);
-  return src;
-}
-async function addImages(list) {
-  const fs = [...list].filter(f => f.type && f.type.startsWith('image/'));
-  if (!fs.length) { UI.toast('NO IMAGES RECOGNIZED'); return; }
-  let n = 0;
-  for (const f of fs) {
-    try {
-      const c = await blobToCanvas(f, 960);
-      const id = Date.now() + '-' + Math.random().toString(36).slice(2);
-      c.toBlob(b => { if (b) IDB.put('images', { id, blob: b }); }, 'image/jpeg', 0.86);
-      IMGS.push(processImage(c)); n++;
-    } catch (e) { UI.toast('UNREADABLE IMAGE: ' + f.name); }
-  }
-  updateCounts();
-  if (n) { UI.toast('+' + n + ' IMAGE' + (n > 1 ? 'S' : '')); goScene(SCENES.indexOf(SceneImages)); }
-}
 function updateCounts() {
-  const a = Radio.files.length, i = IMGS.length;
+  const a = Radio.files.length;
   $('#audioCount').textContent = String(a);
-  $('#imgCount').textContent = i ? i + ' IMAGE' + (i > 1 ? 'S' : '') : '';
-  $('#btnClearImg').hidden = !i;
 }
 
 /* =====================================================================
@@ -2911,7 +2941,6 @@ $('#btnClose').addEventListener('click', () => setDrawer(false));
 document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
 $('#btnAddAudio').addEventListener('click', () => $('#fileAudio').click());
 $('#btnAddFolder').addEventListener('click', () => $('#fileFolder').click());
-$('#btnAddImg').addEventListener('click', () => $('#fileImg').click());
 let clearArmed = false;
 $('#btnClearAudio').addEventListener('click', () => {
   if (!Radio.files.length) return;
@@ -2921,10 +2950,8 @@ $('#btnClearAudio').addEventListener('click', () => {
   updateCounts(); UI.renderStations(); UI.renderLibrary();
   if (Radio.station === 'local') Radio.setStation('spotify');
 });
-$('#btnClearImg').addEventListener('click', () => { IMGS.length = 0; IDB.clear('images'); updateCounts(); UI.renderScenes(); });
 $('#fileAudio').addEventListener('change', e => { addAudioFiles(e.target.files); e.target.value = ''; });
 $('#fileFolder').addEventListener('change', e => { addAudioFiles(e.target.files); e.target.value = ''; });
-$('#fileImg').addEventListener('change', e => { addImages(e.target.files); e.target.value = ''; });
 
 window.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2937,7 +2964,6 @@ window.addEventListener('keydown', e => {
     case 'n': case 'arrowright': $('#start').hidden = true; Radio.next(); break;
     case 'arrowleft': Radio.prev(); break;
     case 'l': toggleLike(); break;
-    case 'v': nextScene(); break;
     case 'p': nextTheme(false); break;
     case 'f': toggleFull(); break;
     case 'm': setDrawer($('#panel').hidden); break;
@@ -2952,11 +2978,8 @@ window.addEventListener('dragover', e => { e.preventDefault(); });
 window.addEventListener('drop', e => {
   e.preventDefault();
   const fs = e.dataTransfer && e.dataTransfer.files ? [...e.dataTransfer.files] : [];
-  const imgs = fs.filter(f => f.type && f.type.startsWith('image/'));
   const auds = fs.filter(f => (f.type && f.type.startsWith('audio/')) || AUDIO_EXT.test(f.name));
-  if (imgs.length) addImages(imgs);
-  if (auds.length) addAudioFiles(auds);
-  if (!imgs.length && !auds.length) UI.toast('DROP WAVS OR IMAGES');
+  if (auds.length) addAudioFiles(auds); else UI.toast('DROP WAV FILES');
 });
 window.addEventListener('resize', () => resize());
 
@@ -2972,8 +2995,8 @@ Radio.station = settings.src === 'local' ? 'local' : 'spotify';
 if (typeof settings.xfade !== 'number') settings.xfade = 4;
 resize();
 setTheme(settings.theme, true);
-UI.renderStations(); UI.renderScenes(); UI.renderVol();
-setThemeCycle(settings.themeCycle); setCycle(settings.cycle); setSleep(0); setXfade(settings.xfade);
+UI.renderStations(); UI.renderVol();
+setThemeCycle(settings.themeCycle); setSleep(0); setXfade(settings.xfade);
 setPx(settings.px); setReact(settings.react); setWeather(settings.weather);
 UI.renderLibrary(); UI.renderFavs(); UI.renderHistory(); UI.renderSpotify(); UI.renderStart(); updateCounts(); UI.syncPlay();
 IDB.open().then(async () => {
@@ -2981,20 +3004,18 @@ IDB.open().then(async () => {
   for (const t of tracks) if (t && t.blob && !Radio.files.some(x => x.id === t.id)) { if (t.artist === 'Ma collection') t.artist = 'My library'; Radio.files.push(t); }
   if (Radio.files.length && settings.src === 'local' && !Radio.cur) Radio.station = 'local';
   updateCounts(); UI.renderStations(); UI.renderLibrary(); UI.renderStart();
-  const recs = await IDB.all('images');
-  for (const r of recs) { try { IMGS.push(processImage(await blobToCanvas(r.blob, 960))); } catch (e) { /* image corrompue ignorée */ } }
-  updateCounts();
 });
 Sp.handleRedirect().then(back => {
   if (back || !Sp.connected()) return;
-  Sp.loadMe().then(() => { UI.renderSpotify(); Sp.loadPlaylists(); });
-  if (settings.src === 'radio') { const g = Sp.getPool('fm'); UI.renderSpotify(); g.then(() => UI.renderSpotify(), () => UI.renderSpotify()); }
+  Sp.loadMe().then(() => Sp.loadPlaylists()).then(() => {
+    if (settings.src === 'radio' && Sp.radioPl) { const g = Sp.getPool('fm'); UI.renderSpotify(); g.then(() => UI.renderSpotify(), () => UI.renderSpotify()); }
+  });
   Sp.init().catch(() => {});
 });
 try { if (document.fonts && document.fonts.load) ['24px "Dela Gothic One"', '24px "Chakra Petch"'].forEach(f => document.fonts.load(f, 'DRFT ドリフト首都高峠全開回転計東京カラオケラーメン 0123456789').catch(() => {})); } catch (e) { /* ok */ }
 requestAnimationFrame(t => { lastFrame = t; requestAnimationFrame(frame); });
 
-window.__slipstream = { Radio, Sp, SpPlayer, Fm, Eyecatch, Jingle, SCENES, THEMES, goScene, setTheme, settings, F, ENV };
+window.__slipstream = { Radio, Sp, SpPlayer, Fm, Eyecatch, Jingle, SceneDrive, Road, SCENES, THEMES, goScene, setTheme, settings, F, ENV };
 })();
 </script>
 
