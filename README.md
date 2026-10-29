@@ -1,57 +1,55 @@
 # DRFT
 
-**An endless drum & bass radio with a pixel-art racing visualizer, built as a single HTML file.**
+**Real drum & bass for night drives, with a pixel-art Tokyo night visualizer. One HTML file.**
 
 **▶ Live at [studioobsidienne.github.io/drft](https://studioobsidienne.github.io/drft/)**
 
-DRFT turns your browser into a late-night radio station. Tune into real drum & bass stations broadcasting live, play your own WAV files, or let it compose tracks on the fly. Behind the music, low-resolution pixel scenes loop forever and react to the bass.
+DRFT is a drum & bass radio that only plays real music by real artists. Pick a source, hit play, and let it run: tracks are picked at random, the next one is preloaded, and songs blend into each other with a crossfade. Behind the music, dithered pixel scenes inspired by Tokyo street racing loop forever and react to the bass.
 
-**Live radio.** One tap picks a random station from a hand-checked list of live drum & bass radios (Brokenbeats, DNB FM, Record Liquid Funk, Kool FM, Bassdrive, Jungle Planet and more), topped up with stations found in real time in the public [Radio Browser](https://www.radio-browser.info) directory. Real DJs and real rotations, nothing to upload. Skip to land on another station at random.
+## Three sources, all real music
 
-**Your music, in WAV.** Load WAV, AIFF, FLAC or MP3 files, or a whole folder. They play back-to-back with no gaps and smooth crossfades, because the next track is decoded in advance. Your library is saved in the browser and never uploaded anywhere.
+- **Discover** (ディスカバー): random drum & bass tracks from real artists and labels on [Audius](https://audius.co), pulled from the platform's trending charts and searches (jungle, liquid, neurofunk). Audius streams the music through its public API; DRFT never stores it. Each track links back to its page on Audius.
+- **Live radio** (ライブ): a random live drum & bass station from a hand-checked list (Brokenbeats, DNB FM, Record Liquid Funk, Kool FM, Bassdrive, Jungle Planet…), topped up with stations found in real time in the public [Radio Browser](https://www.radio-browser.info) directory.
+- **My library** (ライブラリ): your own WAV, AIFF, FLAC or MP3 files, or a whole folder. Gapless playback, adjustable crossfade, stored in your browser and never uploaded.
 
-**Generated radio.** No files, no connection? DRFT composes drum & bass in real time across five stations: Retro Racer, Liquid, Jungle, Neurofunk and Atmospheric. Any track you like can be saved and replayed exactly.
+## Visuals
 
-**Visuals.** A car on a neon highway, drifting through a mountain pass, cruising past a city skyline, lapping a circuit seen from above, or racing through a tunnel. You can also drop in your own car screenshots. The weather changes on its own and the colors fade from one mood to the next: rain turns the screen grey, storms flash lightning on the kicks, sunsets glow pink, snow drifts down.
+Five scenes plus a garage for your own car shots. They switch on their own every track and every ~25 seconds:
 
-**Echo-out pause.** Pause doesn't cut the sound: the music echoes out and dissolves into a tail before going quiet. Files resume exactly where they stopped; live radio comes back on air.
+| Scene | |
+|---|---|
+| 首都高 Shutoko | Night expressway, sodium lamps streaking past, tail lights ahead |
+| 峠 Touge drift | Mountain pass seen from above, a panda-liveried car drifting, tire marks and smoke |
+| 全開 Gas gas | Manga speed lines and katakana slamming on the kicks |
+| 回転計 Tacho | A giant rev counter, the gearbox shifting with the bass |
+| 東京 Neon Tokyo | Street canyon with vertical neon signs reflected on wet asphalt |
+| 車庫 Garage | Your own car screenshots, dithered |
 
-No build step, no dependencies, no server. Open `index.html` or host it on GitHub Pages.
+Nine moods fade into each other: neon night, rain, storm, dawn, sunset, redline, dust, sodium, snow.
 
-## Keyboard shortcuts
+## Controls
 
 | Key | Action |
 |---|---|
 | Space | Play / pause |
 | N or → | Next track or station |
 | ← | Previous track |
-| 1 to 8 | Stations (2 = live radio) |
-| L | Favorite |
+| 1 / 2 / 3 | Discover / Live radio / My library |
+| L | Favorite (Discover tracks) |
 | V | Next scene |
 | P | Next mood |
 | F | Fullscreen |
 | M | Menu |
 | ↑ ↓ | Volume |
 
-The volume bars can be dragged: press and slide.
+The volume bars can be dragged. Pause closes the sound like a filter and fades it out instead of cutting it; play brings it back where it stopped.
 
-## Host it on GitHub Pages
+## Notes
 
-In the repository, go to **Settings › Pages**, set **Source** to **Deploy from a branch**, pick `main` and `/ (root)`. The site goes live at `https://<your-username>.github.io/drft/`.
-
-Live radio needs the hosted version (or any `https` page): some previews block outside audio streams.
-
-## Live radio notes
-
-- Only `https` streams are used, so they play on a secure page.
-- When a station allows it (most do), the visuals react to the real audio. Otherwise DRFT plays the stream as is and the visuals follow a simulated 174 BPM pulse.
-- If a station is offline, DRFT moves on to another one automatically.
-- Stations are third-party broadcasts. DRFT only plays their public streams and never records or rebroadcasts them.
-
-## Copyright
-
-Don't commit commercial tracks to the repository: a public repo would let anyone download them. Every visitor imports their own files, and those files stay on their device.
+- Discover and Live radio need the hosted site (or any `https` page): some previews block outside audio.
+- Live stations and Audius tracks are third-party streams. DRFT only plays them; it never records, stores or rebroadcasts them.
+- Don't commit music files to the repository. GitHub rejects files over 100 MB, and the library already lives in your browser.
 
 ## Under the hood
 
-Web Audio API for synthesis, compression, reverb, crossfades and the echo-out pause. Canvas 2D rendered at low resolution and scaled up without smoothing, with 4×4 ordered dithering. IndexedDB for the music library.
+Web Audio API (analysis, crossfades, pause filter), two alternating media decks for gapless streaming, Canvas 2D rendered at low resolution with 4×4 ordered dithering, IndexedDB for the library. Type: Dela Gothic One, Chakra Petch, Zen Kaku Gothic New.
