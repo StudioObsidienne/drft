@@ -8,8 +8,9 @@ DRFT plays real music from real artists, and nothing else: your own Spotify acco
 
 ## Two sources
 
-- **Spotify** (スポティファイ): DRFT becomes a Spotify player named “DRFT” on your account (Premium required). Three ways to feed it:
-  - **DRFT Mix**: an endless mix grown from the artists you choose (TURQUOISEDEATH by default). One track from those artists, then two from the same world: atmospheric jungle, dreamy DnB, liquid, and the 90s references (LTJ Bukem, Photek, PFM, Source Direct, Seba, Blu Mar Ten…). Tracks heard recently are held back, and the queue refills itself before it runs out.
+- **Spotify** (スポティファイ): DRFT becomes a Spotify player named “DRFT” on your account (Premium required). Four ways to feed it:
+  - **DRFT FM · Live**: a radio station just for you. The schedule runs with the clock, even while DRFT is closed: tune in and you land in the middle of whatever is on air. Shows change with the time of day (Morning Run, Night Drive, Midnight Wangan, Last Touge…), the next track is announced, and a short DRFT FM jingle with an anime-style station card plays every few tracks. Seeking, skipping or pausing takes you off air; **Back to live** rejoins the broadcast.
+  - **DRFT Mix**: an endless mix grown from the artists you choose (TURQUOISEDEATH by default). One track from those artists, then two from the same world: atmospheric jungle, jazz-fusion DnB (Makoto, 4hero, Big Bud, Paradox, Squarepusher…), liquid, and the 90s references (LTJ Bukem, Photek, PFM, Source Direct…). Instrumentals first: Spotify no longer tells apps whether a track has vocals, so DRFT holds back tracks that show the signs (feat., explicit, “vocal mix”). Tracks heard recently are held back too, and the queue refills itself.
   - **Liked songs**, shuffled.
   - **One of your playlists**, shuffled.
 - **My library** (ライブラリ): your own WAV, AIFF, FLAC or MP3 files, or a whole folder. Gapless playback, adjustable crossfade, stored in your browser and never uploaded.
@@ -31,20 +32,21 @@ The login uses PKCE: there is no secret and no server. The token stays in your b
 
 ## Visuals
 
-Five scenes plus a garage for your own car shots. They switch on their own every track and every ~25 seconds:
+Six scenes in the spirit of 90s car anime, plus a garage for your own car shots. Inside a scene the camera cuts to a new shot every four bars of drum & bass; scenes switch every track and every ~25 seconds:
 
 | Scene | |
 |---|---|
-| 首都高 Shutoko | Night expressway, sodium lamps streaking past, tail lights ahead |
-| 峠 Touge drift | Mountain pass seen from above, a panda-liveried car drifting, tire marks and smoke |
-| 全開 Gas gas | Manga speed lines and katakana slamming on the kicks |
-| 回転計 Tacho | A giant rev counter, the gearbox shifting with the bass |
-| 東京 Neon Tokyo | Street canyon with vertical neon signs reflected on wet asphalt |
+| 湾岸 Wangan | Night expressway at full speed, orange tunnels, a rival in the next lane. Chase cam, side tracking shot, cockpit view |
+| 峠 Touge | Downhill mountain pass at night: chase cam with the tail sliding out in the hairpins, low angle, drone shot with tire marks |
+| 新東京 Neo Tokyo | A bike weaving between neon signs, leaving a red tail-light trail; side shot with the trail stretched across the screen |
+| 電脳 Cyber | Futuristic race through a tunnel of light, with pilot HUD and boost |
+| 全開 Gas gas | Manga speed lines, a katakana word smearing in every two bars |
+| 回転計 Tacho | A giant rev counter running up the gears and downshifting before the corners |
 | 車庫 Garage | Your own car screenshots, dithered |
 
 Nine moods fade into each other: neon night, rain, storm, dawn, sunset, redline, dust, sodium, snow.
 
-With your WAVs the visuals react to the real audio (bass, mids, highs). Spotify's audio is protected and can't be analysed, so with Spotify they follow a 172 BPM breakbeat grid locked to the track's position, with an intro, a breakdown every 32 bars and an outro.
+With your WAVs the visuals react to the real audio (bass, mids, highs). Spotify's audio is protected and can't be analysed, so with Spotify nothing pretends to follow the beat: the scenes drive on their own, with long phases of acceleration and cruising.
 
 ## Controls
 
@@ -61,7 +63,7 @@ With your WAVs the visuals react to the real audio (bass, mids, highs). Spotify'
 | M | Menu |
 | ↑ ↓ | Volume |
 
-The volume bars can be dragged. Pause fades the sound out instead of cutting it; play brings it back where it stopped.
+Drag the progress bar to move through the track (or focus it and use ← →, 10 s steps). The volume is a small equalizer: drag it to set the level; it dances while music plays (the real spectrum with your WAVs). Pause fades the sound out instead of cutting it; play brings it back where it stopped.
 
 ## Notes
 
