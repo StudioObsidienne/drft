@@ -4,18 +4,13 @@
 
 **▶ Live at [studioobsidienne.github.io/drft](https://studioobsidienne.github.io/drft/)**
 
-DRFT plays real music from real artists, and nothing else: your own Spotify account, or your own WAV files. Hit play and let it run. Behind the music, dithered pixel scenes inspired by Tokyo street racing loop forever and move with the beat.
+DRFT plays real music from real artists, and nothing else: your own Spotify account, or your own WAV files. Hit play and let it run. Behind the music, dithered pixel scenes inspired by Tokyo street racing loop forever and drive on their own.
 
-## Two sources
+## Three sources
 
-- **Spotify** (スポティファイ): DRFT becomes a Spotify player named “DRFT” on your account (Premium required). Four ways to feed it:
-  - **DRFT FM · Live**: a radio station just for you. The schedule runs with the clock, even while DRFT is closed: tune in and you land in the middle of whatever is on air. Shows change with the time of day (Morning Run, Night Drive, Midnight Wangan, Last Touge…), the next track is announced, and a short DRFT FM jingle with an anime-style station card plays every few tracks. Seeking, skipping or pausing takes you off air; **Back to live** rejoins the broadcast.
-  - **DRFT Mix**: an endless mix grown from the artists you choose (TURQUOISEDEATH by default). One track from those artists, then two from the same world: atmospheric jungle, jazz-fusion DnB (Makoto, 4hero, Big Bud, Paradox, Squarepusher…), liquid, and the 90s references (LTJ Bukem, Photek, PFM, Source Direct…). Instrumentals first: Spotify no longer tells apps whether a track has vocals, so DRFT holds back tracks that show the signs (feat., explicit, “vocal mix”). Tracks heard recently are held back too, and the queue refills itself.
-  - **Liked songs**, shuffled.
-  - **One of your playlists**, shuffled.
-- **My library** (ライブラリ): your own WAV, AIFF, FLAC or MP3 files, or a whole folder. Gapless playback, adjustable crossfade, stored in your browser and never uploaded.
-
-The **Digging** list in the menu collects classics and deep cuts: ▶ plays one on Spotify, BC and BP find the WAV on Bandcamp or Beatport.
+- **Radio** (ラジオ): DRFT FM, a drum & bass station just for you, played through your Spotify (Premium required). You give it a style: artists and/or styles, comma separated (default: TURQUOISEDEATH, atmospheric dnb, liquid funk, jazzstep). Each word becomes an artist (exact name), a Spotify style, or a checked keyword search. The radio then only plays artists it can verify in those styles, and only tracks where that artist really appears. Instrumentals first, nothing heard recently, never the same artist twice in four tracks. The schedule runs with the clock, even while DRFT is closed: tune in and you land in the middle of whatever is on air. Shows change with the time of day, the next track is announced, and a short DRFT FM jingle with an anime-style station card plays every few tracks. Seeking, skipping or pausing takes you off air; **Back to live** rejoins the broadcast.
+- **My playlist** (プレイリスト): one of your own Spotify playlists, shuffled, looping.
+- **My WAVs** (ライブラリ): your own WAV, AIFF, FLAC or MP3 files, or a whole folder. Gapless playback, adjustable crossfade, stored in your browser and never uploaded.
 
 ## Connecting Spotify (once)
 
@@ -55,7 +50,7 @@ With your WAVs the visuals react to the real audio (bass, mids, highs). Spotify'
 | Space | Play / pause |
 | N or → | Next track |
 | ← | Previous track |
-| 1 / 2 | Spotify / My library |
+| 1 / 2 / 3 | Radio / My playlist / My WAVs |
 | L | Favorite (Spotify tracks) |
 | V | Next scene |
 | P | Next mood |
@@ -63,7 +58,7 @@ With your WAVs the visuals react to the real audio (bass, mids, highs). Spotify'
 | M | Menu |
 | ↑ ↓ | Volume |
 
-Drag the progress bar to move through the track (or focus it and use ← →, 10 s steps). The volume is a small equalizer: drag it to set the level; it dances while music plays (the real spectrum with your WAVs). Pause fades the sound out instead of cutting it; play brings it back where it stopped.
+The progress bar is a line with a playhead moving in real time: hover it to read the time, drag it to move through the track (or focus it and use ← →, 5 s steps). The volume bars can be dragged. Pause fades the sound out instead of cutting it; play brings it back where it stopped.
 
 ## Notes
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="DRFT: drum and bass for night drives. Your own DRFT FM radio and endless mixes from your Spotify, or your own WAVs, with pixel-art 90s car-anime visuals.">
+<meta name="description" content="DRFT: drum and bass for night drives. Your own DRFT FM radio from your Spotify, your playlist, or your own WAVs, with pixel-art 90s car-anime visuals.">
 <meta name="theme-color" content="#05030f">
 <title>DRFT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -52,7 +52,9 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
 .field input:focus{outline:none;border-color:var(--ink)}
 .btn.sm{padding:7px 9px;font-size:10px}
 .li-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.sp .list{max-height:200px}
+.sp .list{max-height:260px}
+.sp-sum{display:grid;gap:3px;font-size:12px;line-height:1.45;opacity:.75}
+.sp-sum b{font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.1em}
 #npLink{color:inherit;text-decoration:none;border-bottom:1px solid rgba(var(--ink-rgb),.45);pointer-events:auto}
 #npLink:hover{border-color:var(--ink)}
 
@@ -81,17 +83,19 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
 .np-title span{font-family:var(--font-disp);font-size:clamp(22px,3.4vw,44px);line-height:1.08;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .np-artist{font-size:16px;font-weight:500;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ctl{display:flex;align-items:center;gap:4px}
-.vol{display:flex;align-items:flex-end;gap:2px;height:40px;padding:8px 12px 8px 6px;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none;position:relative}
+.vol{display:flex;align-items:flex-end;gap:2px;height:40px;padding:10px 12px 10px 6px;cursor:ew-resize;touch-action:none;user-select:none;-webkit-user-select:none}
 .vol:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.vol i{display:block;width:4px;height:3px;background:var(--ink);pointer-events:none;border-bottom:2px solid rgba(var(--ink-rgb),.3)}
-.vol b{font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.12em;margin-left:7px;align-self:center;white-space:nowrap;min-width:5.6em;opacity:.8;pointer-events:none}
-.prog{grid-column:1/-1;padding:9px 0;margin:-9px 0;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+.vol i{display:block;width:5px;background:rgba(var(--ink-rgb),.22);pointer-events:none}
+.vol i.on{background:var(--ink)}
+.prog{grid-column:1/-1;position:relative;padding:11px 0;margin:-11px 0;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
 .prog:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.blocks{display:grid;grid-template-columns:repeat(40,1fr);gap:3px;height:6px;transition:height .12s steps(3)}
-.prog:hover .blocks,.prog.drag .blocks{height:10px}
-.blocks i{background:rgba(var(--ink-rgb),.18)}
-.blocks i.on{background:var(--ink)}
-.blocks i.cue{background:rgba(var(--ink-rgb),.55)}
+.ptrack{position:relative;height:2px;background:rgba(var(--ink-rgb),.25)}
+.pfill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--ink)}
+.phead{position:absolute;top:50%;left:0;width:8px;height:8px;margin:-4px 0 0 -4px;background:var(--ink)}
+.prog:hover .phead,.prog.drag .phead{width:12px;height:12px;margin:-6px 0 0 -6px}
+.prog.off .phead{opacity:.3}
+.prog.off{cursor:default}
+.ptip{position:absolute;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.08em;padding:3px 6px;white-space:nowrap;pointer-events:none;font-variant-numeric:tabular-nums}
 .np-next{font-family:var(--font-px);font-weight:600;font-size:11px;letter-spacing:.1em;opacity:.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1em}
 .lv{font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.14em;background:none;border:2px solid var(--ink);color:var(--ink);padding:2px 6px;cursor:pointer;line-height:1.3}
 .lv[data-live="1"]{background:var(--ink);color:var(--bg);cursor:default}
@@ -114,7 +118,7 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
 .row-btn.st i{font-style:normal;font-family:var(--font-disp);font-weight:400;font-size:15px;letter-spacing:0;min-width:5.5em}
 .row-btn:hover{background:rgba(var(--ink-rgb),.1)}
 .row-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
-.row-btn small{font-size:10px;opacity:.65}
+.row-btn small{font-size:10px;opacity:.65;max-width:11em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .seg{display:flex;flex-wrap:wrap;gap:4px}
 .seg button{font-family:var(--font-px);font-weight:600;font-size:11px;letter-spacing:.08em;padding:7px 9px;border:2px solid rgba(var(--ink-rgb),.3);background:none;color:var(--ink);cursor:pointer;line-height:1}
@@ -141,15 +145,6 @@ details > :not(summary){margin-bottom:14px}
 .li-btn b{display:block;font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .li-btn small{display:block;font-size:12px;opacity:.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini{font-size:13px;opacity:.6;margin:0}
-.refs{display:grid;gap:16px}
-details .mini{margin-bottom:16px}
-.ref-g h4{margin:0 0 4px;font-family:var(--font-px);font-size:10px;font-weight:600;letter-spacing:.12em;opacity:.6}
-.ref{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;font-size:13px}
-.ref span{min-width:0}
-.ref small{opacity:.55;margin-left:6px}
-.ref nav{display:flex;gap:8px;flex:none}
-.ref a,.ref nav button{color:var(--ink);background:none;border:0;padding:0;cursor:pointer;font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.06em;text-decoration:none;border-bottom:2px solid rgba(var(--ink-rgb),.35)}
-.ref a:hover,.ref nav button:hover{border-color:var(--ink)}
 .keys{font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.1em;line-height:2;opacity:.5;margin:8px 0 0}
 
 /* écran d'accueil, notifications */
@@ -202,7 +197,7 @@ body.boot .hud,body.boot .corner{visibility:hidden}
       <button class="ib" id="btnNext" aria-label="Next track" title="Next (N)"><svg viewBox="0 0 16 16" data-i="next"></svg></button>
       <button class="ib" id="btnMenu" aria-label="Menu" aria-expanded="false" aria-controls="panel" title="Menu (M)"><svg viewBox="0 0 16 16" data-i="menu"></svg></button>
     </div>
-    <div class="prog live" id="prog" role="slider" tabindex="0" aria-label="Position in track" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="blocks" id="blocks" aria-hidden="true"></div></div>
+    <div class="prog live off" id="prog" role="slider" tabindex="0" aria-label="Position in track" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="ptrack" id="ptrack" aria-hidden="true"><i class="pfill" id="pfill"></i><i class="phead" id="phead"></i></div><span class="ptip" id="ptip" hidden></span></div>
   </footer>
 
   <aside class="panel live" id="panel" hidden aria-label="Menu">
@@ -221,7 +216,6 @@ body.boot .hud,body.boot .corner{visibility:hidden}
         <details id="dLib"><summary>MY LIBRARY<small id="audioCount">0</small></summary><div class="list" id="libList"></div><button class="btn ghost" id="btnClearAudio">REMOVE ALL</button></details>
         <details><summary>FAVORITES</summary><div class="list" id="favList"></div></details>
         <details><summary>HISTORY</summary><div class="list" id="histList"></div></details>
-        <details><summary>DIGGING</summary><p class="mini">Classics and deep cuts. ▶ plays them on Spotify; BC and BP find the WAV to buy.</p><div class="refs" id="refList"></div></details>
       </div>
     </div>
 
@@ -237,7 +231,7 @@ body.boot .hud,body.boot .corner{visibility:hidden}
       <div class="set"><span class="lbl">PIXELS</span><div class="seg" id="pxSeg"></div></div>
       <div class="set"><span class="lbl">REACTION</span><div class="seg" id="reactSeg"></div></div>
       <div class="set"><span class="lbl">WEATHER</span><div class="seg" id="weatherSeg"></div></div>
-      <p class="keys">SPACE PLAY · N NEXT · DRAG THE BAR TO SEEK · 1–2 SOURCES · V SCENE · P MOOD · F FULLSCREEN · M MENU</p>
+      <p class="keys">SPACE PLAY · N NEXT · DRAG THE BAR TO SEEK · 1–3 SOURCES · V SCENE · P MOOD · F FULLSCREEN · M MENU</p>
     </div>
   </aside>
 
@@ -304,19 +298,11 @@ function makeKit(c) {
 /* =====================================================================
    SOURCES : Spotify (ton compte) ou ta bibliothèque
    ===================================================================== */
-const STATIONS = [
-  { id: 'spotify', name: 'Spotify', jp: 'スポティファイ', sub: 'YOUR ACCOUNT' },
-  { id: 'local', name: 'My library', jp: 'ライブラリ', sub: 'YOUR WAVS' }
+const SOURCES = [
+  { id: 'radio', name: 'Radio', jp: 'ラジオ' },
+  { id: 'playlist', name: 'My playlist', jp: 'プレイリスト' },
+  { id: 'local', name: 'My WAVs', jp: 'ライブラリ' }
 ];
-const REFS = [
-  { group: 'Racing games · Wipeout 2097 (1996)', items: [['Photek', 'The Third Sequence'], ['Photek', 'Titan'], ['Source Direct', '2097'], ['CoLD SToRAGE', 'Body in Motion', 'deep cut · in-game track']] },
-  { group: 'Jungle 93–95', items: [['Origin Unknown', 'Valley of the Shadows', '1993'], ['Omni Trio', 'Renegade Snares', '1993'], ['DJ Crystl', 'Warp Drive', 'deep cut · 1993'], ['Shy FX & UK Apache', 'Original Nuttah', '1994'], ['Krome & Time', 'The Licence', 'deep cut'], ['Remarc', 'R.I.P.', '1995'], ['Dillinja', 'The Angels Fell', '1995'], ['DJ Zinc', 'Super Sharp Shooter', '1995']] },
-  { group: 'Classics', items: [['Goldie', 'Inner City Life', '1994'], ['LTJ Bukem', 'Horizons', '1995'], ['Alex Reece', 'Pulp Fiction', '1995'], ['Photek', 'Ni-Ten-Ichi-Ryu', '1997'], ['Roni Size & Reprazent', 'Brown Paper Bag', '1997'], ['E-Z Rollers', 'Retro (Guardians of Dalliance remix)']] },
-  { group: 'Atmospheric · Good Looking', items: [['LTJ Bukem', "Demon's Theme", '1992'], ['LTJ Bukem', 'Music', '1993'], ['LTJ Bukem & Apollo Two', 'Return to Atlantis', '1993'], ['LTJ Bukem & Peshay', '19.5', 'deep cut · 1994']] },
-  { group: 'Liquid', items: [['Calibre', 'Even If'], ['High Contrast', 'If We Ever'], ['London Elektricity', 'Just One Second (Apex remix)'], ['Logistics', 'The Trip'], ['Netsky feat. Jenna G', 'Moving With You'], ['DJ Marky & XRS feat. Stamina MC', 'LK'], ['Commix', 'Be True', 'deep cut'], ['Lenzman feat. Riya', 'Open Page', 'deep cut']] },
-  { group: 'Neurofunk · techstep', items: [['Ed Rush & Optical', 'Wormhole', '1998'], ['Ed Rush & Optical', 'The Medicine'], ['Ed Rush & Optical', 'Pacman (Ram Trilogy remix)'], ['Optical', 'Slip Thru', 'deep cut'], ['Matrix', 'Apache', 'deep cut'], ['Bad Company', 'The Pulse'], ['Noisia', 'Stigma', '2008']] }
-];
-
 class FilePlayer {
   constructor(kit, spec) {
     this.kind = 'file'; this.kit = kit; this.tr = spec;
@@ -394,39 +380,38 @@ class FilePlayer {
    Connexion PKCE dans le navigateur : aucun serveur, aucun secret.
    ===================================================================== */
 const SP_SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-read-private playlist-read-collaborative';
-const SP_SEEDS = ['TURQUOISEDEATH'];
-const SP_SEED_TRACKS = ['spotify:track:2RP4ledIGQRNWBPFPx6MZa'];
-// même famille : jungle rêveuse, dnb atmosphérique, breakbeat mélancolique
-const SP_PEERS = ['sewerslvt', 'Coco Bryce', 'Tim Reaper', 'Sully', 'Djrum', 'Lone'];
-// jazz fusion / jazzy drum & bass
-const SP_JAZZ = ['Makoto', '4hero', 'Big Bud', 'Nookie', 'Paradox', 'Squarepusher', 'Wax Doctor', 'Furney', 'Seba', 'Alex Reece'];
-const SP_STYLE = ['instrumental drum and bass', 'instrumental liquid drum and bass', 'atmospheric jungle', 'atmospheric drum and bass', 'dream jungle', 'ambient jungle', 'intelligent drum and bass',
-  'jazz drum and bass', 'jazzy drum and bass', 'jazz fusion drum and bass', 'jazzstep', 'genre:"liquid funk"'];
-const SP_REFS = ['LTJ Bukem', 'Photek', 'PFM', 'Source Direct', 'Blu Mar Ten', 'Calibre', 'Omni Trio', 'Origin Unknown', 'Peshay', 'Dillinja', 'Logistics'];
+// style de départ de la radio : artistes et/ou styles, séparés par des virgules (modifiable dans le menu)
+const SP_KEYWORDS = ['TURQUOISEDEATH', 'atmospheric dnb', 'liquid funk', 'jazzstep'];
+// styles drum & bass reconnus quand on vérifie qu'un artiste trouvé par mot-clé est bien de la famille
+const DNB_RX = /drum|dnb|d&b|jungle|liquid|neurofunk|breakbeat|breakcore|jazzstep|halftime|darkstep|techstep|atmospheric/i;
 const waitMs = ms => new Promise(r => setTimeout(r, ms));
+const norm = s => String(s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
 /* Spotify ne dit plus aux nouvelles applis si un morceau est chanté : on s'en remet aux indices (feat., explicite, « vocal »…) */
 function vocalScore(t) {
   const n = String(t.name || '').toLowerCase();
   let s = 0;
   if (/(\(|\[|\s-\s|\s)(feat\.?|ft\.?|featuring)\s/.test(n + ' ') || /\((with|w\/)\s/.test(n)) s += 3;
-  if (/\bvocal|\bvox\b|\bmc\s|\bdubplate vocal|\bsings?\b|\blyric/.test(n)) s += 3;
+  if (/\bvocal|\bvox\b|\bmc\s|\bsings?\b|\blyric/.test(n)) s += 3;
   if (t.explicit) s += 3;
   if ((t.artists || []).length > 2) s += 1;
-  if (/instrumental|\binst\.?\)|\binstr\b|\bdub\)|\bdub mix|\bambient|interlude|intro\b/.test(n)) s -= 3;
+  if (/instrumental|\binst\.?\)|\binstr\b|\bdub\)|\bdub mix|\bambient|interlude/.test(n)) s -= 3;
   return s;
 }
-function trackItem(t) {
-  return { uri: t.uri, dur: t.duration_ms || 0, name: t.name || 'Untitled', artist: (t.artists || []).map(a => a.name).join(', ') || 'Unknown', v: vocalScore(t) };
+function trackItem(t, aid) {
+  const a = (t.artists || []);
+  return { uri: t.uri, dur: t.duration_ms || 0, name: t.name || 'Untitled', artist: a.map(x => x.name).join(', ') || 'Unknown', aid: aid || (a[0] && a[0].id) || '', v: vocalScore(t) };
 }
 
 const Sp = {
   cid: store.get('sp_cid', ''), tok: store.get('sp_tok', null), user: store.get('sp_user', null), uid: store.get('sp_uid', ''),
-  seeds: (() => { const s = store.get('sp_seeds', null); return Array.isArray(s) && s.length ? s : SP_SEEDS.slice(); })(),
-  source: (() => { const s = store.get('sp_source', 'fm'); return typeof s === 'string' ? s : 'fm'; })(),
+  keywords: (() => { const s = store.get('sp_kw', null); return Array.isArray(s) && s.length ? s : SP_KEYWORDS.slice(); })(),
+  plId: store.get('sp_pl', ''), plName: store.get('sp_pl_name', ''),
+  source: 'fm',
   recent: (() => { const r = store.get('sp_recent', []); return Array.isArray(r) ? r : []; })(),
-  player: null, device: null, ready: false, state: null, stateAt: 0, playlists: [], lastUri: null, topping: false, refreshing: null,
-  pool: null, poolSeed: [], poolKey: '', guardUntil: 0, starting: false, fadeTok: 0, initing: null, sdkLoading: null, byUri: new Map(),
+  player: null, device: null, ready: false, state: null, stateAt: 0, playlists: null, lastUri: null, topping: false, refreshing: null,
+  pool: null, poolKey: '', building: null, resolved: store.get('sp_resolved', null), sent: [],
+  guardUntil: 0, starting: false, fadeTok: 0, initing: null, sdkLoading: null, byUri: new Map(), artistCache: new Map(),
   get redirect() { return location.origin + location.pathname.replace(/index\.html$/, ''); },
   connected() { return !!(this.cid && this.tok && this.tok.refresh); },
   guard(ms = 2500) { this.guardUntil = Math.max(this.guardUntil, performance.now() + ms); },
@@ -456,6 +441,7 @@ const Sp = {
       if (!r.ok) { UI.toast('SPOTIFY LOGIN FAILED · ' + String(j.error_description || j.error || r.status).toUpperCase()); return false; }
       this.saveTok(j); store.set('sp_ver', ''); store.set('sp_state', '');
       await this.loadMe();
+      if (settings.src === 'local') setSrc('radio');
       Radio.station = 'spotify'; settings.station = 'spotify'; saveSettings();
       UI.toast('SPOTIFY CONNECTED · PRESS LISTEN');
       UI.renderStations(); UI.renderSpotify(); UI.renderStart();
@@ -467,7 +453,7 @@ const Sp = {
   async loadMe() {
     try {
       const me = await this.api('GET', '/me');
-      if (me) { this.user = me.display_name || me.id; this.uid = me.id; store.set('sp_user', this.user); store.set('sp_uid', this.uid); if (me.product && me.product !== 'premium') UI.toast('SPOTIFY PREMIUM IS REQUIRED TO PLAY'); }
+      if (me) { this.user = me.display_name || me.id; this.uid = me.id; store.set('sp_user', this.user); store.set('sp_uid', this.uid); }
     } catch (e) { if (e.status === 403) UI.toast('SPOTIFY SAYS NO · ADD YOUR ACCOUNT IN THE APP\'S USER MANAGEMENT'); }
   },
   saveTok(j) { this.tok = { access: j.access_token, refresh: j.refresh_token || (this.tok && this.tok.refresh), exp: Date.now() + (j.expires_in || 3600) * 1000 }; store.set('sp_tok', this.tok); },
@@ -497,7 +483,7 @@ const Sp = {
   logout(silent) {
     try { if (this.player) this.player.disconnect(); } catch (e) { /* ok */ }
     if (Radio.cur === SpPlayer) { Radio.cur = null; Radio.playing = false; UI.syncPlay(); }
-    this.tok = null; this.user = null; this.uid = ''; this.player = null; this.ready = false; this.device = null; this.pool = null; this.state = null; this.lastUri = null;
+    this.tok = null; this.user = null; this.uid = ''; this.player = null; this.ready = false; this.device = null; this.state = null; this.lastUri = null; this.playlists = null;
     store.set('sp_tok', null); store.set('sp_user', null); store.set('sp_uid', '');
     if (!silent) UI.toast('SPOTIFY DISCONNECTED');
     UI.renderSpotify(); UI.renderStations(); UI.renderStart();
@@ -537,7 +523,16 @@ const Sp = {
     })().finally(() => { this.initing = null; });
     return this.initing;
   },
-  uriOf(tr) { return tr ? ((tr.linked_from && tr.linked_from.uri) || tr.uri) : null; },
+  uriOf(tr) { return tr ? tr.uri : null; },
+  /* position d'un morceau dans ce qu'on a envoyé à Spotify (par lien, sinon par titre : Spotify remplace parfois un morceau par une autre version) */
+  sentIndex(tr) {
+    if (!tr) return -1;
+    let i = this.sent.indexOf(tr.uri);
+    if (i >= 0) return i;
+    const key = norm(tr.name) + '|' + norm(tr.artists && tr.artists[0] && tr.artists[0].name);
+    for (let j = this.sent.length - 1; j >= 0; j--) { const it = this.byUri.get(this.sent[j]); if (it && norm(it.name) + '|' + norm(it.artist.split(', ')[0]) === key) return j; }
+    return -1;
+  },
   onState(s) {
     this.state = s; this.stateAt = performance.now();
     if (Radio.cur !== SpPlayer) return;
@@ -557,51 +552,99 @@ const Sp = {
       if (s.paused && Radio.playing) { Radio.playing = false; Fm.leave(); UI.syncPlay(); }
       else if (!s.paused && !Radio.playing) { Radio.playing = true; UI.syncPlay(); }
     }
-    if (changed && free && !s.paused) Fm.onTrack(uri, s.position);
-    if (!s.paused && next.length < 2 && !this.topping && !this.starting) this.topUp();
+    if (changed && free && !s.paused) Fm.onTrack(tr, s.position);
+    // on ne rajoute des morceaux qu'au dernier morceau envoyé : la file Spotify passe avant le reste de la liste,
+    // ajouter plus tôt changerait l'ordre (et rejouerait des morceaux)
+    if (changed && !this.starting) { const i = this.sentIndex(tr); if (i >= 0 && i >= this.sent.length - 1) this.topUp(); }
   },
-  markPlayed(uri) { this.recent = this.recent.filter(u => u !== uri); this.recent.push(uri); if (this.recent.length > 400) this.recent = this.recent.slice(-400); store.set('sp_recent', this.recent); },
-  async search(q, offset) {
+  markPlayed(uri) { this.recent = this.recent.filter(u => u !== uri); this.recent.push(uri); if (this.recent.length > 600) this.recent = this.recent.slice(-600); store.set('sp_recent', this.recent); },
+  async searchTracks(q, offset) {
     const r = await this.api('GET', '/search?type=track&market=from_token&limit=10&offset=' + offset + '&q=' + encodeURIComponent(q));
     return ((r && r.tracks && r.tracks.items) || []).filter(t => t && t.uri && t.is_playable !== false && !(t.duration_ms < 90000) && !(t.duration_ms > 900000));
   },
-  async many(jobs) {
+  async searchArtists(q, offset) {
+    const r = await this.api('GET', '/search?type=artist&limit=10&offset=' + (offset || 0) + '&q=' + encodeURIComponent(q));
+    const out = ((r && r.artists && r.artists.items) || []).filter(a => a && a.id);
+    for (const a of out) this.artistCache.set(a.id, { id: a.id, name: a.name, genres: a.genres || [] });
+    return out.map(a => ({ id: a.id, name: a.name, genres: a.genres || [] }));
+  },
+  async artist(id) {
+    if (this.artistCache.has(id)) return this.artistCache.get(id);
+    try { const a = await this.api('GET', '/artists/' + id); const x = { id, name: a.name, genres: a.genres || [] }; this.artistCache.set(id, x); return x; } catch (e) { return { id, name: '', genres: [] }; }
+  },
+  async many(jobs, size = 4) {
     const out = [];
-    for (let i = 0; i < jobs.length; i += 4) {
-      const part = await Promise.allSettled(jobs.slice(i, i + 4).map(f => f()));
-      for (const p of part) { if (p.status === 'fulfilled') out.push(...p.value); else if (p.reason && p.reason.status === 403) throw p.reason; }
+    for (let i = 0; i < jobs.length; i += size) {
+      const part = await Promise.allSettled(jobs.slice(i, i + size).map(f => f()));
+      for (const p of part) { if (p.status === 'fulfilled') out.push(p.value); else if (p.reason && (p.reason.status === 403 || p.reason.status === 401)) throw p.reason; }
     }
     return out;
   },
-  async buildMix() {
-    const seedNames = this.seeds.map(s => s.toLowerCase());
-    const seedJobs = [], restJobs = [];
-    for (const a of this.seeds) for (const o of [0, 10, 20]) seedJobs.push(() => this.search('artist:"' + a + '"', o));
-    for (const a of shuffle(SP_PEERS.slice()).slice(0, 4)) restJobs.push(() => this.search('artist:"' + a + '"', 0));
-    for (const a of shuffle(SP_JAZZ.slice()).slice(0, 6)) restJobs.push(() => this.search('artist:"' + a + '"', 0));
-    for (const q of SP_STYLE) restJobs.push(() => this.search(q, Math.floor(Math.random() * 3) * 10));
-    for (const a of shuffle(SP_REFS.slice()).slice(0, 5)) restJobs.push(() => this.search('artist:"' + a + '"', 0));
-    const seedT = await this.many(seedJobs), restT = await this.many(restJobs);
-    const seen = new Set(), seed = [], rest = [];
-    for (const t of seedT.concat(restT)) {
-      if (seen.has(t.uri)) continue; seen.add(t.uri);
-      const it = trackItem(t); this.byUri.set(it.uri, it);
-      ((t.artists || []).some(a => seedNames.includes((a.name || '').toLowerCase())) ? seed : rest).push(it);
+  /* chaque mot-clé devient un artiste (nom exact), un style Spotify (genre), ou à défaut une recherche vérifiée */
+  async resolve(kw) {
+    const k = norm(kw);
+    const arts = await this.searchArtists(kw, 0);
+    const exact = arts.find(a => norm(a.name) === k);
+    const g = kw.toLowerCase().replace(/"/g, '');
+    const inGenre = (await this.searchArtists('genre:"' + g + '"', 0)).concat(await this.searchArtists('genre:"' + g + '"', 10).catch(() => []));
+    // « jungle » est aussi le nom d'un groupe : un nom exact ne gagne que s'il fait de la drum & bass ou si ce n'est pas un style
+    if (exact && (DNB_RX.test(exact.genres.join(' ')) || !inGenre.length)) return { kw, type: 'artist', artist: exact };
+    if (inGenre.length) return { kw, type: 'genre', genre: g, artists: inGenre };
+    return { kw, type: 'text' };
+  },
+  /* la radio : uniquement des artistes vérifiés (ceux que tu as donnés, puis ceux classés dans les mêmes styles) */
+  async buildRadio() {
+    const res = [];
+    for (const kw of this.keywords) res.push(await this.resolve(kw));
+    const seeds = res.filter(r => r.type === 'artist').map(r => r.artist);
+    let styles = [];
+    for (const r of res) if (r.type === 'genre') styles.push(r.genre);
+    for (const a of seeds) { const dn = a.genres.filter(g => DNB_RX.test(g)); styles.push(...(dn.length ? dn : a.genres).slice(0, 4)); }
+    styles = [...new Set(styles)].slice(0, 10);
+    // aucun style trouvé (petits artistes sans genre sur Spotify) : on reste dans la drum & bass
+    if (!styles.length) styles = ['drum and bass', 'liquid funk', 'jungle'];
+    // artistes candidats par style
+    const byId = new Map();
+    for (const a of seeds) byId.set(a.id, { a, seed: true });
+    for (const r of res) if (r.type === 'genre') for (const a of r.artists) if (!byId.has(a.id)) byId.set(a.id, { a, seed: false });
+    const extra = await this.many(styles.filter(g => !res.some(r => r.type === 'genre' && r.genre === g)).flatMap(g => [0, 10].map(o => () => this.searchArtists('genre:"' + g + '"', o))));
+    for (const list of extra) for (const a of list) if (!byId.has(a.id)) byId.set(a.id, { a, seed: false });
+    const seedList = [...byId.values()].filter(x => x.seed), others = shuffle([...byId.values()].filter(x => !x.seed)).slice(0, Math.max(0, 40 - seedList.length));
+    // morceaux de chaque artiste : on ne garde que ceux où il figure vraiment
+    const jobs = [];
+    for (const { a, seed } of seedList.concat(others)) for (const o of seed ? [0, 10, 20] : [0]) jobs.push(() => this.searchTracks('artist:"' + a.name + '"', o).then(ts => ts.filter(t => (t.artists || []).some(x => x.id === a.id)).map(t => trackItem(t, a.id))));
+    const lists = await this.many(jobs);
+    // mots-clés qui ne sont ni un artiste ni un style : recherche libre, gardée seulement si l'artiste est de la famille drum & bass
+    const texts = res.filter(r => r.type === 'text');
+    const styleSet = new Set(styles);
+    for (const r of texts) {
+      const ts = (await this.many([0, 10].map(o => () => this.searchTracks(r.kw, o)))).flat();
+      const ok = [];
+      for (const t of ts.slice(0, 16)) { const a = t.artists && t.artists[0]; if (!a) continue; const info = await this.artist(a.id); if (info.genres.some(g => styleSet.has(g) || DNB_RX.test(g))) ok.push(trackItem(t, a.id)); }
+      r.found = ok.length; lists.push(ok);
     }
-    if (this.seeds.some(s => SP_SEEDS.includes(s))) for (const u of SP_SEED_TRACKS) if (!this.byUri.has(u)) { try { const t = await this.api('GET', '/tracks/' + u.split(':').pop() + '?market=from_token'); if (t && t.uri) this.byUri.set(u, trackItem(t)); } catch (e) { /* on garde l'entrée minimale */ } }
-    if (this.seeds.some(s => SP_SEEDS.includes(s))) for (const u of SP_SEED_TRACKS) { const i = seed.findIndex(x => x.uri === u); const it = i >= 0 ? seed.splice(i, 1)[0] : (this.byUri.get(u) || { uri: u, dur: 0, name: 'Starfields', artist: 'TURQUOISEDEATH', v: 0 }); it.v = Math.min(it.v, 0); seed.unshift(it); }
-    if (!seed.length && !rest.length) throw new Error('empty');
-    return { seed: this.instrumentalFirst(seed), rest: this.instrumentalFirst(rest) };
+    const seen = new Set(), names = new Set(), perArtist = new Map(), pool = [];
+    for (const list of lists) for (const it of list) {
+      const nk = norm(it.name) + '|' + it.aid;
+      if (seen.has(it.uri) || names.has(nk)) continue;
+      const cap = seedList.some(x => x.a.id === it.aid) ? 18 : 6, n = perArtist.get(it.aid) || 0;
+      if (n >= cap) continue;
+      seen.add(it.uri); names.add(nk); perArtist.set(it.aid, n + 1); pool.push(it); this.byUri.set(it.uri, it);
+    }
+    this.resolved = { at: Date.now(), items: res.map(r => ({ kw: r.kw, type: r.type, n: r.type === 'genre' ? r.artists.length : r.type === 'text' ? (r.found || 0) : 0 })), styles, artists: perArtist.size, tracks: pool.length };
+    store.set('sp_resolved', this.resolved);
+    if (!pool.length) throw new Error('empty');
+    return this.instrumentalFirst(pool);
   },
   /* sans paroles d'abord : les morceaux visiblement chantés sont écartés tant qu'il reste assez d'instrumentaux */
   instrumentalFirst(list) {
     const clean = list.filter(t => t.v <= 0), maybe = list.filter(t => t.v > 0 && t.v < 3), voc = list.filter(t => t.v >= 3);
-    if (clean.length >= 12) return clean.concat(maybe.length > clean.length / 3 ? [] : maybe);
-    return clean.concat(maybe, clean.length + maybe.length >= 8 ? [] : voc);
+    if (clean.length >= 30) return clean.concat(maybe.length > clean.length / 3 ? [] : maybe);
+    return clean.concat(maybe, clean.length + maybe.length >= 20 ? [] : voc);
   },
   async collect(path, pickTrack) {
     const out = []; let p = path;
-    for (let i = 0; i < 10 && p; i++) {
+    for (let i = 0; i < 20 && p; i++) {
       const r = await this.api('GET', p);
       for (const it of (r && r.items) || []) { const t = pickTrack(it); if (t && t.uri && /^spotify:track:/.test(t.uri) && t.is_local !== true) { const x = trackItem(t); this.byUri.set(x.uri, x); out.push(x); } }
       p = r && r.next ? r.next.replace('https://api.spotify.com/v1', '') : null;
@@ -613,75 +656,77 @@ const Sp = {
       const r = await this.api('GET', '/me/playlists?limit=50');
       this.playlists = ((r && r.items) || []).filter(p => p && p.id && (!this.uid || p.collaborative || (p.owner && p.owner.id === this.uid))).map(p => ({ id: p.id, name: p.name || 'Untitled' }));
     } catch (e) { this.playlists = []; }
-    UI.renderSpotify();
+    UI.renderSpotify(); UI.renderStations();
   },
-  feedKey(src) { src = src || this.source; return (src === 'fm' ? 'mix' : src) + '|' + this.seeds.join(','); },
+  feedKey(src) { src = src || this.source; return src === 'fm' ? 'fm|' + this.keywords.map(norm).join(',') : src; },
   async getPool(src) {
     src = src || this.source;
     const key = this.feedKey(src);
     if (this.pool && this.poolKey === key) return;
-    let seed = [], rest;
-    if (src === 'liked') rest = await this.collect('/me/tracks?limit=50', it => it.track || it.item);
-    else if (src.startsWith('pl:')) rest = await this.collect('/playlists/' + src.slice(3) + '/items?limit=50', it => it.item || it.track);
-    else { const m = await this.buildMix(); seed = m.seed; rest = m.rest; }
-    if (!rest.length && !seed.length) throw new Error('empty');
-    this.poolSeed = seed; this.pool = rest; this.poolKey = key;
+    if (this.building && this.building.key === key) return this.building.p;
+    const p = (async () => {
+      let items;
+      if (src.startsWith('pl:')) items = await this.collect('/playlists/' + src.slice(3) + '/items?limit=50', it => it.item || it.track);
+      else {
+        // la radio garde sa liste 12 h, pour ne pas tout rechercher à chaque ouverture
+        const c = store.get('sp_pool', null);
+        if (c && c.key === key && Date.now() - c.at < 12 * 3600000 && Array.isArray(c.items) && c.items.length) { items = c.items; for (const it of items) this.byUri.set(it.uri, it); }
+        else { items = await this.buildRadio(); store.set('sp_pool', { key, at: Date.now(), items }); }
+      }
+      if (!items.length) throw new Error('empty');
+      this.pool = items; this.poolKey = key;
+    })().finally(() => { this.building = null; });
+    this.building = { key, p };
+    return p;
   },
-  fresh(list, n, avoid) {
-    const rec = new Set(this.recent.slice(-Math.floor(list.length * 0.7)));
-    if (avoid) for (const u of avoid) rec.add(u);
-    const f = list.filter(t => !rec.has(t.uri));
-    return shuffle(f.length >= Math.min(n, list.length) ? f : list.slice());
-  },
-  /* le mix : un morceau des artistes de départ, puis deux de la même famille, et ainsi de suite */
+  /* tirage : jamais un morceau entendu récemment, jamais deux fois le même artiste sur 4 morceaux */
   pickItems(n, first, avoid) {
-    const out = [];
-    if (first) out.push(this.byUri.get(first) || { uri: first, dur: 0, name: '', artist: '' });
-    const mix = this.source === 'mix' || this.source === 'fm';
-    const a = this.fresh(this.poolSeed, n, avoid), b = this.fresh(this.pool || [], n, avoid);
-    if (!first && mix && !this.recent.length) { const s = a.find(x => SP_SEED_TRACKS.includes(x.uri)); if (s) { a.splice(a.indexOf(s), 1); out.push(s); } }
-    let i = 0;
-    while (out.length < n && (a.length || b.length)) {
-      const fromSeed = mix && a.length && (i % 3 === 0 || !b.length);
-      const it = fromSeed ? a.shift() : b.shift();
-      if (it && !out.some(x => x.uri === it.uri)) out.push(it);
-      i++;
+    const pool = this.pool || [], out = [];
+    if (first) out.push(this.byUri.get(first) || { uri: first, dur: 0, name: '', artist: '', aid: '' });
+    const block = new Set(avoid || []);
+    const recentN = Math.min(this.recent.length, Math.floor(pool.length * 0.8));
+    for (const u of this.recent.slice(this.recent.length - recentN)) block.add(u);
+    for (const it of out) block.add(it.uri);
+    let cand = shuffle(pool.filter(t => !block.has(t.uri)));
+    if (cand.length < n - out.length) cand = cand.concat(shuffle(pool.filter(t => block.has(t.uri) && !out.some(o => o.uri === t.uri) && !(avoid && avoid.has && avoid.has(t.uri)))));
+    while (out.length < n && cand.length) {
+      const lastA = out.slice(-4).map(x => x.aid);
+      let i = cand.findIndex(t => !t.aid || !lastA.includes(t.aid));
+      if (i < 0) i = 0;
+      out.push(cand.splice(i, 1)[0]);
     }
     return out;
   },
-  pick(n, first) { return this.pickItems(n, first).map(x => x.uri); },
   async playUris(uris, pos) {
     const body = { uris }; if (pos > 0) body.position_ms = Math.round(pos);
     try { await this.api('PUT', '/me/player/play?device_id=' + encodeURIComponent(this.device), body); }
     catch (e) { if (e.status !== 404) throw e; this.ready = false; await this.init(); await this.api('PUT', '/me/player/play?device_id=' + encodeURIComponent(this.device), body); }
+    this.sent = uris.slice();
   },
   async playFresh(first) {
     this.starting = true; this.guard(5000);
     try {
       await this.init();
-      if (this.source === 'fm' && !first) { await Fm.tune(); }
+      if (this.source === 'fm' && !first) await Fm.tune();
       else {
         if (this.source === 'fm') Fm.leave();
         await this.getPool();
-        await this.playUris(this.pick(40, first));
+        await this.playUris(this.pickItems(40, first).map(x => x.uri));
       }
       if (!Fm.ducking) { this.fadeTok++; await this.player.setVolume(clamp(settings.vol * settings.vol, 0, 1)).catch(() => {}); }
     } finally { this.starting = false; this.guard(2500); }
   },
   async topUp() {
+    if (this.topping) return;
     this.topping = true;
     try {
-      const tw = (this.state && this.state.track_window) || {}, nextT = tw.next_tracks || [];
-      const queued = new Set(nextT.map(t => this.uriOf(t)));
-      let list = null;
-      if (this.source === 'fm') {
-        if (Fm.live) { await Fm.tune(true); list = []; }
-        else list = Fm.after(nextT.length ? this.uriOf(nextT[nextT.length - 1]) : this.lastUri, 4);
-      }
-      if (!list || (!list.length && !(this.source === 'fm' && Fm.live))) { await this.getPool(); list = this.pick(6); }
-      for (const u of list.filter(u => !queued.has(u) && u !== this.lastUri).slice(0, 4)) await this.api('POST', '/me/player/queue?device_id=' + encodeURIComponent(this.device) + '&uri=' + encodeURIComponent(u));
+      const last = this.sent[this.sent.length - 1];
+      let list;
+      if (this.source === 'fm') { await Fm.ensure(); list = Fm.after(last, 6); }
+      if (!list || !list.length) { await this.getPool(); list = this.pickItems(6, null, new Set(this.sent.slice(-200))).map(x => x.uri); }
+      for (const u of list) { if (this.sent.includes(u)) continue; await this.api('POST', '/me/player/queue?device_id=' + encodeURIComponent(this.device) + '&uri=' + encodeURIComponent(u)); this.sent.push(u); }
     } catch (e) { /* on retentera au prochain changement */ }
-    setTimeout(() => { this.topping = false; }, 8000);
+    this.topping = false;
   },
   async seek(ms) {
     if (!this.player || !this.state) return;
@@ -728,9 +773,9 @@ const SHOWS = [
 function showAt(ts) { const h = new Date(ts).getHours(); let s = SHOWS[SHOWS.length - 1]; for (const x of SHOWS) if (h >= x.h) s = x; return s; }
 
 const Fm = {
-  live: false, sched: store.get('fm_sched', null), sinceJingle: 0, ducking: false, lastShow: null,
+  live: false, sched: store.get('fm_sched2', null), sinceJingle: 0, ducking: false, lastShow: null, lastRetune: 0,
   active() { return Radio.cur === SpPlayer && Sp.source === 'fm'; },
-  save() { store.set('fm_sched', this.sched); },
+  save() { store.set('fm_sched2', this.sched); },
   total(s) { return s.items.reduce((a, b) => a + (b.dur || 210000), 0); },
   async ensure() {
     const now = Date.now(), key = Sp.feedKey('fm');
@@ -745,14 +790,14 @@ const Fm = {
       this.sched = s; this.save();
     } else if (s.epoch + this.total(s) - now < 90 * 60000) {
       await Sp.getPool('fm');
-      const have = new Set(s.items.slice(-80).map(x => x.uri));
-      const more = Sp.pickItems(40, null, have).filter(x => x.dur > 0);
+      const more = Sp.pickItems(40, null, new Set(s.items.map(x => x.uri))).filter(x => x.dur > 0);
       // on garde les 6 dernières heures de grille pour ne pas grossir sans fin
       let cut = 0; const keepFrom = now - 6 * 3600000; let acc = s.epoch;
       while (cut < s.items.length - 1 && acc + s.items[cut].dur < keepFrom) { acc += s.items[cut].dur; cut++; }
       s = { key, epoch: acc, items: s.items.slice(cut).concat(more) };
       this.sched = s; this.save();
     }
+    for (const it of s.items) if (!Sp.byUri.has(it.uri)) Sp.byUri.set(it.uri, it);
     return s;
   },
   at(ts) {
@@ -765,9 +810,8 @@ const Fm = {
     const s = await this.ensure();
     const p = this.at(Date.now());
     if (!p) throw new Error('empty');
-    this.live = true;
-    const uris = s.items.slice(p.i, p.i + 50).map(x => x.uri);
-    await Sp.playUris(uris, p.off);
+    this.live = true; this.lastRetune = Date.now();
+    await Sp.playUris(s.items.slice(p.i, p.i + 30).map(x => x.uri), p.off);
     UI.renderLive();
     if (!quiet) this.ident(true);
   },
@@ -775,11 +819,6 @@ const Fm = {
     const s = this.sched; if (!s) return [];
     const i = s.items.findIndex(x => x.uri === uri);
     return i < 0 ? [] : s.items.slice(i + 1, i + 1 + n).map(x => x.uri);
-  },
-  next() {
-    if (!this.sched) return null;
-    const cur = Sp.lastUri, i = this.sched.items.findIndex(x => x.uri === cur);
-    return i >= 0 ? this.sched.items[i + 1] || null : null;
   },
   leave() { if (this.live) { this.live = false; UI.renderLive(); } },
   async goLive() {
@@ -790,19 +829,22 @@ const Fm = {
     finally { Sp.starting = false; Sp.guard(2500); }
   },
   /* à chaque nouveau morceau en direct : on vérifie qu'on colle à la grille, et parfois un jingle */
-  onTrack(uri, pos) {
+  onTrack(tr, pos) {
     if (!this.active()) return;
     this.sinceJingle++;
     if (this.live) {
-      // la grille « respire » : on recale l'heure de départ sur le morceau réellement joué, sinon on se réaccorde
+      // la grille « respire » : on recale l'heure de départ sur le morceau réellement joué
       const now = Date.now(), p = this.at(now), s = this.sched;
+      const key = norm(tr.name) + '|' + norm(tr.artists && tr.artists[0] && tr.artists[0].name);
+      const same = it => it && (it.uri === tr.uri || norm(it.name) + '|' + norm(it.artist.split(', ')[0]) === key);
       let j = -1;
-      if (p) for (const d of [0, 1, -1, 2]) { const it = s.items[p.i + d]; if (it && it.uri === uri) { j = p.i + d; break; } }
-      if (j < 0) { this.goLive(); return; }
-      let start = s.epoch; for (let i = 0; i < j; i++) start += s.items[i].dur || 210000;
-      const shift = (now - pos) - start;
-      if (Math.abs(shift) > 45000) { this.goLive(); return; }
-      s.epoch += shift; this.save();
+      if (p) for (const d of [0, 1, -1, 2]) if (same(s.items[p.i + d])) { j = p.i + d; break; }
+      let ok = j >= 0, shift = 0;
+      if (ok) { let start = s.epoch; for (let i = 0; i < j; i++) start += s.items[i].dur || 210000; shift = (now - pos) - start; ok = Math.abs(shift) <= 45000; }
+      if (ok) { s.epoch += shift; this.save(); }
+      // décalé : on se réaccorde, mais jamais plus d'une fois toutes les 2 minutes (sinon on reste hors direct)
+      else if (now - this.lastRetune > 120000) { this.goLive(); return; }
+      else this.leave();
     }
     const show = showAt(Date.now());
     if (show !== this.lastShow || this.sinceJingle >= 3) this.ident(false);
@@ -892,7 +934,7 @@ const Radio = {
   },
   async start() {
     this.ensureCtx();
-    if (this.station === 'local' && !this.files.some(f => !f.bad)) this.station = 'spotify';
+    if (this.station === 'local' && !this.files.some(f => !f.bad)) { this.station = 'spotify'; if (settings.src === 'local') setSrc('radio'); }
     if (this.station === 'spotify') return this.spStart();
     if (!this.ensureCtx()) { UI.toast('BROWSER NOT SUPPORTED (WEB AUDIO)'); return false; }
     if (!this.playing && this.cur) { await this.resumeFx(); return true; }
@@ -923,7 +965,7 @@ const Radio = {
     this.dropPrep();
     this.cur = SpPlayer; SpPlayer.tr = null; Sp.lastUri = null;
     this.playing = true; UI.syncPlay(); UI.loading();
-    UI.showTrack({ kind: 'spotify', title: Sp.source === 'fm' ? 'DRFT FM' : Sp.source === 'mix' ? 'DRFT MIX' : Sp.source === 'liked' ? 'LIKED SONGS' : 'PLAYLIST', artist: 'Tuning in…' });
+    UI.showTrack({ kind: 'spotify', title: Sp.source === 'fm' ? 'DRFT FM' : (Sp.plName || 'PLAYLIST'), artist: 'Tuning in…' });
     try {
       await Sp.playFresh(first);
       if (tok !== this.seq) return true;
@@ -990,9 +1032,9 @@ const Radio = {
     this.begin(spec);
   },
   noSource() {
-    UI.toast(Sp.connected() ? 'LIBRARY EMPTY · BACK TO SPOTIFY' : 'ADD YOUR WAVS FIRST');
+    UI.toast(Sp.connected() ? 'NO WAVS · BACK TO THE RADIO' : 'ADD YOUR WAVS FIRST');
     this.cur = null; this.playing = false; UI.syncPlay();
-    if (Sp.connected()) this.setStation('spotify');
+    if (Sp.connected()) { setSrc('radio'); this.setStation('spotify'); }
   },
   register(spec, opts) {
     this.count++; spec.num = this.count;
@@ -1106,7 +1148,7 @@ const Radio = {
       else {
         const after = Sp.source === 'fm' ? Fm.after(Sp.lastUri, 30) : [];
         if (after.length) { Sp.playUris(after).catch(e => this.spFail(e)); }
-        else { const src = Sp.source; if (src === 'fm') Sp.source = 'mix'; Sp.playFresh().catch(e => this.spFail(e)).finally(() => { Sp.source = src; }); }
+        else Sp.getPool().then(() => Sp.playUris(Sp.pickItems(40, null, new Set(Sp.sent.slice(-200))).map(x => x.uri))).catch(e => this.spFail(e));
       }
       return;
     }
@@ -1120,12 +1162,13 @@ const Radio = {
   },
   async playSpec(spec, noHistory) {
     if (spec.kind === 'spotify') {
+      if (settings.src === 'local') setSrc('radio');
       if (this.station !== 'spotify') { this.station = 'spotify'; settings.station = 'spotify'; saveSettings(); UI.renderStations(); }
       await this.spStart(spec.uri);
       return;
     }
     if (this.cur === SpPlayer) { SpPlayer.kill(); this.cur = null; }
-    if (this.station !== 'local') { this.station = 'local'; settings.station = 'local'; saveSettings(); UI.renderStations(); }
+    if (this.station !== 'local') { this.station = 'local'; setSrc('local'); UI.renderStations(); UI.renderSpotify(); }
     if (!this.ensureCtx()) return;
     if (!this.playing) { if (this.cur) await this.resumeFx(); else this.openGate(); }
     this.playing = true; UI.syncPlay();
@@ -1157,7 +1200,9 @@ const Radio = {
   setStation(id) {
     if (id === 'local' && !this.files.length) { UI.toast('ADD YOUR WAVS FIRST'); setDrawer(true, 'music'); return; }
     const was = this.station, active = !!this.cur;
-    this.station = id; settings.station = id; saveSettings(); UI.renderStations(); UI.renderStart();
+    this.station = id; settings.station = id;
+    if (id === 'local') settings.src = 'local'; else if (settings.src === 'local') settings.src = 'radio';
+    saveSettings(); syncSource(); UI.renderStations(); UI.renderStart(); UI.renderSpotify();
     this.dropPrep();
     if (id === 'spotify') {
       if (!Sp.connected()) { setDrawer(true, 'music'); UI.focusSpotify(); return; }
@@ -2297,15 +2342,11 @@ const ICONS = {
 document.querySelectorAll('svg[data-i]').forEach(s => { s.innerHTML = ICONS[s.dataset.i]; });
 const svgIcon = name => '<svg viewBox="0 0 16 16">' + ICONS[name] + '</svg>';
 
-const NBLOCKS = 40;
-const blocks = [];
-(function () { const b = $('#blocks'); for (let i = 0; i < NBLOCKS; i++) { const c = document.createElement('i'); b.appendChild(c); blocks.push(c); } })();
 const VOLSTEPS = 10;
 const volBtns = [];
 (function () {
   const v = $('#vol');
-  for (let i = 0; i < VOLSTEPS; i++) { const b = document.createElement('i'); v.appendChild(b); volBtns.push(b); }
-  const lab = document.createElement('b'); lab.id = 'volN'; v.appendChild(lab);
+  for (let i = 0; i < VOLSTEPS; i++) { const b = document.createElement('i'); b.style.height = (6 + i * 2.2) + 'px'; v.appendChild(b); volBtns.push(b); }
   // glisser pour régler : on garde le doigt ou le clic appuyé et on déplace
   const fromX = x => { const bars = v.querySelectorAll('i'), r0 = bars[0].getBoundingClientRect(), r1 = bars[bars.length - 1].getBoundingClientRect(); return clamp((x - r0.left) / Math.max(1, r1.right - r0.left), 0, 1); };
   let drag = false;
@@ -2324,7 +2365,7 @@ function setVol(v) { v = clamp(v, 0, 1); Radio.setVolume(v); saveSettings(); UI.
 
 let toastTimer = 0;
 const UI = {
-  lastP: null, lastUI: 0, trackChanges: 0, lastBlocks: -1,
+  lastP: null, lastUI: 0, trackChanges: 0, lastPct: '', seekFrac: null,
   toast(msg) { const t = $('#toast'); t.textContent = msg; t.dataset.show = '1'; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.dataset.show = '0'; }, 2800); },
   syncPlay() {
     const on = Radio.playing;
@@ -2336,9 +2377,9 @@ const UI = {
   },
   stationName(spec) {
     const id = spec && spec.kind === 'file' ? 'local' : spec && spec.kind === 'spotify' ? 'spotify' : Radio.station;
-    if (id === 'local') return 'MY LIBRARY';
+    if (id === 'local') return 'MY WAVS';
     if (Sp.source === 'fm') return 'DRFT FM · ' + showAt(Date.now()).name;
-    return 'SPOTIFY · ' + (Sp.source === 'liked' ? 'LIKED' : Sp.source.startsWith('pl:') ? 'PLAYLIST' : 'DRFT MIX');
+    return 'PLAYLIST · ' + String(Sp.plName || '').toUpperCase();
   },
   loading() { $('#npTime').textContent = 'LOADING…'; },
   showTrack(spec) {
@@ -2356,7 +2397,16 @@ const UI = {
     b.setAttribute('aria-label', liked ? 'Remove from favorites' : 'Add to favorites');
     b.hidden = !(spec && spec.kind === 'spotify' && spec.uri);
   },
+  /* barre de lecture continue : le carré avance à chaque image */
+  progFrame() {
+    const p = Radio.onAir(); let frac = 0, off = true;
+    if (p) { const info = p.posInfo(Radio.ctx ? Radio.ctx.currentTime : 0); if (info.dur > 0 && info.section !== 'Loading') { frac = clamp(info.el / info.dur, 0, 1); off = false; } }
+    const f = this.seekFrac != null ? this.seekFrac : frac, pct = (f * 100).toFixed(3) + '%';
+    if (pct !== this.lastPct) { this.lastPct = pct; $('#pfill').style.width = pct; $('#phead').style.left = pct; }
+    const pr = $('#prog'); if (pr.classList.contains('off') !== off) pr.classList.toggle('off', off);
+  },
   frame(now) {
+    this.progFrame();
     if (now - this.lastUI < 100) return; this.lastUI = now;
     document.body.classList.toggle('boot', !$('#start').hidden);
     const p = Radio.onAir(), key = p ? p.tr : null;
@@ -2364,21 +2414,11 @@ const UI = {
       this.lastP = key;
       if (p) { this.showTrack(p.tr); this.trackChanges++; if (this.trackChanges > 1) { if (settings.cycle !== 'off') nextScene(); if (settings.themeCycle === 'track') nextTheme(true); } }
     }
-    let frac = 0;
     if (p) {
       const info = p.posInfo(Radio.ctx ? Radio.ctx.currentTime : 0), d = info.dur || 0;
-      frac = d > 0 ? clamp(info.el / d, 0, 1) : 0;
-      $('#npTime').textContent = info.section === 'Loading' ? (p.kind === 'spotify' ? 'TUNING…' : 'LOADING…') : fmtTime(info.el) + ' / ' + fmtTime(d);
-      if (info.section === 'Loading' && p.kind === 'spotify' && Radio.playing) frac = -1;
+      $('#npTime').textContent = this.seekFrac != null && d > 0 ? '→ ' + fmtTime(this.seekFrac * d) + ' / ' + fmtTime(d) : info.section === 'Loading' ? (p.kind === 'spotify' ? 'TUNING…' : 'LOADING…') : fmtTime(info.el) + ' / ' + fmtTime(d);
+      $('#prog').setAttribute('aria-valuenow', String(d > 0 ? Math.round(clamp(info.el / d, 0, 1) * 100) : 0));
     }
-    if (this.seekFrac != null && p) {
-      const d = p.posInfo(Radio.ctx ? Radio.ctx.currentTime : 0).dur || 0;
-      $('#npTime').textContent = '→ ' + fmtTime(this.seekFrac * d) + ' / ' + fmtTime(d);
-      const n = Math.round(this.seekFrac * NBLOCKS), cur = Math.round(clamp(frac, 0, 1) * NBLOCKS);
-      this.lastBlocks = -1; blocks.forEach((c, i) => { c.classList.toggle('on', i < Math.min(n, cur)); c.classList.toggle('cue', i >= Math.min(n, cur) && i < Math.max(n, cur)); });
-    } else if (frac < 0) { const pos = Math.floor(now / 180) % NBLOCKS; this.lastBlocks = -1; blocks.forEach((c, i) => { c.classList.remove('cue'); c.classList.toggle('on', i === pos || i === (pos + NBLOCKS - 1) % NBLOCKS); }); }
-    else { const n = Math.round(frac * NBLOCKS); if (n !== this.lastBlocks) { this.lastBlocks = n; blocks.forEach((c, i) => { c.classList.remove('cue'); c.classList.toggle('on', i < n); }); $('#prog').setAttribute('aria-valuenow', String(Math.round(frac * 100))); } }
-    this.renderEq(now);
     this.renderNext();
     if (sleep.end) {
       const left = sleep.end - Date.now();
@@ -2387,23 +2427,6 @@ const UI = {
       if (left <= 0) { sleep.end = 0; sleep.fading = false; Radio.pause(); UI.renderSeg('#sleepSeg', [[0, 'OFF'], [15, '15'], [30, '30'], [60, '60'], [90, '90']], 0, setSleep); UI.toast('SLEEP TIMER DONE'); }
     }
     idle.check(now);
-  },
-  /* égaliseur du volume : hauteur max = volume ; il danse doucement pendant l'écoute (vrai spectre avec tes WAV) */
-  eqBuf: null, eqLast: 0,
-  renderEq(now, force) {
-    if (!force && now - this.eqLast < 95) return; this.eqLast = now;
-    const vol = settings.vol, p = Radio.cur, maxH = 22;
-    let lv = null;
-    if (Radio.playing && p && p.kind === 'file' && Radio.kit) {
-      const an = Radio.kit.analyser; if (!this.eqBuf || this.eqBuf.length !== an.frequencyBinCount) this.eqBuf = new Uint8Array(an.frequencyBinCount);
-      an.getByteFrequencyData(this.eqBuf);
-      const hz = Radio.ctx.sampleRate / an.fftSize;
-      lv = volBtns.map((_, i) => { const f0 = 40 * Math.pow(300, i / VOLSTEPS), f1 = 40 * Math.pow(300, (i + 1) / VOLSTEPS); let s = 0, n = 0; for (let k = Math.max(1, Math.floor(f0 / hz)); k <= Math.min(this.eqBuf.length - 1, Math.ceil(f1 / hz)); k++) { s += this.eqBuf[k]; n++; } return clamp((n ? s / n / 255 : 0) * 1.25, 0.08, 1); });
-    } else if (Radio.playing && p) {
-      const t = now / 1000;
-      lv = volBtns.map((_, i) => clamp(0.55 + 0.28 * Math.sin(t * (1.1 + i * 0.23) + i * 1.9) + 0.17 * Math.sin(t * (2.3 + i * 0.41) + i * 0.7), 0.12, 1));
-    } else lv = volBtns.map((_, i) => 0.3 + 0.7 * i / (VOLSTEPS - 1));
-    volBtns.forEach((b, i) => { b.style.height = (3 + Math.round(vol * maxH * lv[i])) + 'px'; });
   },
   renderNext() {
     let txt = '';
@@ -2420,25 +2443,17 @@ const UI = {
     if (on) { b.dataset.live = Fm.live ? '1' : '0'; b.textContent = Fm.live ? '● LIVE' : '↺ BACK TO LIVE'; b.title = Fm.live ? 'You are on air' : 'Rejoin the live broadcast'; }
     $('#npStation').textContent = this.stationName(Radio.cur && Radio.cur.tr);
   },
-  renderVol() { this.renderEq(performance.now(), true); const n = Math.round(settings.vol * 100); $('#volN').textContent = n ? 'VOL ' + n : 'MUTE'; const v = $('#vol'); v.setAttribute('aria-valuenow', String(Math.round(settings.vol * 100))); v.setAttribute('aria-valuetext', Math.round(settings.vol * 100) + ' %'); },
-  pickStation(id) {
-    $('#start').hidden = true;
-    if (Radio.cur) { Radio.setStation(id); return; }
-    if (id === 'local' && !Radio.files.length) { Radio.setStation('local'); return; }
-    if (id === 'spotify' && !Sp.connected()) { Radio.setStation('spotify'); return; }
-    Radio.station = id; settings.station = id; saveSettings(); this.renderStations();
-    Radio.start().then(() => UI.syncPlay());
-  },
+  renderVol() { const on = Math.round(settings.vol * VOLSTEPS); volBtns.forEach((b, i) => b.classList.toggle('on', i < on)); const v = $('#vol'); v.setAttribute('aria-valuenow', String(Math.round(settings.vol * 100))); v.setAttribute('aria-valuetext', Math.round(settings.vol * 100) + ' %'); },
   renderStations() {
     const el = $('#stations'); el.innerHTML = '';
-    STATIONS.forEach(s => {
+    SOURCES.forEach(src => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'row-btn st';
-      b.setAttribute('aria-pressed', Radio.station === s.id ? 'true' : 'false');
-      const jp = document.createElement('i'); jp.textContent = s.jp;
-      const a = document.createElement('span'); a.textContent = s.name.toUpperCase();
+      b.setAttribute('aria-pressed', settings.src === src.id ? 'true' : 'false');
+      const jp = document.createElement('i'); jp.textContent = src.jp;
+      const a = document.createElement('span'); a.textContent = src.name.toUpperCase();
       const sm = document.createElement('small');
-      sm.textContent = s.id === 'local' ? String(Radio.files.length) : Sp.connected() ? 'ON' : 'SET UP';
-      b.append(jp, a, sm); b.addEventListener('click', () => this.pickStation(s.id));
+      sm.textContent = src.id === 'local' ? String(Radio.files.length) : !Sp.connected() ? 'SET UP' : src.id === 'radio' ? 'DRFT FM' : (Sp.plName ? Sp.plName.toUpperCase() : 'CHOOSE');
+      b.append(jp, a, sm); b.addEventListener('click', () => pickSource(src.id));
       el.appendChild(b);
     });
     $('#npStation').textContent = this.stationName(Radio.cur && Radio.cur.tr);
@@ -2509,29 +2524,8 @@ const UI = {
       it => removeTrack(it.item));
     $('#btnClearAudio').hidden = !Radio.files.length;
   },
-  renderRefs() {
-    const el = $('#refList'); el.innerHTML = '';
-    for (const g of REFS) {
-      const box = document.createElement('div'); box.className = 'ref-g';
-      const h = document.createElement('h4'); h.textContent = g.group.toUpperCase(); box.appendChild(h);
-      for (const [artist, title, note] of g.items) {
-        const row = document.createElement('div'); row.className = 'ref';
-        const t = document.createElement('span'); t.textContent = artist + ' — ' + title;
-        if (note) { const sm = document.createElement('small'); sm.textContent = note; t.appendChild(sm); }
-        const nav = document.createElement('nav'); const q = encodeURIComponent(artist.replace(/ feat\..*$/, '') + ' ' + title.replace(/ \(.*\)$/, ''));
-        const pb = document.createElement('button'); pb.type = 'button'; pb.textContent = '▶'; pb.title = 'Play on Spotify'; pb.setAttribute('aria-label', 'Play ' + artist + ' — ' + title + ' on Spotify');
-        pb.addEventListener('click', () => playRef(artist, title)); nav.appendChild(pb);
-        for (const [label, url] of [['BC', 'https://bandcamp.com/search?q=' + q], ['BP', 'https://www.beatport.com/search?q=' + q]]) {
-          const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label;
-          a.title = (label === 'BC' ? 'Search on Bandcamp' : 'Search on Beatport'); nav.appendChild(a);
-        }
-        row.append(t, nav); box.appendChild(row);
-      }
-      el.appendChild(box);
-    }
-  },
   renderStart() {
-    const need = Radio.station === 'spotify' && !Sp.connected();
+    const need = settings.src !== 'local' && !Sp.connected();
     $('#btnStart').textContent = need ? '▶ CONNECT SPOTIFY' : '▶ LISTEN';
   },
   focusSpotify() { const i = $('#spCid'); if (i) setTimeout(() => { try { i.focus({ preventScroll: false }); } catch (e) { /* ok */ } }, 60); },
@@ -2539,6 +2533,8 @@ const UI = {
     const el = $('#spBox'); el.innerHTML = '';
     const mk = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
     const head = mk('div', 'lbl-row'); head.style.marginBottom = '0';
+    if (settings.src === 'local') { el.hidden = true; return; }
+    el.hidden = false;
     if (!Sp.connected()) {
       head.appendChild(mk('span', 'lbl', 'SPOTIFY · ONE-TIME SETUP')); el.appendChild(head);
       const ol = mk('ol', 'steps');
@@ -2560,53 +2556,84 @@ const UI = {
       el.appendChild(mk('p', 'mini', 'Spotify Premium needed. Login and playback stay between this browser and Spotify.'));
       return;
     }
-    head.appendChild(mk('span', 'lbl', 'SPOTIFY' + (Sp.user ? ' · ' + String(Sp.user).toUpperCase() : '')));
+    head.appendChild(mk('span', 'lbl', (settings.src === 'radio' ? 'RADIO STYLE' : 'YOUR PLAYLISTS') + (Sp.user ? ' · ' + String(Sp.user).toUpperCase() : '')));
     const out = mk('button', 'btn ghost sm', 'DISCONNECT'); out.type = 'button'; out.addEventListener('click', () => Sp.logout());
     head.appendChild(out); el.appendChild(head);
-    const seg = mk('div', 'seg'); seg.id = 'spSrc'; el.appendChild(seg);
-    this.renderSeg('#spSrc', [['fm', 'DRFT FM · LIVE'], ['mix', 'DRFT MIX'], ['liked', 'LIKED SONGS']], Sp.source.startsWith('pl:') ? '' : Sp.source, setSpSource);
-    if (Sp.playlists.length) {
+    if (settings.src === 'playlist') {
+      if (!Sp.playlists) { el.appendChild(mk('p', 'mini', 'Loading your playlists…')); return; }
+      if (!Sp.playlists.length) { el.appendChild(mk('p', 'mini', 'No playlist of yours on this Spotify account. Create one in Spotify, then reopen this menu.')); return; }
       const list = mk('div', 'list');
       for (const pl of Sp.playlists) {
-        const b = mk('button', 'li-btn'); b.type = 'button'; b.appendChild(mk('b', null, pl.name)); b.appendChild(mk('small', null, 'Your playlist'));
-        b.setAttribute('aria-pressed', Sp.source === 'pl:' + pl.id ? 'true' : 'false');
-        b.addEventListener('click', () => setSpSource('pl:' + pl.id));
+        const b = mk('button', 'li-btn'); b.type = 'button'; b.appendChild(mk('b', null, pl.name)); b.appendChild(mk('small', null, Sp.plId === pl.id ? 'Playing in shuffle' : 'Play in shuffle'));
+        b.setAttribute('aria-pressed', Sp.plId === pl.id ? 'true' : 'false');
+        b.addEventListener('click', () => choosePlaylist(pl));
         list.appendChild(b);
       }
       el.appendChild(list);
+      return;
     }
-    const lb = mk('div', 'lbl', 'MIX STARTS FROM'); lb.style.marginTop = '4px'; el.appendChild(lb);
-    const fd = mk('div', 'field'), inp = mk('input'); inp.id = 'spSeeds'; inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.value = Sp.seeds.join(', '); inp.placeholder = 'ARTISTS, COMMA SEPARATED'; inp.setAttribute('aria-label', 'Mix artists');
+    const fd = mk('div', 'field'), inp = mk('input'); inp.id = 'spKw'; inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.value = Sp.keywords.join(', '); inp.placeholder = 'ARTISTS OR STYLES, COMMA SEPARATED'; inp.setAttribute('aria-label', 'Radio style: artists or styles');
     const set = mk('button', 'btn sm', 'SET'); set.type = 'button';
-    const apply = () => setSpSeeds(inp.value);
+    const apply = () => setKeywords(inp.value);
     set.addEventListener('click', apply); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } e.stopPropagation(); });
     fd.append(inp, set); fd.style.marginTop = '0'; el.appendChild(fd);
-    el.appendChild(mk('p', 'mini', 'DRFT FM is a radio just for you: the schedule runs with the clock, even when DRFT is closed. The mix: one track from these artists, then two from the same world (atmospheric jungle, jazzy DnB, liquid, 90s classics), instrumentals first.'));
+    const r = Sp.resolved, sum = mk('div', 'sp-sum');
+    if (Sp.building) sum.appendChild(mk('span', null, 'Searching Spotify for this style…'));
+    else if (r && r.items) {
+      const label = { artist: 'artist', genre: 'style', text: 'keyword' };
+      for (const it of r.items) {
+        const line = mk('span'); line.appendChild(mk('b', null, String(it.kw).toUpperCase()));
+        line.append(' → ' + (it.type === 'genre' ? 'style · ' + it.n + ' artists' : it.type === 'text' ? (it.n ? 'keyword · ' + it.n + ' tracks' : 'nothing found') : label[it.type]));
+        sum.appendChild(line);
+      }
+      sum.appendChild(mk('span', null, r.tracks + ' tracks from ' + r.artists + ' artists' + (r.styles && r.styles.length ? ' · styles: ' + r.styles.slice(0, 6).join(', ') : '')));
+    }
+    el.appendChild(sum);
+    el.appendChild(mk('p', 'mini', 'Type artists or styles (liquid funk, jungle, atmospheric dnb…). The radio only plays artists it can verify in those styles, never the same track twice in a row, instrumentals first. It runs with the clock, like a real station.'));
   }
 };
 
-function setSpSource(v) {
-  Sp.source = v; store.set('sp_source', v); UI.renderSpotify();
-  if (v !== 'fm') Fm.leave();
-  if (Radio.cur === SpPlayer) { UI.toast(v === 'fm' ? 'DRFT FM · LIVE' : v === 'mix' ? 'DRFT MIX' : v === 'liked' ? 'LIKED SONGS' : 'PLAYLIST'); Radio.playing = true; UI.syncPlay(); Sp.playFresh().catch(e => Radio.spFail(e)); }
-  UI.renderLive();
+function syncSource() { Sp.source = settings.src === 'playlist' && Sp.plId ? 'pl:' + Sp.plId : 'fm'; }
+function setSrc(src) { settings.src = src; settings.station = src === 'local' ? 'local' : 'spotify'; saveSettings(); syncSource(); }
+/* les 3 choix : la radio, ta playlist, tes WAV */
+function pickSource(id, force) {
+  $('#start').hidden = true;
+  if (id === 'local') {
+    if (!Radio.files.length) { UI.toast('ADD YOUR WAVS FIRST'); setDrawer(true, 'music'); $('#dLib').open = true; return; }
+    const same = settings.src === 'local' && Radio.cur && Radio.cur !== SpPlayer;
+    setSrc('local'); UI.renderStations(); UI.renderSpotify(); UI.renderStart();
+    if (same && Radio.playing) return;
+    if (Radio.cur) Radio.setStation('local'); else { Radio.station = 'local'; Radio.start().then(() => UI.syncPlay()); }
+    return;
+  }
+  const same = settings.src === id && Radio.cur === SpPlayer && Radio.playing;
+  setSrc(id); UI.renderStations(); UI.renderSpotify(); UI.renderStart();
+  if (!Sp.connected()) { Radio.station = 'spotify'; setDrawer(true, 'music'); UI.focusSpotify(); return; }
+  if (id === 'playlist' && !Sp.plId) { setDrawer(true, 'music'); if (!Sp.playlists) Sp.loadPlaylists(); UI.toast('CHOOSE ONE OF YOUR PLAYLISTS'); return; }
+  if (same && !force) return;
+  if (Radio.cur === SpPlayer) {
+    Fm.leave(); Radio.playing = true; UI.syncPlay(); UI.loading();
+    UI.showTrack({ kind: 'spotify', title: Sp.source === 'fm' ? 'DRFT FM' : (Sp.plName || 'PLAYLIST'), artist: 'Tuning in…' });
+    Sp.playFresh().catch(e => Radio.spFail(e)); UI.renderLive();
+  } else if (Radio.cur) Radio.setStation('spotify');
+  else { Radio.station = 'spotify'; Radio.start().then(() => UI.syncPlay()); }
 }
-function setSpSeeds(txt) {
-  const list = String(txt || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 8);
-  Sp.seeds = list.length ? list : SP_SEEDS.slice(); store.set('sp_seeds', Sp.seeds); Sp.pool = null;
-  UI.renderSpotify(); UI.toast('MIX: ' + Sp.seeds.join(', ').toUpperCase());
-  if (Radio.cur === SpPlayer && Sp.source === 'mix') Sp.playFresh().catch(e => Radio.spFail(e));
+function choosePlaylist(pl) {
+  Sp.plId = pl.id; Sp.plName = pl.name; store.set('sp_pl', pl.id); store.set('sp_pl_name', pl.name);
+  UI.toast('PLAYLIST · ' + pl.name.toUpperCase());
+  pickSource('playlist', true);
 }
-async function playRef(artist, title) {
-  if (!Sp.connected()) { UI.toast('CONNECT SPOTIFY FIRST'); UI.focusSpotify(); return; }
-  try {
-    const a = artist.replace(/ feat\..*$/, '').split(/ & /)[0], t = title.replace(/ \(.*\)$/, '');
-    let r = await Sp.search('track:"' + t + '" artist:"' + a + '"', 0);
-    if (!r.length) r = await Sp.search(a + ' ' + t, 0);
-    if (!r.length) { UI.toast('NOT ON SPOTIFY · TRY BANDCAMP'); return; }
-    $('#start').hidden = true;
-    Radio.playSpec({ kind: 'spotify', uri: r[0].uri, title: r[0].name, artist: (r[0].artists || []).map(x => x.name).join(', ') });
-  } catch (e) { Radio.spFail(e); }
+function setKeywords(txt) {
+  const list = [...new Set(String(txt || '').split(',').map(x => x.trim()).filter(Boolean))].slice(0, 10);
+  Sp.keywords = list.length ? list : SP_KEYWORDS.slice(); store.set('sp_kw', Sp.keywords);
+  Sp.resolved = null; store.set('sp_resolved', null);
+  if (!Sp.connected()) { UI.renderSpotify(); return; }
+  const go = Sp.getPool('fm'); UI.renderSpotify(); UI.toast('SEARCHING THIS STYLE…');
+  go.then(() => {
+    UI.renderSpotify();
+    const r = Sp.resolved; if (r) UI.toast('RADIO · ' + r.tracks + ' TRACKS FROM ' + r.artists + ' ARTISTS');
+    if (Radio.cur === SpPlayer && Sp.source === 'fm') { Radio.playing = true; UI.syncPlay(); UI.loading(); Sp.playFresh().catch(e => Radio.spFail(e)); }
+  }, e => { UI.renderSpotify(); Radio.spFail(e); });
 }
 
 let favs = store.get('favs', []);
@@ -2768,7 +2795,7 @@ async function addAudioFiles(list) {
   updateCounts(); UI.renderStations(); UI.renderLibrary();
   UI.toast('+' + added + ' TRACK' + (added > 1 ? 'S' : '') + (skipped ? ' · ' + skipped + ' ALREADY THERE' : ''));
   if (added && Radio.station !== 'local') {
-    if (!Radio.ctx) { Radio.station = 'local'; settings.station = 'local'; saveSettings(); UI.renderStations(); }
+    if (!Radio.cur) { Radio.station = 'local'; setSrc('local'); UI.renderStations(); UI.renderSpotify(); UI.renderStart(); }
   }
 }
 function removeTrack(item) {
@@ -2854,25 +2881,28 @@ $('#btnLive').addEventListener('click', () => { if (!Fm.live) Fm.goLive(); });
 (function () {
   const pr = $('#prog');
   const dur = () => { const p = Radio.cur; return p ? (p.posInfo(Radio.ctx ? Radio.ctx.currentTime : 0).dur || 0) : 0; };
-  const fr = x => { const r = $('#blocks').getBoundingClientRect(); return clamp((x - r.left) / Math.max(1, r.width), 0, 1); };
+  const fr = x => { const r = $('#ptrack').getBoundingClientRect(); return clamp((x - r.left) / Math.max(1, r.width), 0, 1); };
+  const tip = $('#ptip');
+  const showTip = (x, f) => { const d = dur(); if (!(d > 0)) { tip.hidden = true; return; } const r = pr.getBoundingClientRect(), tr = $('#ptrack').getBoundingClientRect(); tip.hidden = false; tip.textContent = fmtTime(f * d); tip.style.left = clamp(tr.left + f * tr.width - r.left, 18, r.width - 18) + 'px'; };
+  pr.addEventListener('pointerleave', () => { if (!drag) tip.hidden = true; });
   let drag = false;
   pr.addEventListener('pointerdown', e => {
     if (!Radio.cur || !(dur() > 0)) return;
     drag = true; pr.classList.add('drag'); try { pr.setPointerCapture(e.pointerId); } catch (er) { /* ok */ }
-    UI.seekFrac = fr(e.clientX); UI.lastUI = 0; e.preventDefault();
+    UI.seekFrac = fr(e.clientX); UI.lastUI = 0; showTip(e.clientX, UI.seekFrac); e.preventDefault();
   });
-  pr.addEventListener('pointermove', e => { if (drag) { UI.seekFrac = fr(e.clientX); UI.lastUI = 0; } });
+  pr.addEventListener('pointermove', e => { const f = fr(e.clientX); if (drag) { UI.seekFrac = f; UI.lastUI = 0; } if (drag || e.pointerType === 'mouse') showTip(e.clientX, f); });
   const end = (e, ok) => {
     if (!drag) return; drag = false; pr.classList.remove('drag');
     try { pr.releasePointerCapture(e.pointerId); } catch (er) { /* ok */ }
-    const f = UI.seekFrac, d = dur(); UI.seekFrac = null; UI.lastUI = 0;
+    const f = UI.seekFrac, d = dur(); UI.seekFrac = null; UI.lastUI = 0; if (e.pointerType !== 'mouse') tip.hidden = true;
     if (ok && f != null && d > 0) Radio.seek(f * d);
   };
   pr.addEventListener('pointerup', e => end(e, true)); pr.addEventListener('pointercancel', e => end(e, false));
   pr.addEventListener('keydown', e => {
     const p = Radio.cur; if (!p) return;
     const info = p.posInfo(Radio.ctx ? Radio.ctx.currentTime : 0);
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); Radio.seek(clamp(info.el + (e.key === 'ArrowRight' ? 10 : -10), 0, info.dur || 0)); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); Radio.seek(clamp(info.el + (e.key === 'ArrowRight' ? 5 : -5), 0, info.dur || 0)); }
   });
 })();
 $('#btnFull').addEventListener('click', toggleFull);
@@ -2914,7 +2944,7 @@ window.addEventListener('keydown', e => {
     case 'arrowup': e.preventDefault(); setVol(settings.vol + 1 / VOLSTEPS); break;
     case 'arrowdown': e.preventDefault(); setVol(settings.vol - 1 / VOLSTEPS); break;
     default:
-      if (/^[1-2]$/.test(k)) UI.pickStation(STATIONS[+k - 1].id);
+      if (/^[1-3]$/.test(k)) pickSource(SOURCES[+k - 1].id);
   }
 });
 
@@ -2931,18 +2961,25 @@ window.addEventListener('drop', e => {
 window.addEventListener('resize', () => resize());
 
 /* démarrage */
-Radio.station = settings.station === 'local' ? 'local' : 'spotify';
+if (!['radio', 'playlist', 'local'].includes(settings.src)) {
+  const old = store.get('sp_source', 'fm');
+  settings.src = settings.station === 'local' ? 'local' : (typeof old === 'string' && old.startsWith('pl:')) ? 'playlist' : 'radio';
+  if (settings.src === 'playlist' && !Sp.plId) { Sp.plId = old.slice(3); store.set('sp_pl', Sp.plId); }
+  saveSettings();
+}
+syncSource();
+Radio.station = settings.src === 'local' ? 'local' : 'spotify';
 if (typeof settings.xfade !== 'number') settings.xfade = 4;
 resize();
 setTheme(settings.theme, true);
 UI.renderStations(); UI.renderScenes(); UI.renderVol();
 setThemeCycle(settings.themeCycle); setCycle(settings.cycle); setSleep(0); setXfade(settings.xfade);
 setPx(settings.px); setReact(settings.react); setWeather(settings.weather);
-UI.renderRefs(); UI.renderLibrary(); UI.renderFavs(); UI.renderHistory(); UI.renderSpotify(); UI.renderStart(); updateCounts(); UI.syncPlay();
+UI.renderLibrary(); UI.renderFavs(); UI.renderHistory(); UI.renderSpotify(); UI.renderStart(); updateCounts(); UI.syncPlay();
 IDB.open().then(async () => {
   const tracks = await IDB.all('tracks');
   for (const t of tracks) if (t && t.blob && !Radio.files.some(x => x.id === t.id)) { if (t.artist === 'Ma collection') t.artist = 'My library'; Radio.files.push(t); }
-  if (Radio.files.length && settings.station === 'local' && !Radio.cur) Radio.station = 'local';
+  if (Radio.files.length && settings.src === 'local' && !Radio.cur) Radio.station = 'local';
   updateCounts(); UI.renderStations(); UI.renderLibrary(); UI.renderStart();
   const recs = await IDB.all('images');
   for (const r of recs) { try { IMGS.push(processImage(await blobToCanvas(r.blob, 960))); } catch (e) { /* image corrompue ignorée */ } }
@@ -2951,6 +2988,7 @@ IDB.open().then(async () => {
 Sp.handleRedirect().then(back => {
   if (back || !Sp.connected()) return;
   Sp.loadMe().then(() => { UI.renderSpotify(); Sp.loadPlaylists(); });
+  if (settings.src === 'radio') { const g = Sp.getPool('fm'); UI.renderSpotify(); g.then(() => UI.renderSpotify(), () => UI.renderSpotify()); }
   Sp.init().catch(() => {});
 });
 try { if (document.fonts && document.fonts.load) ['24px "Dela Gothic One"', '24px "Chakra Petch"'].forEach(f => document.fonts.load(f, 'DRFT ドリフト首都高峠全開回転計東京カラオケラーメン 0123456789').catch(() => {})); } catch (e) { /* ok */ }
