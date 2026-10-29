@@ -145,8 +145,7 @@ details .mini{margin-bottom:16px}
 
 /* masquage auto pendant l'écoute */
 .fade{transition:opacity .45s steps(5)}
-body.idle .fade{opacity:0;pointer-events:none}
-body.idle .fade *{pointer-events:none}
+body.idle .fade{opacity:0}
 body.idle{cursor:none}
 body.boot .hud,body.boot .corner{visibility:hidden}
 
@@ -584,12 +583,12 @@ class LivePlayer {
     let ok = false;
     if (L.gainC) {
       const g = L.gainC.gain, now = this.kit.ctx.currentTime; g.cancelScheduledValues(now); g.setValueAtTime(0.0001, now);
-      ok = await L.tryPlay(L.elC, this.st.url, 9000);
+      ok = await L.tryPlay(L.elC, this.st.url, 12000);
       if (ok && !this.killed) { const t = this.kit.ctx.currentTime; g.setValueAtTime(0.0001, t); g.linearRampToValueAtTime(1, t + 0.6); }
     }
     if (!ok && !this.killed && !L.blocked) {
       L.stop(L.elC);
-      L.elP.volume = 0; ok = await L.tryPlay(L.elP, this.st.url, 9000);
+      L.elP.volume = 0; ok = await L.tryPlay(L.elP, this.st.url, 12000);
       if (ok) { this.plain = true; this.fadeEl(liveVolume(), 600); }
     }
     if (this.killed) { L.stop(L.elC); L.stop(L.elP); return false; }
@@ -1857,13 +1856,15 @@ const wake = {
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Radio.playing) wake.request(); });
 
 const idle = {
-  last: performance.now(),
+  last: performance.now(), hover: false,
   poke() { this.last = performance.now(); if (document.body.classList.contains('idle')) document.body.classList.remove('idle'); },
   check(now) {
-    if (Radio.playing && $('#panel').hidden && $('#start').hidden && now - this.last > 3500) document.body.classList.add('idle');
+    if (Radio.playing && !this.hover && $('#panel').hidden && $('#start').hidden && now - this.last > 3500) document.body.classList.add('idle');
   }
 };
 ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => window.addEventListener(ev, () => idle.poke(), { passive: true }));
+// tant que la souris est sur une commande, l'interface reste affichée (les boutons restent cliquables même masqués)
+document.addEventListener('pointerover', e => { idle.hover = !!(e.target.closest && e.target.closest('#ui .live')) && e.pointerType === 'mouse'; });
 
 function setTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name ? 'true' : 'false'));
