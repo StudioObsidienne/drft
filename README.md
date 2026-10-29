@@ -1,29 +1,39 @@
 # DRFT
 
-**An endless drum & bass radio with a pixel-art racing visualizer, built as a single HTML file.**
+**A personal drum & bass radio with a pixel-art racing visualizer, built as a single HTML file.**
 
-DRFT turns your browser into a late-night radio station. Tune into real drum & bass stations broadcasting live, play your own WAV files, or let it compose tracks on the fly. Behind the music, low-resolution pixel scenes loop forever and react to the bass.
+DRFT turns the browser into a late-night radio station: live drum & bass stations, your own WAV library, or tracks composed on the fly. Behind the music, low-resolution pixel scenes loop forever and react to the bass.
 
-**Live radio.** One tap picks a random station from a hand-checked list of live drum & bass radios (Brokenbeats, DNB FM, Record Liquid Funk, Kool FM, Bassdrive, Jungle Planet and more), topped up with stations found in real time in the public [Radio Browser](https://www.radio-browser.info) directory. Real DJs and real rotations, nothing to upload. Skip to land on another station at random.
+> Private project, for personal use.
 
-**Your music, in WAV.** Load WAV, AIFF, FLAC or MP3 files, or a whole folder. They play back-to-back with no gaps and smooth crossfades, because the next track is decoded in advance. Your library is saved in the browser and never uploaded anywhere.
+## What it does
 
-**Generated radio.** No files, no connection? DRFT composes drum & bass in real time across five stations: Retro Racer, Liquid, Jungle, Neurofunk and Atmospheric. Any track you like can be saved and replayed exactly.
+- **Live radio.** Picks a random live drum & bass station from a hand-checked list (Brokenbeats, DNB FM, Record Liquid Funk, Kool FM, Bassdrive, Jungle Planet and more), topped up with stations found in real time in the public [Radio Browser](https://www.radio-browser.info) directory. Skip to land on another station at random.
+- **WAV library.** Import files or a whole folder (WAV, AIFF, FLAC, MP3, OGG, M4A). Tracks play back-to-back with no gaps and adjustable crossfades (0, 2, 4 or 8 s). The library is stored in the browser and never uploaded.
+- **Generated radio.** Five styles composed in real time: Retro Racer, Liquid, Jungle, Neurofunk, Atmospheric, plus a Mix. The heart saves a generated track so it can be replayed exactly.
+- **Visuals.** Six scenes (highway, mountain pass, ring road, top-down circuit, tunnel, and a garage that shows your own car shots) and eight moods that fade into each other: neon night, rain, storm, dawn, sunset, redline, dust, snow.
+- **Echo-out pause.** The music echoes out instead of cutting. Files resume exactly where they stopped; live radio comes back on air.
+- **Smooth by design.** Audio runs independently of the visuals, and the pixel size adapts automatically if rendering gets heavy.
 
-**Visuals.** A car on a neon highway, drifting through a mountain pass, cruising past a city skyline, lapping a circuit seen from above, or racing through a tunnel. You can also drop in your own car screenshots. The weather changes on its own and the colors fade from one mood to the next: rain turns the screen grey, storms flash lightning on the kicks, sunsets glow pink, snow drifts down.
+## Run it
 
-**Echo-out pause.** Pause doesn't cut the sound: the music echoes out and dissolves into a tail before going quiet. Files resume exactly where they stopped; live radio comes back on air.
+Open `index.html` in Chrome, Edge, Firefox or Safari. That's it: no build step, no dependencies.
 
-No build step, no dependencies, no server. Open `index.html` or host it on GitHub Pages.
+If the browser blocks something when the file is opened directly, serve the folder locally instead:
 
-## Keyboard shortcuts
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+## Controls
 
 | Key | Action |
 |---|---|
 | Space | Play / pause |
 | N or → | Next track or station |
 | ← | Previous track |
-| 1 to 8 | Stations (2 = live radio) |
+| 1 to 8 | Stations (1 = my library, 2 = live radio) |
 | L | Favorite |
 | V | Next scene |
 | P | Next mood |
@@ -31,25 +41,21 @@ No build step, no dependencies, no server. Open `index.html` or host it on GitHu
 | M | Menu |
 | ↑ ↓ | Volume |
 
-The volume bars can be dragged: press and slide.
-
-## Host it on GitHub Pages
-
-In the repository, go to **Settings › Pages**, set **Source** to **Deploy from a branch**, pick `main` and `/ (root)`. The site goes live at `https://<your-username>.github.io/drft/`.
-
-Live radio needs the hosted version (or any `https` page): some previews block outside audio streams.
+The volume bars can be dragged: press and slide. Everything else lives in the menu (Music, Visuals, Settings).
 
 ## Live radio notes
 
-- Only `https` streams are used, so they play on a secure page.
-- When a station allows it (most do), the visuals react to the real audio. Otherwise DRFT plays the stream as is and the visuals follow a simulated 174 BPM pulse.
-- If a station is offline, DRFT moves on to another one automatically.
-- Stations are third-party broadcasts. DRFT only plays their public streams and never records or rebroadcasts them.
+- Only `https` streams are used.
+- When a station allows it (most do), the visuals react to the real audio. Otherwise the stream plays as is and the visuals follow a simulated 174 BPM pulse.
+- Offline stations are skipped automatically.
+- Stations are third-party broadcasts: DRFT only plays their public streams. It never records, stores or rebroadcasts them.
 
-## Copyright
+## Music files
 
-Don't commit commercial tracks to the repository: a public repo would let anyone download them. Every visitor imports their own files, and those files stay on their device.
+Keep WAVs out of the repository. GitHub rejects files over 100 MB, and the app already keeps your library in the browser.
 
 ## Under the hood
 
-Web Audio API for synthesis, compression, reverb, crossfades and the echo-out pause. Canvas 2D rendered at low resolution and scaled up without smoothing, with 4×4 ordered dithering. IndexedDB for the music library.
+- Web Audio API: synthesis, compression, reverb, crossfades, echo-out pause, live analysis.
+- Canvas 2D rendered at low resolution and scaled up without smoothing, with 4×4 ordered dithering.
+- IndexedDB for the music library and car images, localStorage for settings and favorites.
