@@ -1,16 +1,33 @@
 # DRFT
 
-**Real drum & bass for night drives, with a pixel-art Tokyo night visualizer. One HTML file.**
+**Drum & bass for night drives, with a pixel-art Tokyo night visualizer. One HTML file.**
 
 **▶ Live at [studioobsidienne.github.io/drft](https://studioobsidienne.github.io/drft/)**
 
-DRFT is a drum & bass radio that only plays real music by real artists. Pick a source, hit play, and let it run: tracks are picked at random, the next one is preloaded, and songs blend into each other with a crossfade. Behind the music, dithered pixel scenes inspired by Tokyo street racing loop forever and react to the bass.
+DRFT plays real music from real artists, and nothing else: your own Spotify account, or your own WAV files. Hit play and let it run. Behind the music, dithered pixel scenes inspired by Tokyo street racing loop forever and move with the beat.
 
-## Three sources, all real music
+## Two sources
 
-- **Discover** (ディスカバー): random drum & bass tracks from real artists and labels on [Audius](https://audius.co), pulled from the platform's trending charts and searches (jungle, liquid, neurofunk). Audius streams the music through its public API; DRFT never stores it. Each track links back to its page on Audius.
-- **Live radio** (ライブ): a random live drum & bass station from a hand-checked list (Brokenbeats, DNB FM, Record Liquid Funk, Kool FM, Bassdrive, Jungle Planet…), topped up with stations found in real time in the public [Radio Browser](https://www.radio-browser.info) directory.
+- **Spotify** (スポティファイ): DRFT becomes a Spotify player named “DRFT” on your account (Premium required). Three ways to feed it:
+  - **DRFT Mix**: an endless mix grown from the artists you choose (TURQUOISEDEATH by default). One track from those artists, then two from the same world: atmospheric jungle, dreamy DnB, liquid, and the 90s references (LTJ Bukem, Photek, PFM, Source Direct, Seba, Blu Mar Ten…). Tracks heard recently are held back, and the queue refills itself before it runs out.
+  - **Liked songs**, shuffled.
+  - **One of your playlists**, shuffled.
 - **My library** (ライブラリ): your own WAV, AIFF, FLAC or MP3 files, or a whole folder. Gapless playback, adjustable crossfade, stored in your browser and never uploaded.
+
+The **Digging** list in the menu collects classics and deep cuts: ▶ plays one on Spotify, BC and BP find the WAV on Bandcamp or Beatport.
+
+## Connecting Spotify (once)
+
+Spotify only lets a site play music through an app registered by its owner, so you create a free one in two minutes:
+
+1. Open the [Spotify developer dashboard](https://developer.spotify.com/dashboard), log in, press **Create app**.
+2. Any name and description. **Redirect URI**: `https://studioobsidienne.github.io/drft/` (exactly, with the final slash). Press Add.
+3. Under “Which API/SDKs are you planning to use?” tick **Web API** and **Web Playback SDK**, accept the terms, Save.
+4. In the app's settings, copy the **Client ID**. In DRFT: Menu › Music › paste it › **CONNECT**, then accept on the Spotify page.
+
+If Spotify answers that the user isn't registered, open the app › **User Management** and add the email of your Spotify account.
+
+The login uses PKCE: there is no secret and no server. The token stays in your browser and only talks to Spotify. **Disconnect** in the menu forgets it.
 
 ## Visuals
 
@@ -27,29 +44,31 @@ Five scenes plus a garage for your own car shots. They switch on their own every
 
 Nine moods fade into each other: neon night, rain, storm, dawn, sunset, redline, dust, sodium, snow.
 
+With your WAVs the visuals react to the real audio (bass, mids, highs). Spotify's audio is protected and can't be analysed, so with Spotify they follow a 172 BPM breakbeat grid locked to the track's position, with an intro, a breakdown every 32 bars and an outro.
+
 ## Controls
 
 | Key | Action |
 |---|---|
 | Space | Play / pause |
-| N or → | Next track or station |
+| N or → | Next track |
 | ← | Previous track |
-| 1 / 2 / 3 | Discover / Live radio / My library |
-| L | Favorite (Discover tracks) |
+| 1 / 2 | Spotify / My library |
+| L | Favorite (Spotify tracks) |
 | V | Next scene |
 | P | Next mood |
 | F | Fullscreen |
 | M | Menu |
 | ↑ ↓ | Volume |
 
-The volume bars can be dragged. Pause closes the sound like a filter and fades it out instead of cutting it; play brings it back where it stopped.
+The volume bars can be dragged. Pause fades the sound out instead of cutting it; play brings it back where it stopped.
 
 ## Notes
 
-- Discover and Live radio need the hosted site (or any `https` page): some previews block outside audio.
-- Live stations and Audius tracks are third-party streams. DRFT only plays them; it never records, stores or rebroadcasts them.
+- Spotify playback works in desktop Chrome, Edge and Firefox. Some ad blockers block Spotify's player script; allow it for this site if the player doesn't start.
+- Spotify plays on one device at a time: starting music on your phone moves it away from DRFT, and DRFT shows it.
 - Don't commit music files to the repository. GitHub rejects files over 100 MB, and the library already lives in your browser.
 
 ## Under the hood
 
-Web Audio API (analysis, crossfades, pause filter), two alternating media decks for gapless streaming, Canvas 2D rendered at low resolution with 4×4 ordered dithering, IndexedDB for the library. Type: Dela Gothic One, Chakra Petch, Zen Kaku Gothic New.
+Spotify Web Playback SDK and Web API (PKCE login, queue topped up through the API), Web Audio API for the library (analysis, crossfades, pause filter), Canvas 2D rendered at low resolution with 4×4 ordered dithering, IndexedDB for the library. Type: Dela Gothic One, Chakra Petch, Zen Kaku Gothic New.

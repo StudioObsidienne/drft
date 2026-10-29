@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="DRFT: real drum and bass for night drives. Random tracks from real artists, live DnB radio or your own WAVs, with pixel-art Tokyo night visuals.">
+<meta name="description" content="DRFT: drum and bass for night drives. Plays your Spotify (an endless mix grown from the artists you choose) or your own WAVs, with pixel-art Tokyo night visuals.">
 <meta name="theme-color" content="#05030f">
 <title>DRFT</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,6 +40,19 @@ button:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var
 .ib.sm{width:30px;height:30px}
 .ib.sm svg{width:16px;height:16px}
 #btnLike[aria-pressed="false"] svg{opacity:.35}
+.sp{display:grid;gap:12px}
+.sp a{color:var(--ink)}
+.steps{margin:0;padding-left:20px;display:grid;gap:12px;font-size:13px;line-height:1.55}
+.steps li::marker{font-family:var(--font-px);font-weight:600}
+.steps b{font-weight:700}
+.copy,.field{display:flex;gap:6px;margin-top:6px;align-items:stretch}
+.copy code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-px);font-weight:600;font-size:11px;letter-spacing:.04em;padding:8px;border:2px solid rgba(var(--ink-rgb),.3);user-select:all;-webkit-user-select:all}
+.field input{flex:1;min-width:0;background:transparent;border:2px solid rgba(var(--ink-rgb),.4);color:var(--ink);font-family:var(--font-px);font-weight:600;font-size:12px;letter-spacing:.06em;padding:8px;border-radius:0}
+.field input::placeholder{color:rgba(var(--ink-rgb),.4)}
+.field input:focus{outline:none;border-color:var(--ink)}
+.btn.sm{padding:7px 9px;font-size:10px}
+.li-btn[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.sp .list{max-height:200px}
 #npLink{color:inherit;text-decoration:none;border-bottom:1px solid rgba(var(--ink-rgb),.45);pointer-events:auto}
 #npLink:hover{border-color:var(--ink)}
 
@@ -128,8 +141,8 @@ details .mini{margin-bottom:16px}
 .ref span{min-width:0}
 .ref small{opacity:.55;margin-left:6px}
 .ref nav{display:flex;gap:8px;flex:none}
-.ref a{color:var(--ink);font-family:var(--font-px);font-weight:600;font-size:10px;text-decoration:none;border-bottom:2px solid rgba(var(--ink-rgb),.35)}
-.ref a:hover{border-color:var(--ink)}
+.ref a,.ref nav button{color:var(--ink);background:none;border:0;padding:0;cursor:pointer;font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.06em;text-decoration:none;border-bottom:2px solid rgba(var(--ink-rgb),.35)}
+.ref a:hover,.ref nav button:hover{border-color:var(--ink)}
 .keys{font-family:var(--font-px);font-weight:600;font-size:10px;letter-spacing:.1em;line-height:2;opacity:.5;margin:8px 0 0}
 
 /* écran d'accueil, notifications */
@@ -169,7 +182,7 @@ body.boot .hud,body.boot .corner{visibility:hidden}
 
   <footer class="hud fade">
     <div class="np live">
-      <div class="np-tag"><span id="npStation">DISCOVER · AUDIUS</span><span id="npTime">0:00 / 0:00</span><a id="npLink" href="#" target="_blank" rel="noopener noreferrer" hidden>OPEN ↗</a></div>
+      <div class="np-tag"><span id="npStation">SPOTIFY</span><span id="npTime">0:00 / 0:00</span><a id="npLink" href="#" target="_blank" rel="noopener noreferrer" hidden>OPEN ↗</a></div>
       <div class="np-title"><span id="npTitle">DRFT</span><button class="ib sm" id="btnLike" aria-label="Add to favorites" aria-pressed="false" title="Favorite (L)"><svg viewBox="0 0 16 16" data-i="heart"></svg></button></div>
       <div class="np-artist" id="npArtist">Real drum &amp; bass</div>
     </div>
@@ -193,12 +206,13 @@ body.boot .hud,body.boot .corner{visibility:hidden}
 
     <div class="pane" data-pane="music" role="tabpanel" aria-labelledby="tab-music">
       <section><div class="rows" id="stations"></div></section>
+      <section class="sp" id="spBox"></section>
       <div class="acts"><button class="btn" id="btnAddAudio">+ FILES</button><button class="btn" id="btnAddFolder">+ FOLDER</button></div>
       <div>
         <details id="dLib"><summary>MY LIBRARY<small id="audioCount">0</small></summary><div class="list" id="libList"></div><button class="btn ghost" id="btnClearAudio">REMOVE ALL</button></details>
         <details><summary>FAVORITES</summary><div class="list" id="favList"></div></details>
         <details><summary>HISTORY</summary><div class="list" id="histList"></div></details>
-        <details><summary>DIGGING</summary><p class="mini">Classic and deep-cut tracks worth buying in WAV for your library.</p><div class="refs" id="refList"></div></details>
+        <details><summary>DIGGING</summary><p class="mini">Classics and deep cuts. ▶ plays them on Spotify; BC and BP find the WAV to buy.</p><div class="refs" id="refList"></div></details>
       </div>
     </div>
 
@@ -214,7 +228,7 @@ body.boot .hud,body.boot .corner{visibility:hidden}
       <div class="set"><span class="lbl">PIXELS</span><div class="seg" id="pxSeg"></div></div>
       <div class="set"><span class="lbl">REACTION</span><div class="seg" id="reactSeg"></div></div>
       <div class="set"><span class="lbl">WEATHER</span><div class="seg" id="weatherSeg"></div></div>
-      <p class="keys">SPACE PLAY · N NEXT · 1–3 STATIONS · V SCENE · P MOOD · F FULLSCREEN · M MENU</p>
+      <p class="keys">SPACE PLAY · N NEXT · 1–2 SOURCES · V SCENE · P MOOD · F FULLSCREEN · M MENU</p>
     </div>
   </aside>
 
@@ -279,11 +293,10 @@ function makeKit(c) {
 }
 
 /* =====================================================================
-   STATIONS (uniquement de vrais morceaux)
+   SOURCES : Spotify (ton compte) ou ta bibliothèque
    ===================================================================== */
 const STATIONS = [
-  { id: 'audius', name: 'Discover', jp: 'ディスカバー', sub: 'REAL ARTISTS' },
-  { id: 'live', name: 'Live radio', jp: 'ライブ', sub: 'REAL DJS' },
+  { id: 'spotify', name: 'Spotify', jp: 'スポティファイ', sub: 'YOUR ACCOUNT' },
   { id: 'local', name: 'My library', jp: 'ライブラリ', sub: 'YOUR WAVS' }
 ];
 const REFS = [
@@ -294,147 +307,6 @@ const REFS = [
   { group: 'Liquid', items: [['Calibre', 'Even If'], ['High Contrast', 'If We Ever'], ['London Elektricity', 'Just One Second (Apex remix)'], ['Logistics', 'The Trip'], ['Netsky feat. Jenna G', 'Moving With You'], ['DJ Marky & XRS feat. Stamina MC', 'LK'], ['Commix', 'Be True', 'deep cut'], ['Lenzman feat. Riya', 'Open Page', 'deep cut']] },
   { group: 'Neurofunk · techstep', items: [['Ed Rush & Optical', 'Wormhole', '1998'], ['Ed Rush & Optical', 'The Medicine'], ['Ed Rush & Optical', 'Pacman (Ram Trilogy remix)'], ['Optical', 'Slip Thru', 'deep cut'], ['Matrix', 'Apache', 'deep cut'], ['Bad Company', 'The Pulse'], ['Noisia', 'Stigma', '2008']] }
 ];
-
-/* =====================================================================
-   AUDIUS : morceaux de vrais artistes, diffusés par leur API publique
-   ===================================================================== */
-const Audius = {
-  host: 'https://api.audius.co', app: 'DRFT', pool: [], loading: null,
-  recent: (() => { const r = store.get('recent', []); return Array.isArray(r) ? r : []; })(),
-  async get(path) {
-    const r = await fetch(this.host + path + (path.includes('?') ? '&' : '?') + 'app_name=' + this.app);
-    if (!r.ok) throw new Error('http ' + r.status);
-    const j = await r.json(); return Array.isArray(j.data) ? j.data : [];
-  },
-  load() {
-    if (this.pool.length) return Promise.resolve(this.pool);
-    if (this.loading) return this.loading;
-    const G = 'genre=Drum%20%26%20Bass';
-    const reqs = ['/v1/tracks/trending?' + G + '&time=week', '/v1/tracks/trending?' + G + '&time=month', '/v1/tracks/trending?' + G + '&time=allTime',
-      '/v1/tracks/trending/underground?' + G, '/v1/tracks/search?query=jungle', '/v1/tracks/search?query=liquid%20drum%20and%20bass',
-      '/v1/tracks/search?query=neurofunk', '/v1/tracks/search?query=drum%20and%20bass', '/v1/tracks/search?query=dnb'];
-    this.loading = Promise.allSettled(reqs.map(r => this.get(r))).then(res => {
-      const seen = new Set();
-      for (const r of res) if (r.status === 'fulfilled') for (const t of r.value) {
-        if (!t || !t.id || seen.has(t.id) || t.is_streamable === false || t.is_delete) continue;
-        if (!(t.duration >= 100 && t.duration <= 540)) continue;
-        if (!/drum|jungle|dnb|d&b|d'n'b|liquid|neuro/i.test((t.genre || '') + ' ' + (t.tags || ''))) continue;
-        seen.add(t.id); this.pool.push(t);
-      }
-      this.loading = null;
-      if (!this.pool.length) throw new Error('empty');
-      return this.pool;
-    }, e => { this.loading = null; throw e; });
-    return this.loading;
-  },
-  spec(t) {
-    const artist = (t.user && t.user.name ? t.user.name : 'Unknown').trim();
-    let title = (t.title || 'Untitled').trim();
-    const pre = artist.toLowerCase() + ' - ';
-    if (title.toLowerCase().startsWith(pre)) title = title.slice(pre.length);
-    return { kind: 'stream', src: 'audius', id: 'au-' + t.id, tid: t.id, title, artist, dur: t.duration,
-      url: this.host + '/v1/tracks/' + t.id + '/stream?app_name=' + this.app, link: t.permalink ? 'https://audius.co' + t.permalink : '' };
-  },
-  async nextSpec() {
-    await this.load();
-    let fresh = this.pool.filter(t => !this.recent.includes(t.id));
-    if (!fresh.length) { this.recent = this.recent.slice(-10); fresh = this.pool.filter(t => !this.recent.includes(t.id)); }
-    if (!fresh.length) fresh = this.pool;
-    const t = fresh[Math.floor(Math.random() * fresh.length)];
-    this.recent.push(t.id); if (this.recent.length > 200) this.recent = this.recent.slice(-200);
-    store.set('recent', this.recent);
-    return this.spec(t);
-  }
-};
-
-/* deux lecteurs en alternance : pendant qu'un morceau joue, le suivant se précharge */
-const Deck = {
-  ready: false, els: [], gains: [], busy: [null, null],
-  ensure(kit) {
-    if (this.ready) return;
-    for (let i = 0; i < 2; i++) {
-      const el = new Audio(); el.crossOrigin = 'anonymous'; el.preload = 'auto';
-      let g = null;
-      try { const s = kit.ctx.createMediaElementSource(el); g = mkGain(kit.ctx, 0); s.connect(g); g.connect(kit.post); } catch (e) { g = null; }
-      this.els.push(el); this.gains.push(g);
-    }
-    this.ready = true;
-  },
-  free() { return this.busy[0] === null ? 0 : this.busy[1] === null ? 1 : -1; }
-};
-
-class StreamPlayer {
-  constructor(kit, spec) {
-    this.kind = 'stream'; this.kit = kit; this.tr = spec;
-    this.t0 = Infinity; this.endTime = Infinity; this.state = 'loading';
-    this.killed = false; this.fading = false; this.held = false; this.ok = false; this.failed = false; this.nodeck = false;
-    this.deck = -1; this.el = null; this.g = null; this.ready = null;
-  }
-  claim() {
-    Deck.ensure(this.kit);
-    const d = Deck.free(); if (d < 0) return false;
-    this.deck = d; Deck.busy[d] = this; this.el = Deck.els[d]; this.g = Deck.gains[d];
-    return true;
-  }
-  release() { if (this.deck >= 0 && Deck.busy[this.deck] === this) Deck.busy[this.deck] = null; }
-  setGain(v, t) { if (this.g) { const p = this.g.gain; p.cancelScheduledValues(t); p.setValueAtTime(v, t); } else if (this.el) this.el.volume = v * liveVolume(); }
-  load() {
-    if (this.ready) return this.ready;
-    this.ready = new Promise(res => {
-      if (!this.claim()) { this.nodeck = true; this.failed = true; res(false); return; }
-      const el = this.el;
-      let done = false;
-      const fin = ok => { if (done) return; done = true; el.removeEventListener('canplay', onOk); el.removeEventListener('error', onErr); clearTimeout(to); if (ok) this.ok = true; else this.failed = true; res(ok); };
-      const onOk = () => fin(true), onErr = () => fin(false);
-      el.addEventListener('canplay', onOk); el.addEventListener('error', onErr);
-      const to = setTimeout(() => fin(false), 15000);
-      this.setGain(0, this.kit.ctx.currentTime);
-      el.onended = null; el.onerror = null;
-      el.src = this.tr.url; el.load();
-    });
-    return this.ready;
-  }
-  start(at, fade = 0) {
-    const now = this.kit.ctx.currentTime;
-    if (this.g) {
-      const p = this.g.gain; p.cancelScheduledValues(now);
-      if (fade > 0.05) { p.setValueAtTime(0.0001, now); p.linearRampToValueAtTime(1, now + fade); } else p.setValueAtTime(1, now);
-    } else this.el.volume = liveVolume();
-    this.el.onended = () => { if (!this.killed && !this.fading && !this.held && this.onEnd) this.onEnd(this); };
-    this.el.onerror = () => { if (!this.killed && !this.fading && this.state === 'playing' && this.onEnd) { this.failed = true; this.onEnd(this); } };
-    const pr = this.el.play(); if (pr && pr.catch) pr.catch(() => { if (!this.killed && this.onEnd) { this.failed = true; this.onEnd(this); } });
-    this.state = 'playing'; this.t0 = now;
-  }
-  get pos() { return this.el ? this.el.currentTime || 0 : 0; }
-  get length() { const d = this.el && isFinite(this.el.duration) && this.el.duration > 0 ? this.el.duration : this.tr.dur; return d || 0; }
-  stop() { try { if (this.el && Deck.busy[this.deck] === this) { this.el.onended = null; this.el.onerror = null; this.el.pause(); this.el.removeAttribute('src'); this.el.load(); } } catch (e) { /* ok */ } this.release(); }
-  fadeOut(now, d) {
-    this.fading = true; d = Math.max(0.05, d);
-    if (this.g) { const p = this.g.gain; if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now); else { p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); } p.linearRampToValueAtTime(0, now + d); }
-    setTimeout(() => this.stop(), (d + 0.15) * 1000);
-    this.endTime = now + d;
-  }
-  kill(now) {
-    if (this.killed) return;
-    this.killed = true;
-    if (this.g) { const p = this.g.gain; if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now); else { p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); } p.linearRampToValueAtTime(0, now + 0.12); }
-    setTimeout(() => this.stop(), 180);
-    this.endTime = now + 0.12;
-  }
-  holdAt(t, delay) {
-    if (this.state !== 'playing' || this.killed || this.held) return;
-    this.held = true;
-    setTimeout(() => { if (this.held && this.el) try { this.el.pause(); } catch (e) { /* ok */ } }, delay * 1000);
-  }
-  resumeAt() {
-    if (!this.held) return;
-    this.held = false;
-    if (this.fading) { this.kill(this.kit.ctx.currentTime); return; }
-    const pr = this.el.play(); if (pr && pr.catch) pr.catch(() => {});
-  }
-  dispose() { if (!this.killed && this.state !== 'playing') this.stop(); }
-  posInfo() { return { el: this.pos, dur: this.length, section: this.state === 'loading' ? 'Loading' : 'Track' }; }
-}
 
 class FilePlayer {
   constructor(kit, spec) {
@@ -485,6 +357,7 @@ class FilePlayer {
   resumeAt(t) {
     if (!this.held) return;
     this.held = false;
+    if (this.killed) return;
     if (this.fading || this.offset >= this.dur - 0.05) { this.killed = true; this.endTime = t; return; }
     const g = this.out.gain; g.cancelScheduledValues(t); g.setValueAtTime(0.0001, t); g.linearRampToValueAtTime(1, t + 0.12);
     const s = this.kit.ctx.createBufferSource(); s.buffer = this.buf; s.connect(this.out);
@@ -496,163 +369,373 @@ class FilePlayer {
 }
 
 /* =====================================================================
-   RADIO EN DIRECT : vraies radios drum & bass (flux https vérifiés + répertoire Radio Browser)
+   SPOTIFY : ton compte Premium, lecteur officiel (Web Playback SDK)
+   Connexion PKCE dans le navigateur : aucun serveur, aucun secret.
    ===================================================================== */
-const LIVE_STATIONS = [
-  { name: 'Brokenbeats', info: 'Atmospheric · 320k', url: 'https://stream.brokenbeats.net/tune' },
-  { name: 'Brokenbeats s0urce', info: 'Atmospheric · jungle', url: 'https://brokenbeats.net/stream/aac' },
-  { name: 'DNB FM', info: 'Liquid · breaks · 320k', url: 'https://air.dnbfm.ru/listen/player/qplay' },
-  { name: 'Technolovers', info: 'Drum & bass · 192k', url: 'https://stream.technolovers.fm/drummnbass' },
-  { name: 'Record Liquid Funk', info: 'Liquid funk', url: 'https://radiorecord.hostingradio.ru/liquidfunk96.aacp' },
-  { name: 'Record Pirate Station', info: 'Jump up · neuro', url: 'https://radiorecord.hostingradio.ru/ps96.aacp' },
-  { name: 'Record D\'n\'B Hits', info: 'Drum & bass hits', url: 'https://radiorecord.hostingradio.ru/drumhits96.aacp' },
-  { name: 'sunshine live D\'n\'B', info: 'Drum & bass · 192k', url: 'https://stream.sunshine-live.de/dnb/mp3-192/stream.sunshine-live.de/' },
-  { name: 'Future Sounds Radio', info: 'Drum & bass · jungle', url: 'https://streams.radio.co/s03151434c/listen' },
-  { name: 'Jungle Planet', info: 'Jungle · 320k', url: 'https://phoebe.streamerr.co:3650/;' },
-  { name: 'Old Skool Rave Tapes', info: 'Jungle · hardcore', url: 'https://azuracast.oldskoolravetapes.co.uk/listen/old_skool_rave_tapes/listen' },
-  { name: 'DNBRadio 24/7', info: 'DJ mixes · 320k', url: 'https://azura.drmnbss.org/listen/dnbradio/radio.mp3' },
-  { name: 'dinamo.fm fluent', info: 'Atmospheric · liquid', url: 'https://channels.dinamo.fm/fluent-mp3' },
-  { name: 'Kool FM', info: 'Jungle · London', url: 'https://admin.stream.rinse.fm/proxy/kool/stream' },
-  { name: 'UK Bass Radio', info: 'Drum & bass · neuro', url: 'https://www.ukbassradio.com/stream' },
-  { name: 'Bassdrive', info: 'Liquid · intelligent', url: 'https://ice.bassdrive.net/stream56' }
-];
-const Live = {
-  ready: false, elC: null, elP: null, gainC: null, blocked: false, fetched: false, extra: [], queue: [], last: null,
-  ensure(kit) {
-    if (this.ready) return;
-    this.elC = new Audio(); this.elC.crossOrigin = 'anonymous'; this.elC.preload = 'none';
-    this.elP = new Audio(); this.elP.preload = 'none';
-    try {
-      const src = kit.ctx.createMediaElementSource(this.elC);
-      this.gainC = mkGain(kit.ctx, 1); src.connect(this.gainC); this.gainC.connect(kit.post);
-    } catch (e) { this.gainC = null; }
-    this.ready = true;
-  },
-  stop(el) { try { el.pause(); el.removeAttribute('src'); el.load(); } catch (e) { /* ok */ } },
-  tryPlay(el, url, ms) {
-    return new Promise(res => {
-      let done = false;
-      const fin = ok => { if (done) return; done = true; el.removeEventListener('playing', onOk); el.removeEventListener('error', onErr); clearTimeout(to); res(ok); };
-      const onOk = () => fin(true), onErr = () => fin(false);
-      el.addEventListener('playing', onOk); el.addEventListener('error', onErr);
-      const to = setTimeout(() => fin(false), ms);
-      el.src = url; el.load();
-      const p = el.play(); if (p && p.catch) p.catch(() => fin(false));
-    });
-  },
-  /* stations découvertes en direct dans le répertoire public Radio Browser (filtre strict drum & bass) */
-  discover() {
-    if (this.fetched) return; this.fetched = true;
-    const bad = /(pop|top ?40|rock|trap|news|hip ?hop|house|80s|90s|trance|reggae|edm|dance|metal|country|talk|christian)/i;
-    const known = new Set(LIVE_STATIONS.map(s => s.url));
-    const hosts = ['de1', 'de2', 'fi1', 'nl1'];
-    const tryHost = i => {
-      if (i >= hosts.length) return;
-      fetch('https://' + hosts[i] + '.api.radio-browser.info/json/stations/bytag/drum%20and%20bass?hidebroken=true&order=votes&reverse=true&limit=150')
-        .then(r => { if (!r.ok) throw new Error('http'); return r.json(); })
-        .then(list => {
-          for (const s of list) {
-            const u = (s.url_resolved || '').trim();
-            if (!u.startsWith('https://') || known.has(u) || /\.(m3u8?|pls)(\?|$)/i.test(u)) continue;
-            if (!/^(MP3|AAC|AAC\+|OGG)$/i.test(s.codec || '') || bad.test(s.tags || '') || s.lastcheckok !== 1) continue;
-            known.add(u);
-            this.extra.push({ name: (s.name || 'Radio').trim().slice(0, 40), info: [s.countrycode, s.bitrate ? s.bitrate + 'k' : ''].filter(Boolean).join(' · ') || 'Drum & bass', url: u, found: true });
-          }
-        })
-        .catch(() => tryHost(i + 1));
-    };
-    tryHost(0);
-  },
-  next() {
-    const all = LIVE_STATIONS.concat(this.extra);
-    if (!this.queue.length) { this.queue = shuffle(all.slice()); if (this.queue.length > 1 && this.queue[this.queue.length - 1] === this.last) this.queue.unshift(this.queue.pop()); }
-    this.last = this.queue.pop();
-    return this.last;
-  }
-};
-document.addEventListener('securitypolicyviolation', e => { if (/media|connect/.test(e.effectiveDirective || e.violatedDirective || '')) Live.blocked = true; });
+const SP_SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-read-private playlist-read-collaborative';
+const SP_SEEDS = ['TURQUOISEDEATH'];
+const SP_SEED_TRACKS = ['spotify:track:2RP4ledIGQRNWBPFPx6MZa'];
+// même famille : jungle rêveuse, dnb atmosphérique, breakbeat mélancolique
+const SP_PEERS = ['sewerslvt', 'Coco Bryce', 'Tim Reaper', 'Sully', 'Djrum', 'Lone'];
+const SP_STYLE = ['atmospheric jungle', 'atmospheric drum and bass', 'dream jungle', 'shoegaze jungle', 'ambient jungle', 'intelligent drum and bass', 'genre:"liquid funk"', 'genre:"jungle"'];
+const SP_REFS = ['LTJ Bukem', 'Photek', 'PFM', 'Source Direct', 'Seba', 'Blu Mar Ten', 'Calibre', 'Omni Trio', 'Origin Unknown', 'Peshay', 'Goldie', 'Alex Reece', 'Dillinja', 'Logistics'];
+const waitMs = ms => new Promise(r => setTimeout(r, ms));
 
-class LivePlayer {
-  constructor(kit, spec) {
-    this.kind = 'live'; this.kit = kit; this.tr = spec; this.st = spec.station;
-    this.t0 = Infinity; this.endTime = Infinity; this.dur = 0; this.state = 'loading'; this.killed = false; this.plain = false; this.held = false;
-  }
-  async load() {
-    const L = Live; L.ensure(this.kit);
-    L.stop(L.elC); L.stop(L.elP);
-    let ok = false;
-    if (L.gainC) {
-      const g = L.gainC.gain, now = this.kit.ctx.currentTime; g.cancelScheduledValues(now); g.setValueAtTime(0.0001, now);
-      ok = await L.tryPlay(L.elC, this.st.url, 12000);
-      if (ok && !this.killed) { const t = this.kit.ctx.currentTime; g.setValueAtTime(0.0001, t); g.linearRampToValueAtTime(1, t + 0.6); }
+const Sp = {
+  cid: store.get('sp_cid', ''), tok: store.get('sp_tok', null), user: store.get('sp_user', null), uid: store.get('sp_uid', ''),
+  seeds: (() => { const s = store.get('sp_seeds', null); return Array.isArray(s) && s.length ? s : SP_SEEDS.slice(); })(),
+  source: store.get('sp_source', 'mix'),
+  recent: (() => { const r = store.get('sp_recent', []); return Array.isArray(r) ? r : []; })(),
+  player: null, device: null, ready: false, state: null, stateAt: 0, playlists: [], lastUri: null, topping: false, refreshing: null,
+  pool: null, poolSeed: [], poolKey: '', guardUntil: 0, starting: false, fadeTok: 0, initing: null, sdkLoading: null,
+  get redirect() { return location.origin + location.pathname.replace(/index\.html$/, ''); },
+  connected() { return !!(this.cid && this.tok && this.tok.refresh); },
+  guard(ms = 2500) { this.guardUntil = Math.max(this.guardUntil, performance.now() + ms); },
+  b64url(buf) { let s = ''; new Uint8Array(buf).forEach(b => { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+  setClient(id) { this.cid = (id || '').trim(); store.set('sp_cid', this.cid); },
+  async login() {
+    if (!/^[0-9a-f]{32}$/i.test(this.cid)) { UI.toast('PASTE A VALID CLIENT ID (32 CHARACTERS)'); return; }
+    if (!window.crypto || !crypto.subtle) { UI.toast('SPOTIFY LOGIN NEEDS THE HTTPS SITE'); return; }
+    const ver = this.b64url(crypto.getRandomValues(new Uint8Array(48)));
+    const ch = this.b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver)));
+    const st = this.b64url(crypto.getRandomValues(new Uint8Array(12)));
+    store.set('sp_ver', ver); store.set('sp_state', st);
+    const q = new URLSearchParams({ response_type: 'code', client_id: this.cid, scope: SP_SCOPES, redirect_uri: this.redirect, code_challenge_method: 'S256', code_challenge: ch, state: st });
+    location.href = 'https://accounts.spotify.com/authorize?' + q.toString();
+  },
+  async handleRedirect() {
+    const q = new URLSearchParams(location.search);
+    if (!q.has('code') && !q.has('error')) return false;
+    try { history.replaceState(null, '', this.redirect); } catch (e) { /* ok */ }
+    if (q.get('error')) { UI.toast('SPOTIFY: ' + q.get('error').toUpperCase().replace(/_/g, ' ')); return false; }
+    const ver = store.get('sp_ver', ''), st = store.get('sp_state', '');
+    if (!ver || q.get('state') !== st) { UI.toast('SPOTIFY LOGIN EXPIRED · TRY AGAIN'); return false; }
+    try {
+      const r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type: 'authorization_code', code: q.get('code'), redirect_uri: this.redirect, client_id: this.cid, code_verifier: ver }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { UI.toast('SPOTIFY LOGIN FAILED · ' + String(j.error_description || j.error || r.status).toUpperCase()); return false; }
+      this.saveTok(j); store.set('sp_ver', ''); store.set('sp_state', '');
+      await this.loadMe();
+      Radio.station = 'spotify'; settings.station = 'spotify'; saveSettings();
+      UI.toast('SPOTIFY CONNECTED · PRESS LISTEN');
+      UI.renderStations(); UI.renderSpotify(); UI.renderStart();
+      this.loadPlaylists();
+      this.init().catch(() => {});
+      return true;
+    } catch (e) { UI.toast('SPOTIFY LOGIN FAILED · CHECK YOUR CONNECTION'); return false; }
+  },
+  async loadMe() {
+    try {
+      const me = await this.api('GET', '/me');
+      if (me) { this.user = me.display_name || me.id; this.uid = me.id; store.set('sp_user', this.user); store.set('sp_uid', this.uid); if (me.product && me.product !== 'premium') UI.toast('SPOTIFY PREMIUM IS REQUIRED TO PLAY'); }
+    } catch (e) { if (e.status === 403) UI.toast('SPOTIFY SAYS NO · ADD YOUR ACCOUNT IN THE APP\'S USER MANAGEMENT'); }
+  },
+  saveTok(j) { this.tok = { access: j.access_token, refresh: j.refresh_token || (this.tok && this.tok.refresh), exp: Date.now() + (j.expires_in || 3600) * 1000 }; store.set('sp_tok', this.tok); },
+  async refresh() {
+    const r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: this.tok.refresh, client_id: this.cid }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { if (j.error === 'invalid_grant' || j.error === 'invalid_client') { this.logout(true); UI.toast('SPOTIFY SESSION ENDED · RECONNECT IN THE MENU'); } const e = new Error('session'); e.status = 401; throw e; }
+    this.saveTok(j);
+  },
+  async token() {
+    if (!this.tok) { const e = new Error('nologin'); e.status = 401; throw e; }
+    if (Date.now() > this.tok.exp - 60000) { if (!this.refreshing) this.refreshing = this.refresh().finally(() => { this.refreshing = null; }); await this.refreshing; }
+    return this.tok.access;
+  },
+  async api(method, path, body, retry = 2) {
+    const t = await this.token();
+    const r = await fetch('https://api.spotify.com/v1' + path, { method, headers: Object.assign({ Authorization: 'Bearer ' + t }, body ? { 'Content-Type': 'application/json' } : {}), body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 401 && retry) { if (this.tok) this.tok.exp = 0; return this.api(method, path, body, retry - 1); }
+    if (r.status === 429 && retry) { await waitMs(Math.min(8, +(r.headers.get('Retry-After') || 1)) * 1000 + 200); return this.api(method, path, body, retry - 1); }
+    if (r.status === 502 && retry) { await waitMs(600); return this.api(method, path, body, retry - 1); }
+    if (r.status === 204 || r.status === 202) return null;
+    const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch (e) { j = null; }
+    if (!r.ok) { const m = j && j.error ? (j.error.message || j.error) : r.status; const err = new Error(String(m)); err.status = r.status; throw err; }
+    return j;
+  },
+  logout(silent) {
+    try { if (this.player) this.player.disconnect(); } catch (e) { /* ok */ }
+    if (Radio.cur === SpPlayer) { Radio.cur = null; Radio.playing = false; UI.syncPlay(); }
+    this.tok = null; this.user = null; this.uid = ''; this.player = null; this.ready = false; this.device = null; this.pool = null; this.state = null; this.lastUri = null;
+    store.set('sp_tok', null); store.set('sp_user', null); store.set('sp_uid', '');
+    if (!silent) UI.toast('SPOTIFY DISCONNECTED');
+    UI.renderSpotify(); UI.renderStations(); UI.renderStart();
+  },
+  loadSDK() {
+    if (window.Spotify && window.Spotify.Player) return Promise.resolve();
+    if (this.sdkLoading) return this.sdkLoading;
+    this.sdkLoading = new Promise((res, rej) => {
+      window.onSpotifyWebPlaybackSDKReady = () => res();
+      const s = document.createElement('script'); s.src = 'https://sdk.scdn.co/spotify-player.js'; s.async = true;
+      s.onerror = () => { this.sdkLoading = null; rej(new Error('sdk')); };
+      document.head.appendChild(s);
+      setTimeout(() => { if (!(window.Spotify && window.Spotify.Player)) { this.sdkLoading = null; rej(new Error('sdk')); } }, 15000);
+    });
+    return this.sdkLoading;
+  },
+  async init() {
+    if (this.player && this.ready) return;
+    if (this.initing) return this.initing;
+    this.initing = (async () => {
+      await this.loadSDK();
+      if (!this.player) {
+        const P = new window.Spotify.Player({ name: 'DRFT', getOAuthToken: cb => { this.token().then(cb, () => {}); }, volume: clamp(settings.vol * settings.vol, 0, 1) });
+        this.player = P;
+        P.addListener('ready', ({ device_id }) => { this.device = device_id; this.ready = true; });
+        P.addListener('not_ready', () => { this.ready = false; });
+        P.addListener('player_state_changed', s => this.onState(s));
+        P.addListener('initialization_error', () => UI.toast('THIS BROWSER CAN\'T PLAY SPOTIFY · TRY CHROME, EDGE OR FIREFOX'));
+        P.addListener('authentication_error', () => UI.toast('SPOTIFY SESSION EXPIRED · RECONNECT IN THE MENU'));
+        P.addListener('account_error', () => UI.toast('SPOTIFY PREMIUM IS REQUIRED'));
+        P.addListener('playback_error', e => console.warn('[drft] spotify', e && e.message));
+        P.addListener('autoplay_failed', () => { UI.toast('PRESS PLAY TO START'); Radio.playing = false; UI.syncPlay(); });
+        const ok = await P.connect(); if (!ok) throw new Error('connect');
+      }
+      const t0 = Date.now(); while (!this.ready && Date.now() - t0 < 12000) await waitMs(150);
+      if (!this.ready) throw new Error('device');
+    })().finally(() => { this.initing = null; });
+    return this.initing;
+  },
+  onState(s) {
+    this.state = s; this.stateAt = performance.now();
+    if (Radio.cur !== SpPlayer) return;
+    if (!s) {
+      // la lecture est partie sur un autre appareil (téléphone, appli…)
+      if (Radio.playing && performance.now() > this.guardUntil) { Radio.playing = false; UI.syncPlay(); UI.toast('SPOTIFY IS PLAYING ON ANOTHER DEVICE'); }
+      return;
     }
-    if (!ok && !this.killed && !L.blocked) {
-      L.stop(L.elC);
-      L.elP.volume = 0; ok = await L.tryPlay(L.elP, this.st.url, 12000);
-      if (ok) { this.plain = true; this.fadeEl(liveVolume(), 600); }
+    const tw = s.track_window || {}, tr = tw.current_track, next = tw.next_tracks || [];
+    if (tr && tr.uri !== this.lastUri) { this.lastUri = tr.uri; this.markPlayed(tr.uri); Radio.spTrackChanged(tr); }
+    const free = performance.now() > this.guardUntil && !this.starting;
+    // fin de file : on relance un mix neuf
+    if (s.paused && free && Radio.playing && !next.length && s.position === 0) { this.playFresh().catch(e => Radio.spFail(e)); return; }
+    if (free) {
+      if (s.paused && Radio.playing) { Radio.playing = false; UI.syncPlay(); }
+      else if (!s.paused && !Radio.playing) { Radio.playing = true; UI.syncPlay(); }
     }
-    if (this.killed) { L.stop(L.elC); L.stop(L.elP); return false; }
-    if (ok) {
-      this.state = 'playing'; this.t0 = this.kit.ctx.currentTime;
-      const el = this.plain ? L.elP : L.elC;
-      el.onerror = () => { if (Radio.cur === this && !this.killed && !this.held) { UI.toast('SIGNAL LOST · NEXT STATION'); Radio.next(); } };
-      el.onended = el.onerror;
+    if (!s.paused && next.length < 2 && !this.topping && !this.starting) this.topUp();
+  },
+  markPlayed(uri) { this.recent = this.recent.filter(u => u !== uri); this.recent.push(uri); if (this.recent.length > 400) this.recent = this.recent.slice(-400); store.set('sp_recent', this.recent); },
+  async search(q, offset) {
+    const r = await this.api('GET', '/search?type=track&market=from_token&limit=10&offset=' + offset + '&q=' + encodeURIComponent(q));
+    return ((r && r.tracks && r.tracks.items) || []).filter(t => t && t.uri && t.is_playable !== false && !(t.duration_ms < 90000));
+  },
+  async many(jobs) {
+    const out = [];
+    for (let i = 0; i < jobs.length; i += 4) {
+      const part = await Promise.allSettled(jobs.slice(i, i + 4).map(f => f()));
+      for (const p of part) { if (p.status === 'fulfilled') out.push(...p.value); else if (p.reason && p.reason.status === 403) throw p.reason; }
     }
-    return ok;
-  }
-  fadeEl(target, ms) {
-    const el = Live.elP, from = el.volume, t0 = performance.now();
-    clearInterval(this.fadeTimer);
-    this.fadeTimer = setInterval(() => { const k = Math.min(1, (performance.now() - t0) / ms); el.volume = clamp(from + (target - from) * k, 0, 1); if (k >= 1) clearInterval(this.fadeTimer); }, 30);
-  }
-  holdAt(t, capture) {
-    if (this.state !== 'playing' || this.killed || this.held) return;
-    this.held = true;
-    const el = this.plain ? Live.elP : Live.elC;
-    if (this.plain) this.fadeEl(0, 500);
-    setTimeout(() => { if (this.held) el.pause(); }, this.plain ? 520 : capture * 1000);
-  }
-  resumeAt() {
-    if (!this.held) return;
-    this.held = false;
-    const el = this.plain ? Live.elP : Live.elC;
-    el.src = this.st.url; el.load(); const p = el.play(); if (p && p.catch) p.catch(() => {});
-    if (this.plain) this.fadeEl(liveVolume(), 600);
-    else if (Live.gainC) { const g = Live.gainC.gain, t = this.kit.ctx.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(0.0001, t); g.linearRampToValueAtTime(1, t + 0.6); }
-  }
-  kill(now) {
-    this.killed = true; this.endTime = now;
-    clearInterval(this.fadeTimer);
-    Live.stop(Live.elC); Live.stop(Live.elP);
-  }
-  dispose() { /* les éléments audio sont partagés */ }
-  posInfo(now) { return { el: this.state === 'playing' ? Math.max(0, now - this.t0) : 0, dur: 0, section: this.state === 'loading' ? 'Loading' : 'Live', beat: 0 }; }
-}
-function liveVolume() { return clamp(settings.vol * settings.vol, 0, 1); }
+    return out;
+  },
+  async buildMix() {
+    const seedNames = this.seeds.map(s => s.toLowerCase());
+    const seedJobs = [], restJobs = [];
+    for (const a of this.seeds) for (const o of [0, 10, 20]) seedJobs.push(() => this.search('artist:"' + a + '"', o));
+    for (const a of shuffle(SP_PEERS.slice()).slice(0, 4)) restJobs.push(() => this.search('artist:"' + a + '"', 0));
+    for (const q of SP_STYLE) restJobs.push(() => this.search(q, Math.floor(Math.random() * 3) * 10));
+    for (const a of shuffle(SP_REFS.slice()).slice(0, 6)) restJobs.push(() => this.search('artist:"' + a + '"', 0));
+    const seedT = await this.many(seedJobs), restT = await this.many(restJobs);
+    const seen = new Set(), seed = [], rest = [];
+    for (const t of seedT.concat(restT)) {
+      if (seen.has(t.uri)) continue; seen.add(t.uri);
+      ((t.artists || []).some(a => seedNames.includes((a.name || '').toLowerCase())) ? seed : rest).push(t.uri);
+    }
+    if (this.seeds.some(s => SP_SEEDS.includes(s))) for (const u of SP_SEED_TRACKS) if (!seed.includes(u)) seed.unshift(u);
+    if (!seed.length && !rest.length) throw new Error('empty');
+    return { seed, rest };
+  },
+  async collect(path, pickTrack) {
+    const out = []; let p = path;
+    for (let i = 0; i < 10 && p; i++) {
+      const r = await this.api('GET', p);
+      for (const it of (r && r.items) || []) { const t = pickTrack(it); if (t && t.uri && /^spotify:track:/.test(t.uri) && t.is_local !== true) out.push(t.uri); }
+      p = r && r.next ? r.next.replace('https://api.spotify.com/v1', '') : null;
+    }
+    return out;
+  },
+  async loadPlaylists() {
+    try {
+      const r = await this.api('GET', '/me/playlists?limit=50');
+      this.playlists = ((r && r.items) || []).filter(p => p && p.id && (!this.uid || p.collaborative || (p.owner && p.owner.id === this.uid))).map(p => ({ id: p.id, name: p.name || 'Untitled' }));
+    } catch (e) { this.playlists = []; }
+    UI.renderSpotify();
+  },
+  async getPool() {
+    const key = this.source + '|' + this.seeds.join(',');
+    if (this.pool && this.poolKey === key) return;
+    let seed = [], rest;
+    if (this.source === 'liked') rest = await this.collect('/me/tracks?limit=50', it => it.track || it.item);
+    else if (this.source.startsWith('pl:')) rest = await this.collect('/playlists/' + this.source.slice(3) + '/items?limit=50', it => it.item || it.track);
+    else { const m = await this.buildMix(); seed = m.seed; rest = m.rest; }
+    if (!rest.length && !seed.length) throw new Error('empty');
+    this.poolSeed = seed; this.pool = rest; this.poolKey = key;
+  },
+  fresh(list, n) {
+    const rec = new Set(this.recent.slice(-Math.floor(list.length * 0.7)));
+    const f = list.filter(u => !rec.has(u));
+    return shuffle(f.length >= Math.min(n, list.length) ? f : list.slice());
+  },
+  /* le mix : un morceau des artistes de départ, puis deux de la même famille, et ainsi de suite */
+  pick(n, first) {
+    const out = first ? [first] : [];
+    const a = this.fresh(this.poolSeed, n), b = this.fresh(this.pool || [], n);
+    if (!first && this.source === 'mix' && !this.recent.length) { const s = SP_SEED_TRACKS.find(u => a.includes(u)); if (s) { a.splice(a.indexOf(s), 1); out.push(s); } }
+    let i = 0;
+    while (out.length < n && (a.length || b.length)) {
+      const fromSeed = this.source === 'mix' && a.length && (i % 3 === 0 || !b.length);
+      const u = fromSeed ? a.shift() : b.shift();
+      if (u && !out.includes(u)) out.push(u);
+      i++;
+    }
+    return out;
+  },
+  async playFresh(first) {
+    this.starting = true; this.guard(5000);
+    try {
+      await this.init();
+      await this.getPool();
+      const uris = this.pick(40, first);
+      try { await this.api('PUT', '/me/player/play?device_id=' + encodeURIComponent(this.device), { uris }); }
+      catch (e) { if (e.status !== 404) throw e; this.ready = false; await this.init(); await this.api('PUT', '/me/player/play?device_id=' + encodeURIComponent(this.device), { uris }); }
+      this.fadeTok++;
+      await this.player.setVolume(clamp(settings.vol * settings.vol, 0, 1)).catch(() => {});
+    } finally { this.starting = false; this.guard(2500); }
+  },
+  async topUp() {
+    this.topping = true;
+    try {
+      await this.getPool();
+      const queued = new Set(((this.state && this.state.track_window && this.state.track_window.next_tracks) || []).map(t => t.uri));
+      for (const u of this.pick(6).filter(u => !queued.has(u) && u !== this.lastUri).slice(0, 4)) await this.api('POST', '/me/player/queue?device_id=' + encodeURIComponent(this.device) + '&uri=' + encodeURIComponent(u));
+    } catch (e) { /* on retentera au prochain changement */ }
+    setTimeout(() => { this.topping = false; }, 8000);
+  },
+  async fadeTo(v, ms) {
+    if (!this.player) return false;
+    const tok = ++this.fadeTok;
+    let from = v; try { from = await this.player.getVolume(); } catch (e) { /* ok */ }
+    const steps = Math.max(6, Math.min(80, Math.round(ms / 90)));
+    for (let i = 1; i <= steps; i++) {
+      if (tok !== this.fadeTok) return false;
+      const k = i / steps, e = v < from ? 1 - Math.pow(1 - k, 2) : k * k;
+      try { await this.player.setVolume(clamp(from + (v - from) * e, 0, 1)); } catch (er) { /* ok */ }
+      await waitMs(ms / steps);
+    }
+    return tok === this.fadeTok;
+  },
+  async pauseFx() {
+    if (!this.player) return;
+    this.guard(2500);
+    const done = await this.fadeTo(0, 650);
+    if (done && !Radio.playing) { try { await this.player.pause(); } catch (e) { /* ok */ } }
+  },
+  async resumeFx() {
+    if (!this.player) return;
+    this.guard(2500); this.fadeTok++;
+    try { await this.player.setVolume(0.0001); await this.player.resume(); } catch (e) { /* ok */ }
+    await this.fadeTo(clamp(settings.vol * settings.vol, 0, 1), 450);
+  },
+  setVolume(v) { if (this.player && Radio.cur === SpPlayer && Radio.playing && !sleep.fading) { this.fadeTok++; this.player.setVolume(clamp(v * v, 0, 1)).catch(() => {}); } }
+};
+
+/* objet « lecteur » vu par la radio et l'interface pendant l'écoute Spotify */
+const SpPlayer = {
+  kind: 'spotify', tr: null, t0: 0, killed: false, endTime: Infinity,
+  posInfo() {
+    const s = Sp.state;
+    if (!s || !this.tr) return { el: 0, dur: 0, section: 'Loading' };
+    const dur = (s.duration || 0) / 1000;
+    const el = (s.position + (s.paused ? 0 : performance.now() - Sp.stateAt)) / 1000;
+    return { el: clamp(el, 0, dur || el), dur, section: 'Track' };
+  },
+  kill() { Sp.fadeTok++; if (Sp.player) Sp.player.pause().catch(() => {}); }
+};
 
 /* =====================================================================
-   RADIO : file d'attente infinie, enchaînements, pause en fondu
+   RADIO : Spotify (ton compte) ou ta bibliothèque, enchaînements, pause en fondu
    ===================================================================== */
 const Radio = {
   ctx: null, kit: null, playing: false, players: [], cur: null, history: [], count: 0, seq: 0,
-  station: 'audius', files: [], fileQueue: [], lastFile: null, failStreak: 0, worker: null, prep: null, prepPending: false,
-  pauseTok: 0, pauseTimer: 0,
+  station: 'spotify', files: [], fileQueue: [], lastFile: null, failStreak: 0, worker: null, prep: null,
+  pauseTok: 0, pauseTimer: 0, spNoHist: false,
+  ensureCtx() {
+    if (this.ctx) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    this.ctx = new AC({ latencyHint: 'playback' });
+    this.kit = makeKit(this.ctx);
+    this.setVolume(settings.vol);
+    this.startClock();
+    return true;
+  },
   async start() {
-    if (!this.ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) { UI.toast('BROWSER NOT SUPPORTED (WEB AUDIO)'); return false; }
-      this.ctx = new AC({ latencyHint: 'playback' });
-      this.kit = makeKit(this.ctx);
-      this.setVolume(settings.vol);
-      this.startClock();
-    }
+    if (this.station === 'local' && !this.files.some(f => !f.bad)) this.station = 'spotify';
+    if (this.station === 'spotify') return this.spStart();
+    if (!this.ensureCtx()) { UI.toast('BROWSER NOT SUPPORTED (WEB AUDIO)'); return false; }
     if (!this.playing && this.cur) { await this.resumeFx(); return true; }
-    try { await this.ctx.resume(); } catch (e) { /* ignoré */ }
+    this.openGate();
     this.playing = true; UI.syncPlay();
-    if (this.station === 'local' && !this.files.some(f => !f.bad)) this.station = 'audius';
     if (!this.cur) this.playNext();
     return true;
   },
+  /* remet la sortie locale à plein (après une pause ou un passage par Spotify) */
+  openGate() {
+    const c = this.ctx, k = this.kit; if (!c) return;
+    this.pauseTok++; clearTimeout(this.pauseTimer);
+    c.resume().catch(() => {});
+    const now = c.currentTime;
+    this.hold(k.dry.gain, now); k.dry.gain.setValueAtTime(1, now);
+    this.hold(k.pauseLP.frequency, now); k.pauseLP.frequency.setValueAtTime(20000, now);
+  },
+  /* ---------- Spotify ---------- */
+  async spStart(first) {
+    if (!Sp.connected()) {
+      UI.toast('CONNECT YOUR SPOTIFY FIRST · ONE-TIME SETUP');
+      setDrawer(true, 'music'); UI.focusSpotify();
+      return false;
+    }
+    if (this.cur === SpPlayer && !first) { if (!this.playing) await this.resumeFx(); return true; }
+    const tok = ++this.seq;
+    if (this.cur && this.cur !== SpPlayer) { if (this.ctx) { if (!this.playing) this.openGate(); this.cur.kill(this.ctx.currentTime); } this.cur = null; }
+    this.dropPrep();
+    this.cur = SpPlayer; SpPlayer.tr = null; Sp.lastUri = null;
+    this.playing = true; UI.syncPlay(); UI.loading();
+    UI.showTrack({ kind: 'spotify', title: Sp.source === 'mix' ? 'DRFT MIX' : Sp.source === 'liked' ? 'LIKED SONGS' : 'PLAYLIST', artist: 'Tuning in…' });
+    try {
+      await Sp.playFresh(first);
+      if (tok !== this.seq) return true;
+      return true;
+    } catch (e) {
+      if (tok === this.seq) this.spFail(e);
+      return false;
+    }
+  },
+  spFail(e) {
+    const st = e && e.status, m = e && e.message;
+    let msg = 'SPOTIFY ERROR · ' + String(m || 'UNKNOWN').toUpperCase().slice(0, 60);
+    if (m === 'sdk') msg = 'SPOTIFY PLAYER BLOCKED · TURN OFF THE AD BLOCKER FOR THIS SITE';
+    else if (m === 'device' || m === 'connect') msg = 'SPOTIFY PLAYER DIDN\'T START · TRY AGAIN';
+    else if (m === 'empty') msg = 'NOTHING FOUND · CHANGE THE SOURCE OR THE MIX ARTISTS';
+    else if (st === 401) msg = 'SPOTIFY SESSION ENDED · RECONNECT IN THE MENU';
+    else if (st === 403) msg = 'SPOTIFY REFUSED · CHECK PREMIUM AND YOUR APP\'S USER MANAGEMENT';
+    else if (st === 404) msg = 'SPOTIFY DEVICE LOST · PRESS PLAY AGAIN';
+    UI.toast(msg);
+    if (this.cur === SpPlayer) { this.cur = null; this.playing = false; UI.syncPlay(); UI.showTrack({ kind: 'spotify', title: 'DRFT', artist: 'Spotify' }); }
+  },
+  spTrackChanged(tr) {
+    const id = tr.id || (tr.uri || '').split(':').pop();
+    const imgs = (tr.album && tr.album.images) || [];
+    const spec = { kind: 'spotify', id: 'sp-' + id, uri: tr.uri, title: tr.name || 'Untitled', artist: (tr.artists || []).map(a => a.name).join(', ') || 'Unknown',
+      link: 'https://open.spotify.com/track/' + id, img: imgs.length ? imgs[imgs.length - 1].url : '' };
+    SpPlayer.tr = spec;
+    if (this.cur !== SpPlayer) return;
+    this.register(spec, this.spNoHist ? { noHistory: true } : null);
+    this.spNoHist = false;
+  },
+  /* ---------- bibliothèque locale ---------- */
   startClock() {
     const tick = () => this.tick();
     try {
@@ -678,27 +761,17 @@ const Radio = {
     this.lastFile = item;
     return this.fileSpec(item);
   },
-  liveSpec() { Live.discover(); const st = Live.next(); return { kind: 'live', station: st, title: st.name, artist: 'Live · ' + st.info, id: 'live-' + st.url }; },
-  async nextSpec(st) {
-    if (st === 'local') return this.nextFileSpec();
-    if (st === 'live') return this.liveSpec();
-    try { return await Audius.nextSpec(); } catch (e) { return null; }
-  },
-  async playNext() {
-    const tok = ++this.seq;
+  playNext() {
+    ++this.seq;
     UI.loading();
-    const spec = await this.nextSpec(this.station);
-    if (tok !== this.seq) return;
+    const spec = this.nextFileSpec();
     if (!spec) { this.noSource(); return; }
     this.begin(spec);
   },
   noSource() {
-    if (this.station === 'audius' && !Live.blocked) { UI.toast('AUDIUS UNREACHABLE · SWITCHING TO LIVE RADIO'); this.setStation('live'); return; }
-    if (Live.blocked) UI.toast('STREAMING NEEDS THE HOSTED SITE · STUDIOOBSIDIENNE.GITHUB.IO/DRFT');
-    else if (this.station === 'local') UI.toast('ADD YOUR WAVS FIRST');
-    else UI.toast('NO SIGNAL · CHECK YOUR CONNECTION');
-    if (this.station !== 'local' && this.files.some(f => !f.bad)) { this.setStation('local'); return; }
+    UI.toast(Sp.connected() ? 'LIBRARY EMPTY · BACK TO SPOTIFY' : 'ADD YOUR WAVS FIRST');
     this.cur = null; this.playing = false; UI.syncPlay();
+    if (Sp.connected()) this.setStation('spotify');
   },
   register(spec, opts) {
     this.count++; spec.num = this.count;
@@ -712,88 +785,59 @@ const Radio = {
     this.failStreak = 0;
   },
   async begin(spec, opts = {}) {
-    const k = this.kit;
-    if (spec.kind === 'live') {
-      this.dropPrep();
-      const p = new LivePlayer(k, spec);
-      this.cur = p; this.players.push(p); this.register(spec, opts);
-      const ok = await p.load();
-      if (this.cur !== p || p.killed) return;
-      if (ok) { this.failStreak = 0; return; }
-      p.killed = true; p.endTime = this.ctx.currentTime;
-      this.failStreak++;
-      if (Live.blocked || this.failStreak >= 6) { this.failStreak = 0; this.noSource(); return; }
-      UI.toast('NO SIGNAL · ' + spec.title.toUpperCase());
-      this.playNext();
-      return;
-    }
-    const p = spec.kind === 'file' ? new FilePlayer(k, spec) : new StreamPlayer(k, spec);
+    const p = new FilePlayer(this.kit, spec);
     this.cur = p; UI.showTrack(spec);
     let ok = false;
     try { ok = (await p.load()) !== false; } catch (e) { ok = false; }
-    if (this.cur !== p) { if (p.kind === 'stream') p.stop(); else p.dispose(); return; }
+    if (this.cur !== p) { p.dispose(); return; }
     if (!ok) {
-      if (p.kind === 'stream') p.stop(); else { p.dispose(); if (spec.item) spec.item.bad = true; }
+      p.dispose(); if (spec.item) spec.item.bad = true;
       this.failStreak++;
-      if (Live.blocked || this.failStreak >= 8) { this.failStreak = 0; this.noSource(); return; }
+      if (this.failStreak >= 8) { this.failStreak = 0; this.noSource(); return; }
       UI.toast('SKIPPED · ' + spec.title.toUpperCase());
       this.playNext();
       return;
     }
-    this.adoptAt(p, this.ctx.currentTime + 0.05, p.kind === 'stream' ? 0.25 : 0, opts);
+    this.adoptAt(p, this.ctx.currentTime + 0.05, 0, opts);
   },
   ended(p) {
     if (this.cur !== p || !this.playing) return;
     const now = this.ctx.currentTime, n = this.prep;
-    if (n && n.ok && this.prepFits(n)) { this.prep = null; this.adoptAt(n, now + 0.03, 0); return; }
+    if (n && n.ok) { this.prep = null; this.adoptAt(n, now + 0.03, 0); return; }
     this.dropPrep(); this.playNext();
   },
-  prepFits(n) { return (this.station === 'local' && n.kind === 'file') || (this.station === 'audius' && n.kind === 'stream'); },
-  dropPrep() { const n = this.prep; this.prep = null; if (n) { if (n.kind === 'stream') n.stop(); else n.dispose(); } },
+  dropPrep() { const n = this.prep; this.prep = null; if (n) n.dispose(); },
   prepNext() {
-    if (this.prep || this.prepPending) return;
-    if (this.station === 'local') {
-      const spec = this.nextFileSpec(); if (!spec) return;
-      const n = new FilePlayer(this.kit, spec); this.prep = n; n.load().catch(() => {});
-      return;
-    }
-    if (this.station === 'audius') {
-      if (!Deck.ready || Deck.free() < 0) return;
-      this.prepPending = true;
-      Audius.nextSpec().then(spec => {
-        this.prepPending = false;
-        if (!spec || this.station !== 'audius' || this.prep || Deck.free() < 0) return;
-        const n = new StreamPlayer(this.kit, spec); this.prep = n; n.load();
-      }, () => { this.prepPending = false; });
-    }
+    if (this.prep || this.station !== 'local') return;
+    const spec = this.nextFileSpec(); if (!spec) return;
+    const n = new FilePlayer(this.kit, spec); this.prep = n; n.load().catch(() => {});
   },
-  xfade(p) { const x = +settings.xfade || 0, len = p.kind === 'file' ? p.dur : p.length; return Math.min(x, len ? len / 3 : x); },
+  xfade(p) { const x = +settings.xfade || 0; return Math.min(x, p.dur ? p.dur / 3 : x); },
   tick() {
     const c = this.ctx;
     if (!c || c.state !== 'running' || !this.playing) return;
     const now = c.currentTime, p = this.cur;
     if (this.prep && this.prep.failed) {
       const bad = this.prep; this.prep = null;
-      if (bad.kind === 'file') { bad.dispose(); bad.tr.item.bad = true; UI.toast('UNREADABLE, SKIPPED: ' + bad.tr.title); }
-      else bad.stop();
+      bad.dispose(); bad.tr.item.bad = true; UI.toast('UNREADABLE, SKIPPED: ' + bad.tr.title);
     }
-    if (p && (p.kind === 'file' || p.kind === 'stream') && p.state === 'playing' && !p.handedOff && !p.killed && !p.fading && !p.held) {
+    if (p && p.kind === 'file' && p.state === 'playing' && !p.handedOff && !p.killed && !p.fading && !p.held) {
       if (!this.prep) this.prepNext();
       const n = this.prep, xf = this.xfade(p);
-      const remaining = p.kind === 'file' ? p.endTime - now : (p.length > 0 ? p.length - p.pos : Infinity);
-      if (n && n.ok && this.prepFits(n) && remaining <= xf + 0.2) {
+      if (n && n.ok && p.endTime - now <= xf + 0.2) {
         p.handedOff = true; this.prep = null;
-        const at = p.kind === 'file' ? Math.max(now + 0.05, p.endTime - xf) : now + 0.02;
+        const at = Math.max(now + 0.05, p.endTime - xf);
         if (xf > 0.05) p.fadeOut(at, xf);
         this.adoptAt(n, at, xf);
       }
     }
     this.players = this.players.filter(q => {
-      if (q !== this.cur && q.endTime + 4 < now) { if (q.kind === 'file') q.dispose(); return false; }
+      if (q !== this.cur && q.endTime + 4 < now) { q.dispose(); return false; }
       return true;
     });
   },
   onAir() {
+    if (this.cur === SpPlayer) return SpPlayer;
     if (!this.ctx) return null;
     const now = this.ctx.currentTime;
     let best = null;
@@ -801,13 +845,15 @@ const Radio = {
     return best || this.cur;
   },
   async toggle() {
-    if (!this.ctx || !this.cur) { await this.start(); return; }
+    if (!this.cur) { await this.start(); return; }
     if (this.playing) this.pause(); else await this.resumeFx();
   },
   hold(p, now) { if (p.cancelAndHoldAtTime) p.cancelAndHoldAtTime(now); else { p.cancelScheduledValues(now); p.setValueAtTime(p.value, now); } },
   /* pause : le son se referme comme un filtre et s'éteint en douceur (0,7 s), puis tout se fige */
   pause() {
-    if (!this.ctx || !this.playing) return;
+    if (!this.playing) return;
+    if (this.cur === SpPlayer) { this.playing = false; UI.syncPlay(); Sp.pauseFx(); return; }
+    if (!this.ctx) return;
     this.playing = false; UI.syncPlay();
     const c = this.ctx, k = this.kit, now = c.currentTime, tok = ++this.pauseTok, D = 0.7;
     this.hold(k.dry.gain, now); k.dry.gain.setTargetAtTime(0, now, D / 4);
@@ -817,6 +863,7 @@ const Radio = {
     this.pauseTimer = setTimeout(() => { if (tok === this.pauseTok && !this.playing) c.suspend().catch(() => {}); }, (D + 0.2) * 1000);
   },
   async resumeFx() {
+    if (this.cur === SpPlayer) { this.playing = true; UI.syncPlay(); await Sp.resumeFx(); return; }
     if (!this.ctx) return;
     this.pauseTok++; clearTimeout(this.pauseTimer);
     try { await this.ctx.resume(); } catch (e) { /* ok */ }
@@ -829,43 +876,81 @@ const Radio = {
     this.playing = true; UI.syncPlay();
   },
   async next() {
-    if (!this.ctx || !this.cur) { await this.start(); return; }
+    if (!this.cur) { await this.start(); return; }
+    if (this.cur === SpPlayer) {
+      if (!this.playing) { this.playing = true; UI.syncPlay(); }
+      const s = Sp.state, more = s && s.track_window && (s.track_window.next_tracks || []).length;
+      Sp.guard(2500);
+      if (more && Sp.player) { Sp.fadeTok++; await Sp.player.nextTrack().catch(() => {}); if (s && s.paused) Sp.player.resume().catch(() => {}); Sp.player.setVolume(clamp(settings.vol * settings.vol, 0, 1)).catch(() => {}); }
+      else Sp.playFresh().catch(e => this.spFail(e));
+      return;
+    }
+    if (!this.ctx) { await this.start(); return; }
     if (!this.playing) await this.resumeFx();
     const now = this.ctx.currentTime, n = this.prep;
     if (this.cur) this.cur.kill(now);
-    if (n && n.ok && this.prepFits(n)) { this.prep = null; this.adoptAt(n, now + 0.06, n.kind === 'stream' ? 0.2 : 0.06); return; }
+    if (n && n.ok) { this.prep = null; this.adoptAt(n, now + 0.06, 0.06); return; }
     this.dropPrep();
     this.playNext();
   },
   async playSpec(spec, noHistory) {
-    if (!this.ctx) { const ok = await this.start(); if (!ok) return; }
-    if (!this.playing) await this.resumeFx();
+    if (spec.kind === 'spotify') {
+      if (this.station !== 'spotify') { this.station = 'spotify'; settings.station = 'spotify'; saveSettings(); UI.renderStations(); }
+      await this.spStart(spec.uri);
+      return;
+    }
+    if (this.cur === SpPlayer) { SpPlayer.kill(); this.cur = null; }
+    if (this.station !== 'local') { this.station = 'local'; settings.station = 'local'; saveSettings(); UI.renderStations(); }
+    if (!this.ensureCtx()) return;
+    if (!this.playing) { if (this.cur) await this.resumeFx(); else this.openGate(); }
+    this.playing = true; UI.syncPlay();
     const now = this.ctx.currentTime;
     this.seq++;
     if (this.cur) this.cur.kill(now);
     this.begin(spec, { noHistory });
   },
-  prev() {
+  async prev() {
+    if (this.cur === SpPlayer) {
+      const s = Sp.state; if (!s || !Sp.player) return;
+      Sp.guard(2500);
+      if (s.position > 4000 || !(s.track_window.previous_tracks || []).length) await Sp.player.seek(0).catch(() => {});
+      else await Sp.player.previousTrack().catch(() => {});
+      if (!this.playing) this.resumeFx();
+      return;
+    }
     if (!this.ctx) return;
-    if (this.history.length < 2) { UI.toast('NO PREVIOUS TRACK'); return; }
+    const loc = this.history.filter(h => h.kind === 'file');
+    if (this.history.length < 2 || this.history[this.history.length - 2].kind !== 'file') { UI.toast('NO PREVIOUS TRACK'); return; }
     this.history.pop();
     const last = this.history[this.history.length - 1];
-    if (last.kind === 'file' && !this.files.includes(last.item)) { UI.toast('TRACK REMOVED FROM LIBRARY'); return; }
-    const spec = last.kind === 'file' ? this.fileSpec(last.item) : Object.assign({}, last);
+    if (!loc.length || !this.files.includes(last.item)) { UI.toast('TRACK REMOVED FROM LIBRARY'); return; }
+    const spec = this.fileSpec(last.item);
     this.history[this.history.length - 1] = spec;
     UI.renderHistory();
     this.playSpec(spec, true);
   },
   setStation(id) {
     if (id === 'local' && !this.files.length) { UI.toast('ADD YOUR WAVS FIRST'); setDrawer(true, 'music'); return; }
-    this.station = id; settings.station = id; saveSettings(); UI.renderStations();
+    const was = this.station, active = !!this.cur;
+    this.station = id; settings.station = id; saveSettings(); UI.renderStations(); UI.renderStart();
     this.dropPrep();
-    if (this.ctx && this.cur) this.next();
-    else if (this.ctx && this.playing) this.playNext();
+    if (id === 'spotify') {
+      if (!Sp.connected()) { setDrawer(true, 'music'); UI.focusSpotify(); return; }
+      if (active && this.cur !== SpPlayer) this.spStart();
+      else if (active && was === 'spotify') this.spStart(null);
+      return;
+    }
+    if (!active) return;
+    if (this.cur === SpPlayer) { SpPlayer.kill(); this.cur = null; this.playing = false; }
+    if (!this.ensureCtx()) return;
+    this.openGate();
+    if (this.cur) this.cur.kill(this.ctx.currentTime);
+    this.cur = null; this.playing = true; UI.syncPlay();
+    this.playNext();
   },
   setVolume(v) {
     settings.vol = v; if (this.kit) this.kit.vol.gain.setTargetAtTime(v * v, this.ctx.currentTime, 0.03);
-    const p = this.cur; if (p && p.kind === 'live' && p.plain && !p.held) { clearInterval(p.fadeTimer); Live.elP.volume = liveVolume(); }
+    Sp.setVolume(v);
   }
 };
 
@@ -896,10 +981,10 @@ const wa = a => 'rgba(255,255,255,' + clamp(a, 0, 1).toFixed(3) + ')';
 
 const settings = Object.assign({
   scene: 0, theme: 'nuit', themeCycle: '60', px: window.innerWidth < 700 ? 3 : 4, react: 1, weather: 1,
-  cycle: 'auto', vol: 0.8, station: 'audius', xfade: 4
+  cycle: 'auto', vol: 0.8, station: 'spotify', xfade: 4
 }, store.get('settings', {}));
 if (!THEMES.some(t => t.id === settings.theme)) settings.theme = 'nuit';
-if (!['audius', 'live', 'local'].includes(settings.station)) settings.station = 'audius';
+if (!['spotify', 'local'].includes(settings.station)) settings.station = 'spotify';
 if (settings.cycle !== 'off') settings.cycle = 'auto';
 if (typeof settings.xfade !== 'number') settings.xfade = 4;
 function saveSettings() { store.set('settings', settings); }
@@ -1522,14 +1607,17 @@ let fbuf = null, lastKick = 0, bassAvg = 0;
 function updateFeatures(dt, now) {
   const k = Radio.kit;
   const air = Radio.cur;
-  const simulate = air && air.kind === 'live' && (air.plain || air.state !== 'playing');
-  if (k && Radio.playing && simulate) {
-    const beat = fract((now / 1000) * (174 / 60));
-    F.bass = lerp(F.bass, 0.3 + 0.35 * Math.exp(-beat * 5), 0.3);
-    F.high = lerp(F.high, 0.3 + 0.15 * Math.sin(now * 0.011), 0.3);
-    F.mid = lerp(F.mid, 0.3, 0.2);
-    if (beat < 0.08 && now - lastKick > 250 && ((now / 1000 * 174 / 60) | 0) % 2 === 0) { F.pulse = 1; lastKick = now; }
-  } else if (k && Radio.playing) {
+  if (Radio.playing && air && air.kind === 'spotify') {
+    // le son Spotify est protégé (DRM) : pas d'analyse possible, on suit une grille breakbeat à 172 BPM calée sur la position du morceau
+    const info = air.posInfo(), t = info.el, d0 = info.dur, bp = t * 172 / 60, bar = bp % 4;
+    const phrase = Math.floor(bp / 4) % 32;
+    const I = (0.7 + 0.3 * smooth((t - 2) / 14)) * (d0 ? 0.35 + 0.65 * smooth((d0 - t) / 10) : 1) * (phrase >= 24 && phrase < 28 ? 0.6 : 1);
+    const dk = bar >= 2.5 ? bar - 2.5 : bar, ds = (bar + 1) % 2, dh = (bar * 2) % 1;
+    F.bass = lerp(F.bass, (0.2 + 0.6 * Math.exp(-dk * 7)) * I, 0.45);
+    F.high = lerp(F.high, (0.18 + 0.42 * Math.exp(-ds * 8) + 0.12 * Math.exp(-dh * 12)) * I, 0.45);
+    F.mid = lerp(F.mid, (0.26 + 0.12 * Math.sin(t * 0.37)) * I, 0.2);
+    if (dk < 0.1 && now - lastKick > 220) { F.pulse = 0.95 * I; lastKick = now; }
+  } else if (k && Radio.playing && air && air.kind === 'file') {
     if (!fbuf || fbuf.length !== k.analyser.frequencyBinCount) fbuf = new Uint8Array(k.analyser.frequencyBinCount);
     k.analyser.getByteFrequencyData(fbuf);
     const hz = k.ctx.sampleRate / k.analyser.fftSize;
@@ -1662,9 +1750,9 @@ const UI = {
     if (on) wake.request(); else wake.release();
   },
   stationName(spec) {
-    const id = spec && spec.kind === 'file' ? 'local' : spec && spec.kind === 'live' ? 'live' : spec && spec.kind === 'stream' ? 'audius' : Radio.station;
-    const s = STATIONS.find(x => x.id === id);
-    return (s ? s.name : '').toUpperCase() + (id === 'audius' ? ' · AUDIUS' : '');
+    const id = spec && spec.kind === 'file' ? 'local' : spec && spec.kind === 'spotify' ? 'spotify' : Radio.station;
+    if (id === 'local') return 'MY LIBRARY';
+    return 'SPOTIFY · ' + (Sp.source === 'liked' ? 'LIKED' : Sp.source.startsWith('pl:') ? 'PLAYLIST' : 'DRFT MIX');
   },
   loading() { $('#npTime').textContent = 'LOADING…'; },
   showTrack(spec) {
@@ -1677,31 +1765,32 @@ const UI = {
     document.title = spec.title + ' · DRFT';
   },
   syncLike(spec) {
-    const liked = !!(spec && spec.kind === 'stream' && favs.some(f => f.id === spec.id));
+    const liked = !!(spec && spec.kind === 'spotify' && spec.uri && favs.some(f => f.id === spec.id));
     const b = $('#btnLike'); b.setAttribute('aria-pressed', liked ? 'true' : 'false');
     b.setAttribute('aria-label', liked ? 'Remove from favorites' : 'Add to favorites');
-    b.hidden = !(spec && spec.kind === 'stream');
+    b.hidden = !(spec && spec.kind === 'spotify' && spec.uri);
   },
   frame(now) {
     if (now - this.lastUI < 100) return; this.lastUI = now;
     document.body.classList.toggle('boot', !$('#start').hidden);
-    const p = Radio.onAir();
-    if (p !== this.lastP) {
-      this.lastP = p;
+    const p = Radio.onAir(), key = p ? p.tr : null;
+    if (key !== this.lastP) {
+      this.lastP = key;
       if (p) { this.showTrack(p.tr); this.trackChanges++; if (this.trackChanges > 1) { if (settings.cycle !== 'off') nextScene(); if (settings.themeCycle === 'track') nextTheme(true); } }
     }
     let frac = 0;
-    if (p && Radio.ctx) {
-      const info = p.posInfo(Radio.ctx.currentTime), d = info.dur || 0;
+    if (p) {
+      const info = p.posInfo(Radio.ctx ? Radio.ctx.currentTime : 0), d = info.dur || 0;
       frac = d > 0 ? clamp(info.el / d, 0, 1) : 0;
-      $('#npTime').textContent = info.section === 'Loading' ? (p.kind === 'live' ? 'TUNING…' : 'LOADING…') : info.section === 'Live' ? 'ON AIR · ' + fmtTime(info.el) : fmtTime(info.el) + ' / ' + fmtTime(d);
-      if (info.section === 'Live' || (p.kind === 'live' && info.section === 'Loading')) frac = -1;
+      $('#npTime').textContent = info.section === 'Loading' ? (p.kind === 'spotify' ? 'TUNING…' : 'LOADING…') : fmtTime(info.el) + ' / ' + fmtTime(d);
+      if (info.section === 'Loading' && p.kind === 'spotify' && Radio.playing) frac = -1;
     }
     if (frac < 0) { const pos = Math.floor(now / 180) % NBLOCKS; this.lastBlocks = -1; blocks.forEach((c, i) => c.classList.toggle('on', i === pos || i === (pos + NBLOCKS - 1) % NBLOCKS)); }
     else { const n = Math.round(frac * NBLOCKS); if (n !== this.lastBlocks) { this.lastBlocks = n; blocks.forEach((c, i) => c.classList.toggle('on', i < n)); } }
     if (sleep.end) {
       const left = sleep.end - Date.now();
-      if (left <= 30000 && !sleep.fading && Radio.kit) { sleep.fading = true; const c = Radio.ctx; Radio.kit.sleep.gain.setValueAtTime(Radio.kit.sleep.gain.value, c.currentTime); Radio.kit.sleep.gain.linearRampToValueAtTime(0, c.currentTime + Math.max(0.5, left / 1000)); }
+      if (left <= 30000 && !sleep.fading && Radio.cur === SpPlayer) { sleep.fading = true; Sp.fadeTo(0, Math.max(500, left)); }
+      else if (left <= 30000 && !sleep.fading && Radio.kit) { sleep.fading = true; const c = Radio.ctx; Radio.kit.sleep.gain.setValueAtTime(Radio.kit.sleep.gain.value, c.currentTime); Radio.kit.sleep.gain.linearRampToValueAtTime(0, c.currentTime + Math.max(0.5, left / 1000)); }
       if (left <= 0) { sleep.end = 0; sleep.fading = false; Radio.pause(); UI.renderSeg('#sleepSeg', [[0, 'OFF'], [15, '15'], [30, '30'], [60, '60'], [90, '90']], 0, setSleep); UI.toast('SLEEP TIMER DONE'); }
     }
     idle.check(now);
@@ -1709,8 +1798,9 @@ const UI = {
   renderVol() { const on = Math.round(settings.vol * VOLSTEPS); volBtns.forEach((b, i) => b.classList.toggle('on', i < on)); const v = $('#vol'); v.setAttribute('aria-valuenow', String(Math.round(settings.vol * 100))); v.setAttribute('aria-valuetext', Math.round(settings.vol * 100) + ' %'); },
   pickStation(id) {
     $('#start').hidden = true;
-    if (Radio.ctx) { Radio.setStation(id); return; }
+    if (Radio.cur) { Radio.setStation(id); return; }
     if (id === 'local' && !Radio.files.length) { Radio.setStation('local'); return; }
+    if (id === 'spotify' && !Sp.connected()) { Radio.setStation('spotify'); return; }
     Radio.station = id; settings.station = id; saveSettings(); this.renderStations();
     Radio.start().then(() => UI.syncPlay());
   },
@@ -1722,7 +1812,7 @@ const UI = {
       const jp = document.createElement('i'); jp.textContent = s.jp;
       const a = document.createElement('span'); a.textContent = s.name.toUpperCase();
       const sm = document.createElement('small');
-      sm.textContent = s.id === 'local' ? String(Radio.files.length) : s.id === 'live' ? String(LIVE_STATIONS.length + Live.extra.length) : (Audius.pool.length ? String(Audius.pool.length) : '');
+      sm.textContent = s.id === 'local' ? String(Radio.files.length) : Sp.connected() ? 'ON' : 'SET UP';
       b.append(jp, a, sm); b.addEventListener('click', () => this.pickStation(s.id));
       el.appendChild(b);
     });
@@ -1776,9 +1866,9 @@ const UI = {
     });
   },
   renderFavs() {
-    this.renderList('#favList', favs.filter(f => f.url).map(f => ({ ...f, sub: f.artist })),
-      'Tap the heart on a Discover track to keep it here.',
-      f => { $('#start').hidden = true; Radio.playSpec({ kind: 'stream', src: 'audius', id: f.id, tid: f.tid, title: f.title, artist: f.artist, url: f.url, link: f.link, dur: f.dur }); },
+    this.renderList('#favList', favs.filter(f => f.kind === 'spotify' && f.uri).map(f => ({ ...f, sub: f.artist })),
+      'Tap the heart on a track to keep it here.',
+      f => { $('#start').hidden = true; Radio.playSpec({ kind: 'spotify', id: f.id, uri: f.uri, title: f.title, artist: f.artist, link: f.link }); },
       f => { favs = favs.filter(x => x.id !== f.id); store.set('favs', favs); this.renderFavs(); this.syncLike(Radio.cur && Radio.cur.tr); });
   },
   renderHistory() {
@@ -1790,7 +1880,7 @@ const UI = {
     const items = Radio.files.slice().sort((a, b) => (a.artist + a.title).localeCompare(b.artist + b.title))
       .map(f => ({ item: f, title: f.title, sub: f.artist + ' · ' + (f.name.split('.').pop() || '').toUpperCase() + (f.bad ? ' · unreadable' : '') }));
     this.renderList('#libList', items, 'Add your WAVs with + FILES or + FOLDER, or drop them on the window.',
-      it => { if (Radio.station !== 'local') { Radio.station = 'local'; settings.station = 'local'; saveSettings(); this.renderStations(); } $('#start').hidden = true; Radio.playSpec(Radio.fileSpec(it.item)); },
+      it => { $('#start').hidden = true; Radio.playSpec(Radio.fileSpec(it.item)); },
       it => removeTrack(it.item));
     $('#btnClearAudio').hidden = !Radio.files.length;
   },
@@ -1804,6 +1894,8 @@ const UI = {
         const t = document.createElement('span'); t.textContent = artist + ' — ' + title;
         if (note) { const sm = document.createElement('small'); sm.textContent = note; t.appendChild(sm); }
         const nav = document.createElement('nav'); const q = encodeURIComponent(artist.replace(/ feat\..*$/, '') + ' ' + title.replace(/ \(.*\)$/, ''));
+        const pb = document.createElement('button'); pb.type = 'button'; pb.textContent = '▶'; pb.title = 'Play on Spotify'; pb.setAttribute('aria-label', 'Play ' + artist + ' — ' + title + ' on Spotify');
+        pb.addEventListener('click', () => playRef(artist, title)); nav.appendChild(pb);
         for (const [label, url] of [['BC', 'https://bandcamp.com/search?q=' + q], ['BP', 'https://www.beatport.com/search?q=' + q]]) {
           const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = label;
           a.title = (label === 'BC' ? 'Search on Bandcamp' : 'Search on Beatport'); nav.appendChild(a);
@@ -1812,17 +1904,93 @@ const UI = {
       }
       el.appendChild(box);
     }
+  },
+  renderStart() {
+    const need = Radio.station === 'spotify' && !Sp.connected();
+    $('#btnStart').textContent = need ? '▶ CONNECT SPOTIFY' : '▶ LISTEN';
+  },
+  focusSpotify() { const i = $('#spCid'); if (i) setTimeout(() => { try { i.focus({ preventScroll: false }); } catch (e) { /* ok */ } }, 60); },
+  renderSpotify() {
+    const el = $('#spBox'); el.innerHTML = '';
+    const mk = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+    const head = mk('div', 'lbl-row'); head.style.marginBottom = '0';
+    if (!Sp.connected()) {
+      head.appendChild(mk('span', 'lbl', 'SPOTIFY · ONE-TIME SETUP')); el.appendChild(head);
+      const ol = mk('ol', 'steps');
+      const li1 = mk('li'); li1.append('Open the ');
+      const a = mk('a', null, 'Spotify developer dashboard'); a.href = 'https://developer.spotify.com/dashboard'; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      li1.append(a, ', log in and press Create app.');
+      const li2 = mk('li'); li2.append('Any name. Redirect URI, paste exactly:');
+      const cp = mk('div', 'copy'), code = mk('code', null, Sp.redirect), cb = mk('button', 'btn ghost sm', 'COPY'); cb.type = 'button';
+      cb.addEventListener('click', () => { const done = () => UI.toast('REDIRECT URI COPIED'); try { navigator.clipboard.writeText(Sp.redirect).then(done, () => UI.toast('SELECT IT AND COPY BY HAND')); } catch (e) { UI.toast('SELECT IT AND COPY BY HAND'); } });
+      cp.append(code, cb); li2.appendChild(cp);
+      const li3 = mk('li'); li3.append('Tick ', mk('b', null, 'Web API'), ' and ', mk('b', null, 'Web Playback SDK'), ', accept the terms, Save.');
+      const li4 = mk('li'); li4.append('Open the app\'s Settings, copy the ', mk('b', null, 'Client ID'), ' and paste it here:');
+      const fd = mk('div', 'field'), inp = mk('input'); inp.id = 'spCid'; inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.placeholder = 'CLIENT ID'; inp.value = Sp.cid; inp.setAttribute('aria-label', 'Spotify Client ID');
+      const go = mk('button', 'btn fill sm', 'CONNECT'); go.type = 'button';
+      const run = () => { Sp.setClient(inp.value); Sp.login(); };
+      go.addEventListener('click', run); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); run(); } e.stopPropagation(); });
+      fd.append(inp, go); li4.appendChild(fd);
+      ol.append(li1, li2, li3, li4); el.appendChild(ol);
+      el.appendChild(mk('p', 'mini', 'Spotify Premium needed. Login and playback stay between this browser and Spotify.'));
+      return;
+    }
+    head.appendChild(mk('span', 'lbl', 'SPOTIFY' + (Sp.user ? ' · ' + String(Sp.user).toUpperCase() : '')));
+    const out = mk('button', 'btn ghost sm', 'DISCONNECT'); out.type = 'button'; out.addEventListener('click', () => Sp.logout());
+    head.appendChild(out); el.appendChild(head);
+    const seg = mk('div', 'seg'); seg.id = 'spSrc'; el.appendChild(seg);
+    this.renderSeg('#spSrc', [['mix', 'DRFT MIX'], ['liked', 'LIKED SONGS']], Sp.source.startsWith('pl:') ? '' : Sp.source, setSpSource);
+    if (Sp.playlists.length) {
+      const list = mk('div', 'list');
+      for (const pl of Sp.playlists) {
+        const b = mk('button', 'li-btn'); b.type = 'button'; b.appendChild(mk('b', null, pl.name)); b.appendChild(mk('small', null, 'Your playlist'));
+        b.setAttribute('aria-pressed', Sp.source === 'pl:' + pl.id ? 'true' : 'false');
+        b.addEventListener('click', () => setSpSource('pl:' + pl.id));
+        list.appendChild(b);
+      }
+      el.appendChild(list);
+    }
+    const lb = mk('div', 'lbl', 'MIX STARTS FROM'); lb.style.marginTop = '4px'; el.appendChild(lb);
+    const fd = mk('div', 'field'), inp = mk('input'); inp.id = 'spSeeds'; inp.type = 'text'; inp.autocomplete = 'off'; inp.spellcheck = false; inp.value = Sp.seeds.join(', '); inp.placeholder = 'ARTISTS, COMMA SEPARATED'; inp.setAttribute('aria-label', 'Mix artists');
+    const set = mk('button', 'btn sm', 'SET'); set.type = 'button';
+    const apply = () => setSpSeeds(inp.value);
+    set.addEventListener('click', apply); inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } e.stopPropagation(); });
+    fd.append(inp, set); fd.style.marginTop = '0'; el.appendChild(fd);
+    el.appendChild(mk('p', 'mini', 'One track from these artists, then two from the same world: atmospheric jungle, liquid, 90s classics. Never the same track twice in a row.'));
   }
 };
+
+function setSpSource(v) {
+  Sp.source = v; store.set('sp_source', v); UI.renderSpotify();
+  if (Radio.cur === SpPlayer) { UI.toast(v === 'mix' ? 'DRFT MIX' : v === 'liked' ? 'LIKED SONGS' : 'PLAYLIST'); Radio.playing = true; UI.syncPlay(); Sp.playFresh().catch(e => Radio.spFail(e)); }
+  $('#npStation').textContent = UI.stationName(Radio.cur && Radio.cur.tr);
+}
+function setSpSeeds(txt) {
+  const list = String(txt || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 8);
+  Sp.seeds = list.length ? list : SP_SEEDS.slice(); store.set('sp_seeds', Sp.seeds); Sp.pool = null;
+  UI.renderSpotify(); UI.toast('MIX: ' + Sp.seeds.join(', ').toUpperCase());
+  if (Radio.cur === SpPlayer && Sp.source === 'mix') Sp.playFresh().catch(e => Radio.spFail(e));
+}
+async function playRef(artist, title) {
+  if (!Sp.connected()) { UI.toast('CONNECT SPOTIFY FIRST'); UI.focusSpotify(); return; }
+  try {
+    const a = artist.replace(/ feat\..*$/, '').split(/ & /)[0], t = title.replace(/ \(.*\)$/, '');
+    let r = await Sp.search('track:"' + t + '" artist:"' + a + '"', 0);
+    if (!r.length) r = await Sp.search(a + ' ' + t, 0);
+    if (!r.length) { UI.toast('NOT ON SPOTIFY · TRY BANDCAMP'); return; }
+    $('#start').hidden = true;
+    Radio.playSpec({ kind: 'spotify', uri: r[0].uri, title: r[0].name, artist: (r[0].artists || []).map(x => x.name).join(', ') });
+  } catch (e) { Radio.spFail(e); }
+}
 
 let favs = store.get('favs', []);
 if (!Array.isArray(favs)) favs = [];
 function toggleLike() {
   const p = Radio.onAir(); const spec = p && p.tr;
-  if (!spec || spec.kind !== 'stream') return;
+  if (!spec || spec.kind !== 'spotify' || !spec.uri) return;
   const i = favs.findIndex(f => f.id === spec.id);
   if (i >= 0) { favs.splice(i, 1); UI.toast('REMOVED FROM FAVORITES'); }
-  else { favs.unshift({ id: spec.id, tid: spec.tid, title: spec.title, artist: spec.artist, url: spec.url, link: spec.link, dur: spec.dur }); UI.toast('ADDED TO FAVORITES'); }
+  else { favs.unshift({ kind: 'spotify', id: spec.id, uri: spec.uri, title: spec.title, artist: spec.artist, link: spec.link }); UI.toast('ADDED TO FAVORITES'); }
   favs = favs.slice(0, 100); store.set('favs', favs); UI.renderFavs(); UI.syncLike(spec);
 }
 
@@ -1982,7 +2150,7 @@ function removeTrack(item) {
   IDB.del('tracks', item.id);
   if (Radio.prep && Radio.prep.tr.item === item) Radio.dropPrep();
   updateCounts(); UI.renderStations(); UI.renderLibrary();
-  if (!Radio.files.length && Radio.station === 'local') Radio.setStation('audius');
+  if (!Radio.files.length && Radio.station === 'local') Radio.setStation('spotify');
 }
 function loadImg(blob) {
   return new Promise((res, rej) => {
@@ -2041,10 +2209,15 @@ function updateCounts() {
 /* =====================================================================
    BRANCHEMENTS
    ===================================================================== */
+// le lecteur Spotify doit être « réveillé » pendant un vrai geste (clic, touche), sinon le navigateur bloque le son
+let spWoke = false;
+function spGesture() { if (spWoke || !Sp.player || !Sp.player.activateElement) return; try { Sp.player.activateElement(); spWoke = true; } catch (e) { /* ok */ } }
+window.addEventListener('pointerdown', spGesture, true);
+window.addEventListener('keydown', spGesture, true);
 $('#btnStart').addEventListener('click', async () => {
   $('#start').hidden = true;
   const ok = await Radio.start(); UI.syncPlay();
-  if (!ok) $('#start').hidden = false;
+  if (!ok && $('#panel').hidden) $('#start').hidden = false;
 });
 $('#btnStartImport').addEventListener('click', () => $('#fileAudio').click());
 $('#btnPlay').addEventListener('click', () => { $('#start').hidden = true; Radio.toggle(); });
@@ -2065,7 +2238,7 @@ $('#btnClearAudio').addEventListener('click', () => {
   clearArmed = false; $('#btnClearAudio').textContent = 'REMOVE ALL';
   Radio.files = []; Radio.fileQueue = []; Radio.dropPrep(); IDB.clear('tracks');
   updateCounts(); UI.renderStations(); UI.renderLibrary();
-  if (Radio.station === 'local') Radio.setStation('audius');
+  if (Radio.station === 'local') Radio.setStation('spotify');
 });
 $('#btnClearImg').addEventListener('click', () => { IMGS.length = 0; IDB.clear('images'); updateCounts(); UI.renderScenes(); });
 $('#fileAudio').addEventListener('change', e => { addAudioFiles(e.target.files); e.target.value = ''; });
@@ -2090,7 +2263,7 @@ window.addEventListener('keydown', e => {
     case 'arrowup': e.preventDefault(); setVol(settings.vol + 1 / VOLSTEPS); break;
     case 'arrowdown': e.preventDefault(); setVol(settings.vol - 1 / VOLSTEPS); break;
     default:
-      if (/^[1-3]$/.test(k)) UI.pickStation(STATIONS[+k - 1].id);
+      if (/^[1-2]$/.test(k)) UI.pickStation(STATIONS[+k - 1].id);
   }
 });
 
@@ -2107,28 +2280,32 @@ window.addEventListener('drop', e => {
 window.addEventListener('resize', () => resize());
 
 /* démarrage */
-Radio.station = settings.station === 'live' ? 'live' : 'audius';
+Radio.station = settings.station === 'local' ? 'local' : 'spotify';
 if (typeof settings.xfade !== 'number') settings.xfade = 4;
 resize();
 setTheme(settings.theme, true);
 UI.renderStations(); UI.renderScenes(); UI.renderVol();
 setThemeCycle(settings.themeCycle); setCycle(settings.cycle); setSleep(0); setXfade(settings.xfade);
 setPx(settings.px); setReact(settings.react); setWeather(settings.weather);
-UI.renderRefs(); UI.renderLibrary(); UI.renderFavs(); UI.renderHistory(); updateCounts(); UI.syncPlay();
+UI.renderRefs(); UI.renderLibrary(); UI.renderFavs(); UI.renderHistory(); UI.renderSpotify(); UI.renderStart(); updateCounts(); UI.syncPlay();
 IDB.open().then(async () => {
   const tracks = await IDB.all('tracks');
   for (const t of tracks) if (t && t.blob && !Radio.files.some(x => x.id === t.id)) { if (t.artist === 'Ma collection') t.artist = 'My library'; Radio.files.push(t); }
-  if (Radio.files.length && settings.station === 'local' && !Radio.ctx) Radio.station = 'local';
-  updateCounts(); UI.renderStations(); UI.renderLibrary();
+  if (Radio.files.length && settings.station === 'local' && !Radio.cur) Radio.station = 'local';
+  updateCounts(); UI.renderStations(); UI.renderLibrary(); UI.renderStart();
   const recs = await IDB.all('images');
   for (const r of recs) { try { IMGS.push(processImage(await blobToCanvas(r.blob, 960))); } catch (e) { /* image corrompue ignorée */ } }
   updateCounts();
 });
-Audius.load().then(() => UI.renderStations(), () => {});
+Sp.handleRedirect().then(back => {
+  if (back || !Sp.connected()) return;
+  Sp.loadMe().then(() => { UI.renderSpotify(); Sp.loadPlaylists(); });
+  Sp.init().catch(() => {});
+});
 try { if (document.fonts && document.fonts.load) ['24px "Dela Gothic One"', '24px "Chakra Petch"'].forEach(f => document.fonts.load(f, 'DRFT ドリフト首都高峠全開回転計東京カラオケラーメン 0123456789').catch(() => {})); } catch (e) { /* ok */ }
 requestAnimationFrame(t => { lastFrame = t; requestAnimationFrame(frame); });
 
-window.__slipstream = { Radio, Audius, Deck, Live, SCENES, THEMES, goScene, setTheme, settings, F, ENV };
+window.__slipstream = { Radio, Sp, SpPlayer, SCENES, THEMES, goScene, setTheme, settings, F, ENV };
 })();
 </script>
 
