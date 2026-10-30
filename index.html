@@ -2702,6 +2702,8 @@ const SceneDrive = {
       d.y += d.vy * dt; d.x += d.vx * dt;
       if (Math.random() < dt * 0.6) d.stick = Math.random() * 0.25;
       if (d.snow) d.life -= dt * 0.25;
+      // pluie arrêtée : les gouttes restées sur la vitre s'évaporent en une dizaine de secondes
+      if (wet < 0.05) d.life -= dt * 0.1;
     }
     this.drops = this.drops.filter(d => d.y > 4 && d.x > 8 && d.x < 312 && d.life > 0).slice(-220);
     // essuie-glace
@@ -2735,17 +2737,16 @@ const SceneDrive = {
   },
   /* ---------- pare-brise : gouttes, essuie-glace, reflet du tableau de bord ---------- */
   drawGlass(c, t, dt) {
-    // reflet très léger du tableau de bord dans le pare-brise
-    c.globalCompositeOperation = 'lighter';
-    c.fillStyle = 'rgba(255,255,255,0.035)'; c.fillRect(118, 52 + CAB_DROP, 44, 8);
-    c.globalCompositeOperation = 'source-over';
+    // gouttes : petites perles claires (plus de carrés sombres), qui s'estompent en s'évaporant
     for (const d of this.drops) {
-      const b = d.snow ? 0.8 : 0.35 + ih((d.x * 7) | 0) * 0.35;
+      const b = d.snow ? 0.8 : 0.35 + ih((d.x * 7) | 0) * 0.35, al = clamp(d.life, 0, 1);
       const moving = Math.abs(d.vy) > 4;
+      c.globalAlpha = al;
       if (moving && !d.snow) { c.fillStyle = 'rgba(200,200,200,0.12)'; c.fillRect(d.x, d.y, 0.6, Math.min(9, Math.abs(d.vy) * 0.06)); }
-      if (d.r < 0.7) { c.fillStyle = gs(b); c.fillRect(d.x, d.y, 1, 1); }
-      else { c.fillStyle = gs(0.02); c.fillRect(d.x, d.y + 0.5, d.r * 1.6, d.r * 1.3); c.fillStyle = gs(b + 0.15); c.fillRect(d.x, d.y, Math.max(1, d.r * 0.8), Math.max(1, d.r * 0.6)); }
+      c.fillStyle = gs(b); circle(c, d.x, d.y, Math.max(0.35, d.r * 0.55));
+      if (d.r >= 0.7) { c.fillStyle = gs(Math.min(1, b + 0.3)); c.fillRect(d.x - d.r * 0.25, d.y - d.r * 0.3, 0.5, 0.5); }
     }
+    c.globalAlpha = 1;
     // essuie-glace (bras pivotant en bas, à droite du centre)
     const px = 204, py = 80 + CAB_DROP, a = this.wiper.a, L = 104;
     const ex = px + Math.cos(a) * L, ey = py + Math.sin(a) * L;
@@ -2815,7 +2816,8 @@ const SceneDrive = {
     // combiné d'instruments, encastré dans la planche (le volant passe devant)
     c.save(); c.translate(0, CAB_DROP);
     this.drawCluster(c, now);
-    // le volant tourne avec la route
+    this.drawScreens(c, now);
+    // le volant tourne avec la route (dessiné après les écrans : il passe devant le bas de la vitre)
     const wa = this.steer * 0.55, wx = 150, wy = 182;
     c.save(); c.translate(wx, wy); c.rotate(wa);
     // jante en cuir : masse sombre, partie haute éclairée par le pare-brise et les écrans, ombre à l'intérieur
@@ -2835,7 +2837,11 @@ const SceneDrive = {
     c.globalCompositeOperation = 'source-over';
     c.fillStyle = gs(0.35); for (let r = 0; r < 6; r++) c.fillRect(50, -72.5 + r * 6.2, 0.7, 0.7);
     c.restore();
+    // les mains du pilote, gants de rallye, posées sur la jante
+    this.drawHands(c, wa, wx, wy);
     c.restore();
+    // les lumières de l'habitacle épargnent la vitre des écrans : le texte reste toujours net
+    c.save(); c.beginPath(); c.rect(this.XL, -30, this.XR - this.XL, VH + 60); c.rect(88, 78 + CAB_DROP, 124, 31); c.clip('evenodd');
     // lampadaires et lampes de tunnel : leur lumière entre par le haut du pare-brise et balaie l'habitacle vers l'arrière
     const lb2 = Road.typeAt(this.S), bb = BIOMES[lb2];
     if (bb.lamps) {
@@ -2866,7 +2872,37 @@ const SceneDrive = {
       c.strokeStyle = (L > R ? 'rgba(255,50,40,' : 'rgba(60,120,255,') + (pf * 0.35).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96 + CAB_DROP); c.quadraticCurveTo(160, 58 + CAB_DROP, 304, 80 + CAB_DROP); c.stroke();
       c.globalCompositeOperation = 'source-over';
     }
-    c.save(); c.translate(0, CAB_DROP); this.drawScreens(c, now); c.restore();
+    c.restore();
+  },
+  /* mains du pilote sur la jante, à 10 h et 14 h, qui tournent avec le volant. Gants de rallye : base anthracite,
+     panneau rouge sur le dos de la main, coques de phalanges, coutures claires, manchette ; bras en combinaison bleu nuit */
+  drawHands(c, wa, wx, wy) {
+    for (const sd of [-1, 1]) {
+      const a = (sd < 0 ? Math.PI * 1.11 : Math.PI * 1.89) + wa;
+      const hx = wx + Math.cos(a) * 70, hy = wy + Math.sin(a) * 70;
+      // bras : de l'épaule (hors champ, en bas) jusqu'au poignet, juste sous la main
+      const shx = wx + sd * 122, shy = wy + 44, wrx = hx + sd * 4, wry = hy + 9;
+      const dx = wrx - shx, dy = wry - shy, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+      c.fillStyle = 'rgb(20,26,42)';
+      poly(c, [[shx + nx * 13, shy + ny * 13], [wrx + nx * 6.5, wry + ny * 6.5], [wrx - nx * 6.5, wry - ny * 6.5], [shx - nx * 13, shy - ny * 13]]);
+      // bande rouge le long de la manche, et l'arête du bras qui prend la lumière des écrans
+      c.strokeStyle = 'rgb(120,22,30)'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(shx + nx * 4, shy + ny * 4); c.lineTo(wrx + nx * 2, wry + ny * 2); c.stroke();
+      c.strokeStyle = 'rgba(160,190,220,0.18)'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(shx - nx * 12 * sd, shy - ny * 12 * sd); c.lineTo(wrx - nx * 6 * sd, wry - ny * 6 * sd); c.stroke();
+      // manchette du gant au poignet
+      c.fillStyle = 'rgb(14,14,18)'; poly(c, [[wrx + nx * 7, wry + ny * 7], [wrx + nx * 6 - dx / len * 6, wry + ny * 6 - dy / len * 6], [wrx - nx * 6 - dx / len * 6, wry - ny * 6 - dy / len * 6], [wrx - nx * 7, wry - ny * 7]]);
+      // la main, dans le repère de la jante (x le long de la jante, -y vers l'extérieur du volant)
+      c.save(); c.translate(hx, hy); c.rotate(a + Math.PI / 2);
+      c.fillStyle = 'rgb(30,30,36)'; rrect(c, -8.5, -6.5, 17, 13, 4.5);
+      // pouce qui passe par-dessus la jante, côté intérieur
+      c.fillStyle = 'rgb(36,36,42)'; rrect(c, -3 * sd - 3, 3.5, 7, 5, 2.5);
+      // dos de la main : panneau rouge, coques des phalanges, coutures
+      c.fillStyle = 'rgb(165,26,36)'; rrect(c, -6.5, -6, 13, 5, 2);
+      c.fillStyle = 'rgb(62,62,72)'; for (let i = 0; i < 4; i++) rrect(c, -6.6 + i * 3.4, -7.6, 2.8, 2.2, 1);
+      c.strokeStyle = 'rgba(220,220,230,0.45)'; c.lineWidth = 0.35; c.beginPath(); c.moveTo(-6.5, -0.6); c.lineTo(6.5, -0.6); c.stroke();
+      // reflet des écrans sur le haut des phalanges
+      c.strokeStyle = 'rgba(170,210,230,0.25)'; c.lineWidth = 0.6; c.beginPath(); c.moveTo(-6, -7.9); c.lineTo(6, -7.9); c.stroke();
+      c.restore();
+    }
   },
   // reflets qui s'estompent après un regard en arrière (sirenT : fin du dernier regard)
   policeFade(now) { const since = (now - this.sirenT) / 1000; return since < 0 || since > 24 ? 0 : clamp(Math.exp(-since / 7), 0, 1) * smooth((24 - since) / 4); },
@@ -2883,15 +2919,14 @@ const SceneDrive = {
     c.fillStyle = gs(0.01); c.fillRect(86, 74, 128, 37);
     c.fillStyle = gs(0.14); c.fillRect(86, 110, 128, 1);
   },
-  /* contenu des écrans, dessiné en dernier pour rester net (les lumières de l'habitacle ne le brouillent pas),
-     et découpé autour de la jante pour que le volant reste devant */
+  /* contenu des écrans : dessiné avant le volant (qui passe devant) ; les lumières de l'habitacle évitent la vitre */
   drawScreens(c, now) {
     // les écrans éclairent un peu le bas du logement, la planche et le haut de la jante (sous la vitre seulement)
     c.save(); c.beginPath(); c.rect(this.XL, 109, this.XR - this.XL, 60); c.clip();
     c.globalCompositeOperation = 'lighter'; gl(c, GT.white, 150, 110, 46, 0.035); gl(c, GT.white, 104, 110, 22, 0.02); c.globalCompositeOperation = 'source-over';
     c.restore();
     c.save();
-    c.beginPath(); c.rect(88, 78, 124, 31); c.arc(150, 182, 75.5, 0, Math.PI * 2); c.clip('evenodd');
+    c.beginPath(); c.rect(88, 78, 124, 31); c.clip();
     c.fillStyle = gs(0); c.fillRect(88, 78, 124, 31);
     this.drawMiniMap(c, now);
     this.drawDisplay(c, now);
