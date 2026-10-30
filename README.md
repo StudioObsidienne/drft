@@ -31,6 +31,7 @@ One endless night drive, seen from the driver's seat of a tuned race car, in dit
 
 - **The road never repeats.** It is generated as you drive and moves through expressway (sodium lamps, gantry signs, traffic to overtake), tunnels, mountain pass (hairpins, guardrails, cedars, a vending machine glowing at a pull-out), city (neon signs, crossings), suspension bridge over the bay and coast road. Curves, hills, speed and gear changes follow the road.
 - **Weather.** Rain streaks toward the windshield and the drops climb up the glass as they would at speed, the wiper sweeps them away; snow, fog with headlight beams, storms with lightning. Moods change slowly on their own (Night, Rain, Fog, Sodium, Dawn, Snow, Storm), with calm, unified palettes; only real lights keep their colour.
+- **Traffic and driving.** Cars and trucks to overtake, blinkers when they change lanes, headlights in the mirror; the car never touches anyone. The driver's eyes follow the corners, the view widens and lights streak as speed builds, an ETC toll now and then, the dazzle when leaving a tunnel, bridges over the city, the sun rising in the Dawn mood.
 - **Every new track:** the driver looks back over his shoulder, a Japanese police car is far behind, red lights turning. He turns back and floors it, and the red glow fades in the cabin.
 
 With Spotify nothing pretends to follow the beat (its audio can't be analysed); with your WAVs the speed reacts a little to the music.
