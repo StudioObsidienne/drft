@@ -7,7 +7,7 @@
 Install the extension and a **DRFT** button appears at the top of Spotify. Press it, press **LISTEN**: the DRFT playlist plays shuffled, in an endless loop, while a night drive in pixel art goes on behind the music.
 
 - **Back to Spotify:** **✕ SPOTIFY** at the top right, Esc, or the DRFT button again. The music keeps going and the radio keeps feeding the queue.
-- **Play something else** in Spotify and DRFT steps aside: it takes its tracks out of your queue (yours stay). Press play in DRFT to bring the radio back.
+- **Play something else** in Spotify and DRFT steps aside, and your shuffle and repeat settings come back as they were. Press play in DRFT to bring the radio back.
 
 No developer account, no Client ID, no login: DRFT uses your Spotify app as it is.
 
@@ -32,11 +32,7 @@ No developer account, no Client ID, no login: DRFT uses your Spotify app as it i
 
 ## The radio
 
-One playlist, picked by DRFT, played shuffled and looping:
-
-- never a track heard recently;
-- never the same artist twice in four tracks;
-- when the queue runs low, DRFT adds the next tracks on its own, and starts over once the whole playlist has played.
+One playlist, picked by DRFT, played by Spotify itself in shuffle and repeat: it never stops, whether DRFT is open or not, and your queue is left alone.
 
 The playlist is the curator's choice: everyone who installs DRFT hears the same selection.
 

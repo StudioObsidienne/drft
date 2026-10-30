@@ -10,6 +10,7 @@ let playing = false, pos = 0, vol = 0.8;
 const item = { uri: 'spotify:track:abc', name: 'Mock Track', artists: [{ name: 'Mock Artist', uri: 'spotify:artist:a1' }], duration: { milliseconds: 240000 } };
 const plTrack = i => ({ uri: 'spotify:track:t' + i, name: 'Track ' + i, isPlayable: true, isExplicit: false, duration: { milliseconds: 200000 + i }, artists: [{ name: 'Artist ' + (i % 7), uri: 'spotify:artist:ar' + (i % 7) }] });
 window.mockLog = [];
+window.mockModes = { shuffle: false, repeat: 0 };
 window.topbarButtons = [];
 window.Spicetify = {
   Topbar: { Button: function (label, icon, onClick) { const b = document.createElement('button'); b.textContent = label; b.onclick = onClick; document.querySelector('.Root__globalNav').appendChild(b); topbarButtons.push(b); } },
@@ -18,7 +19,17 @@ window.Spicetify = {
   Platform: {
     username: 'mockuser',
     History: { push: path => mockLog.push('nav ' + path) },
-    PlayerAPI: { clearQueue: async () => { mockLog.push('clear'); Spicetify.Queue.nextTracks = []; } },
+    PlayerAPI: {
+      clearQueue: async () => { mockLog.push('clear'); Spicetify.Queue.nextTracks = []; },
+      // joue un contexte (la playlist) à partir d'un morceau ; la file affichée = la suite de la playlist
+      play: async (ctx, origin, opts) => {
+        const first = (opts && opts.skipTo && opts.skipTo.uri) || 'spotify:track:t0';
+        mockLog.push('play ' + ctx.uri + ' from ' + first);
+        Spicetify.Player.data = { item: Object.assign({}, item, { uri: first }), context: { uri: ctx.uri } };
+        Spicetify.Queue.nextTracks = Array.from({ length: 5 }, (_, i) => ({ contextTrack: { uri: 'spotify:track:t' + (20 + i), metadata: { title: 'Track ' + (20 + i), artist_name: 'Artist' } }, provider: 'context' }));
+        playing = true; pos = 0; (ev.songchange || []).forEach(f => f());
+      }
+    },
     Session: { accessToken: 'mock-token' },
     ConnectAPI: { state: { devices: [{ id: 'dev-local', isLocal: true }] } },
     PlaylistAPI: { getContents: async uri => { mockLog.push('contents ' + uri); return { items: Array.from({ length: 30 }, (_, i) => plTrack(i)) }; } }
@@ -30,6 +41,8 @@ window.Spicetify = {
     removeEventListener: (e, f) => { ev[e] = (ev[e] || []).filter(x => x !== f); },
     isPlaying: () => playing, getProgress: () => pos, getDuration: () => 240000,
     getVolume: () => vol, setVolume: v => { vol = v; },
+    getShuffle: () => mockModes.shuffle, setShuffle: b => { mockModes.shuffle = b; },
+    getRepeat: () => mockModes.repeat, setRepeat: r => { mockModes.repeat = r; },
     play: () => { playing = true; mockLog.push('play'); (ev.onplaypause || []).forEach(f => f()); },
     pause: () => { playing = false; mockLog.push('pause'); (ev.onplaypause || []).forEach(f => f()); },
     togglePlay() { playing ? this.pause() : this.play(); },

@@ -29,20 +29,37 @@ function findDevice() {
   return localDevice;
 }
 
+/* La radio, c'est la playlist DRFT jouée par Spotify lui-même, en aléatoire et en boucle (répétition de la playlist) :
+   Spotify enchaîne tout seul, sans fin, que DRFT soit ouvert ou non.
+   Tes réglages d'aléatoire et de répétition sont gardés de côté, et remis dès que tu joues autre chose. */
+const radioUri = () => 'spotify:playlist:' + window.DRFT_HOST.playlist;
+let saved = null;
+async function playRadio(first) {
+  if (!saved) { try { saved = { shuffle: S.Player.getShuffle(), repeat: S.Player.getRepeat() }; } catch (e) { saved = null; } }
+  try { S.Player.setShuffle(true); } catch (e) { /* ok */ }
+  const ctx = { uri: radioUri() }, opts = first ? { skipTo: { uri: first } } : {};
+  if (S.Platform.PlayerAPI && S.Platform.PlayerAPI.play) await S.Platform.PlayerAPI.play(ctx, {}, opts);
+  else await S.Player.playUri(ctx.uri, {}, opts);
+  try { S.Player.setShuffle(true); S.Player.setRepeat(1); } catch (e) { /* ok */ }
+}
+function restoreModes() {
+  if (!saved) return;
+  try { S.Player.setShuffle(saved.shuffle); S.Player.setRepeat(saved.repeat); } catch (e) { /* ok */ }
+  saved = null;
+}
+
 /* Le jeton du client est très vite limité sur la Web API : lecture, file et profil passent par le client.
    Renvoie undefined pour laisser DRFT appeler la Web API. */
 async function api(method, path, body) {
   const [route, query] = path.split('?');
   const q = new URLSearchParams(query || '');
   if (method === 'PUT' && route === '/me/player/play' && body && body.uris && body.uris.length) {
-    // la liste de DRFT remplace la file : le premier morceau joue, les autres attendent derrière
-    try { if (S.Platform.PlayerAPI && S.Platform.PlayerAPI.clearQueue) await S.Platform.PlayerAPI.clearQueue(); } catch (e) { /* ok */ }
-    await S.Player.playUri(body.uris[0]);
-    if (body.uris.length > 1) await S.addToQueue(body.uris.slice(1).map(uri => ({ uri })));
+    await playRadio(body.uris[0]);
     if (body.position_ms > 0) setTimeout(() => S.Player.seek(body.position_ms), 400);
     return null;
   }
-  if (method === 'POST' && route === '/me/player/queue' && q.get('uri')) { await S.addToQueue([{ uri: q.get('uri') }]); return null; }
+  // la playlist tourne déjà en boucle dans Spotify : rien à mettre dans ta file
+  if (method === 'POST' && route === '/me/player/queue') return null;
   if (method === 'GET' && route === '/me') { const u = (S.Platform && S.Platform.username) || ''; return { id: u, display_name: u }; }
   if (method === 'GET' && route === '/me/playlists') return { items: [], next: null };
   return undefined;
@@ -102,32 +119,21 @@ function queueOf(key, alt) {
   // la lecture automatique de Spotify n'est pas la file de DRFT : sans elle, DRFT voit la fin de sa liste et la relance
   return list.filter(it => !it || it.provider !== 'autoplay').map(track).filter(Boolean);
 }
-/* DRFT lance chaque liste par un morceau seul (son contexte est ce morceau) suivi de la file ;
-   un autre contexte (album, playlist, artiste…) veut dire que tu as lancé autre chose dans Spotify */
+/* tant que Spotify joue la playlist DRFT, c'est la radio ; un autre contexte (album, playlist, artiste…)
+   veut dire que tu as lancé autre chose. Sans contexte connu, on considère que c'est la radio. */
 function contextUri(d) { return (d.context && d.context.uri) || d.context_uri || ''; }
+function foreign() { const d = S.Player.data, c = d && contextUri(d); return !!c && c.indexOf(window.DRFT_HOST.playlist) < 0; }
 function state() {
   const d = S.Player.data;
   const cur = d && track(d.item || d.track);
   // pour DRFT c'est comme si la lecture était partie ailleurs : il s'efface au lieu de reprendre la main
-  if (!cur || (contextUri(d) && !/^spotify:track:/.test(contextUri(d)))) return null;
+  if (!cur || foreign()) return null;
   return {
     paused: !S.Player.isPlaying(),
     position: Math.max(0, S.Player.getProgress() || 0),
     duration: S.Player.getDuration() || cur.duration_ms,
     track_window: { current_track: cur, next_tracks: queueOf('nextItems', 'nextTracks'), previous_tracks: queueOf('previousItems', 'prevTracks') }
   };
-}
-
-function foreign() { const d = S.Player.data; return !!d && !!contextUri(d) && !/^spotify:track:/.test(contextUri(d)); }
-/* tu as lancé autre chose dans Spotify : on retire de la file les morceaux que DRFT y avait mis,
-   sinon ils passeraient avant ta musique ; ce que tu as mis toi-même dans la file reste */
-function cleanQueue() {
-  try {
-    const sp = window.__slipstream && window.__slipstream.Sp, sent = new Set((sp && sp.sent) || []);
-    const mine = ((S.Queue && S.Queue.nextTracks) || []).filter(t => t && t.provider === 'queue' && t.contextTrack && sent.has(t.contextTrack.uri)).map(t => t.contextTrack);
-    if (mine.length && S.removeFromQueue) S.removeFromQueue(mine);
-    if (sp) sp.sent = [];
-  } catch (e) { console.warn('[drft] queue', e); }
 }
 
 /* faux Spotify.Player : même interface que le SDK, branché sur Spicetify.Player */
@@ -141,7 +147,7 @@ class Player {
     const push = () => {
       const st = state();
       if (st) ours = true;
-      else if (ours && foreign()) { ours = false; cleanQueue(); }
+      else if (ours && foreign()) { ours = false; restoreModes(); }
       this.emit('player_state_changed', st);
     };
     for (const ev of ['songchange', 'onplaypause']) { S.Player.addEventListener(ev, push); this.hooks.push([ev, push]); }
