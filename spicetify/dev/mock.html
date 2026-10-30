@@ -3,7 +3,7 @@
      Construire d'abord (node spicetify/build.mjs), puis ouvrir ce fichier via un serveur local. -->
 <html><head><meta charset="utf-8"><title>DRFT mock</title>
 <style>html,body{margin:0;height:100%;background:#111;color:#ccc;font:14px sans-serif}button{margin:12px}</style></head>
-<body><p>Fake Spotify client.</p>
+<body><div class="Root__globalNav" style="height:64px;background:#000;display:flex;align-items:center;gap:8px;padding:0 12px">Fake Spotify top bar</div><p>Fake Spotify client.</p>
 <script>
 const ev = {};
 let playing = false, pos = 0, vol = 0.8;
@@ -12,8 +12,13 @@ const plTrack = i => ({ uri: 'spotify:track:t' + i, name: 'Track ' + i, isPlayab
 window.mockLog = [];
 window.topbarButtons = [];
 window.Spicetify = {
-  Topbar: { Button: function (label, icon, onClick) { const b = document.createElement('button'); b.textContent = label; b.onclick = onClick; document.body.appendChild(b); topbarButtons.push(b); } },
+  Topbar: { Button: function (label, icon, onClick) { const b = document.createElement('button'); b.textContent = label; b.onclick = onClick; document.querySelector('.Root__globalNav').appendChild(b); topbarButtons.push(b); } },
+  addToQueue: async list => { mockLog.push('queue ' + list.length); Spicetify.Queue.nextTracks.push(...list.map(t => ({ contextTrack: { uri: t.uri, metadata: {} }, provider: 'queue' }))); },
+  removeFromQueue: async list => { mockLog.push('unqueue ' + list.length); const u = new Set(list.map(t => t.uri)); Spicetify.Queue.nextTracks = Spicetify.Queue.nextTracks.filter(t => !u.has(t.contextTrack.uri)); },
   Platform: {
+    username: 'mockuser',
+    History: { push: path => mockLog.push('nav ' + path) },
+    PlayerAPI: { clearQueue: async () => { mockLog.push('clear'); Spicetify.Queue.nextTracks = []; } },
     Session: { accessToken: 'mock-token' },
     ConnectAPI: { state: { devices: [{ id: 'dev-local', isLocal: true }] } },
     PlaylistAPI: { getContents: async uri => { mockLog.push('contents ' + uri); return { items: Array.from({ length: 30 }, (_, i) => plTrack(i)) }; } }
@@ -27,7 +32,8 @@ window.Spicetify = {
     getVolume: () => vol, setVolume: v => { vol = v; },
     play: () => { playing = true; mockLog.push('play'); (ev.onplaypause || []).forEach(f => f()); },
     pause: () => { playing = false; mockLog.push('pause'); (ev.onplaypause || []).forEach(f => f()); },
-    togglePlay() { playing ? this.pause() : this.play(); }, seek: ms => { pos = ms; mockLog.push('seek ' + ms); },
+    togglePlay() { playing ? this.pause() : this.play(); },
+    playUri: async uri => { mockLog.push('playUri ' + uri); Spicetify.Player.data = { item: Object.assign({}, item, { uri }), context: { uri } }; playing = true; pos = 0; (ev.songchange || []).forEach(f => f()); }, seek: ms => { pos = ms; mockLog.push('seek ' + ms); },
     next: () => mockLog.push('next'), back: () => mockLog.push('back')
   }
 };

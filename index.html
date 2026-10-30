@@ -468,6 +468,7 @@ const Sp = {
     return this.tok.access;
   },
   async api(method, path, body, retry = 2) {
+    if (HOST) { const h = await HOST.api(method, path, body); if (h !== undefined) return h; }
     const t = await this.token();
     if (HOST) path = HOST.path(path);
     const r = await fetch('https://api.spotify.com/v1' + path, { method, headers: Object.assign({ Authorization: 'Bearer ' + t }, body ? { 'Content-Type': 'application/json' } : {}), body: body ? JSON.stringify(body) : undefined });
@@ -543,7 +544,7 @@ const Sp = {
     if (Radio.cur !== SpPlayer) return;
     if (!s) {
       // la lecture est partie sur un autre appareil (téléphone, appli…)
-      if (Radio.playing && performance.now() > this.guardUntil) { Radio.playing = false; Fm.leave(); UI.syncPlay(); UI.toast('SPOTIFY IS PLAYING ON ANOTHER DEVICE'); }
+      if (Radio.playing && performance.now() > this.guardUntil) { Radio.playing = false; Fm.leave(); UI.syncPlay(); UI.toast(HOST ? 'SPOTIFY IS PLAYING SOMETHING ELSE · PRESS PLAY TO COME BACK' : 'SPOTIFY IS PLAYING ON ANOTHER DEVICE'); }
       return;
     }
     const tw = s.track_window || {}, tr = tw.current_track, next = tw.next_tracks || [];
@@ -752,13 +753,16 @@ const Sp = {
       if (!Fm.ducking) { this.fadeTok++; await this.player.setVolume(clamp(settings.vol * settings.vol, 0, 1)).catch(() => {}); }
     } finally { this.starting = false; this.guard(2500); }
   },
+  /* morceaux à ne pas rejouer tout de suite : les 200 derniers envoyés, mais jamais plus de 60 % de la liste,
+     sinon une playlist courte n'a plus rien à proposer et la boucle s'arrête après un tour */
+  recentSent() { const n = Math.min(200, Math.floor((this.pool || []).length * 0.6)); return new Set(n > 0 ? this.sent.slice(-n) : []); },
   async topUp() {
     if (this.topping) return;
     this.topping = true;
     try {
       let list, fm = false;
       if (this.source === 'fm' && Fm.sched) { await Fm.ensure(); list = Fm.takeNext(6); fm = list.length > 0; }
-      if (!list || !list.length) { await this.getPool(); list = this.pickItems(6, null, new Set(this.sent.slice(-200))).map(x => x.uri); }
+      if (!list || !list.length) { await this.getPool(); list = this.pickItems(6, null, this.recentSent()).map(x => x.uri); }
       const recentSent = new Set(this.sent.slice(-Math.max(4, Math.min(40, Math.floor((this.pool || []).filter(t => !t.own).length * 0.6)))));
       for (const u of list) { const own = (this.byUri.get(u) || {}).own; if (!fm && !own && recentSent.has(u)) continue; await this.api('POST', '/me/player/queue?device_id=' + encodeURIComponent(this.device) + '&uri=' + encodeURIComponent(u)); this.sent.push(u); }
     } catch (e) { /* on retentera au prochain changement */ }
@@ -785,12 +789,27 @@ const Sp = {
   },
   async pauseFx() {
     if (!this.player) return;
+    // dans Spotify, le volume est celui du client : pas de fondu à zéro, il resterait muet après la pause
+    if (HOST) {
+      Fm.stopDuck(); this.guard(2500); this.fadeTok++;
+      await this.player.pause().catch(() => {});
+      await this.player.setVolume(clamp(settings.vol * settings.vol, 0, 1)).catch(() => {});
+      return;
+    }
     Fm.stopDuck(); this.guard(2500);
     const done = await this.fadeTo(0, 650);
     if (done && !Radio.playing) { try { await this.player.pause(); } catch (e) { /* ok */ } }
   },
   async resumeFx() {
     if (!this.player) return;
+    if (HOST) {
+      // Spotify joue autre chose (ou rien) : on relance la radio au lieu de reprendre ce qu'il jouait
+      if (!this.state) { await this.playFresh().catch(e => Radio.spFail(e)); return; }
+      this.guard(2500); this.fadeTok++;
+      await this.player.setVolume(clamp(settings.vol * settings.vol, 0, 1)).catch(() => {});
+      await this.player.resume().catch(() => {});
+      return;
+    }
     this.guard(2500); this.fadeTok++;
     try { await this.player.setVolume(0.0001); await this.player.resume(); } catch (e) { /* ok */ }
     await this.fadeTo(clamp(settings.vol * settings.vol, 0, 1), 450);
@@ -1193,7 +1212,7 @@ const Radio = {
       else {
         const after = Sp.source === 'fm' ? Fm.takeNext(30) : [];
         if (after.length) { Sp.playUris(after).catch(e => this.spFail(e)); }
-        else Sp.getPool().then(() => Sp.playUris(Sp.pickItems(40, null, new Set(Sp.sent.slice(-200))).map(x => x.uri))).catch(e => this.spFail(e));
+        else Sp.getPool().then(() => Sp.playUris(Sp.pickItems(40, null, Sp.recentSent()).map(x => x.uri))).catch(e => this.spFail(e));
       }
       return;
     }
@@ -2662,6 +2681,7 @@ const UI = {
   stationName(spec) {
     const id = spec && spec.kind === 'file' ? 'local' : spec && spec.kind === 'spotify' ? 'spotify' : Radio.station;
     if (id === 'local') return 'MY WAVS';
+    if (HOST) return 'DRFT RADIO';
     if (Sp.source === 'fm') return 'DRFT FM · ' + showAt(Date.now()).name;
     return 'PLAYLIST · ' + String(Sp.plName || '').toUpperCase();
   },
@@ -2704,12 +2724,7 @@ const UI = {
       $('#prog').setAttribute('aria-valuenow', String(d > 0 ? Math.round(clamp(info.el / d, 0, 1) * 100) : 0));
     }
     this.renderNext();
-    if (sleep.end) {
-      const left = sleep.end - Date.now();
-      if (left <= 30000 && !sleep.fading && Radio.cur === SpPlayer) { sleep.fading = true; Sp.fadeTo(0, Math.max(500, left)); }
-      else if (left <= 30000 && !sleep.fading && Radio.kit) { sleep.fading = true; const c = Radio.ctx; Radio.kit.sleep.gain.setValueAtTime(Radio.kit.sleep.gain.value, c.currentTime); Radio.kit.sleep.gain.linearRampToValueAtTime(0, c.currentTime + Math.max(0.5, left / 1000)); }
-      if (left <= 0) { sleep.end = 0; sleep.fading = false; Radio.pause(); UI.renderSeg('#sleepSeg', [[0, 'OFF'], [15, '15'], [30, '30'], [60, '60'], [90, '90']], 0, setSleep); UI.toast('SLEEP TIMER DONE'); }
-    }
+    sleepCheck();
     idle.check(now);
   },
   renderNext() {
@@ -2942,6 +2957,15 @@ function setReact(v) { settings.react = +v; saveSettings(); UI.renderSeg('#react
 function setWeather(v) { settings.weather = +v; saveSettings(); UI.renderSeg('#weatherSeg', [[0, 'OFF'], [1, 'NORMAL'], [1.6, 'HEAVY']], settings.weather, setWeather); }
 
 const sleep = { end: 0, fading: false };
+/* aussi sur une horloge à part : l'image s'arrête quand DRFT est caché (Spotify) ou en arrière-plan, la minuterie non */
+function sleepCheck() {
+  if (!sleep.end) return;
+  const left = sleep.end - Date.now();
+  if (left <= 30000 && !sleep.fading && Radio.cur === SpPlayer) { sleep.fading = true; Sp.fadeTo(0, Math.max(500, left)); }
+  else if (left <= 30000 && !sleep.fading && Radio.kit) { sleep.fading = true; const c = Radio.ctx; Radio.kit.sleep.gain.setValueAtTime(Radio.kit.sleep.gain.value, c.currentTime); Radio.kit.sleep.gain.linearRampToValueAtTime(0, c.currentTime + Math.max(0.5, left / 1000)); }
+  if (left <= 0) { sleep.end = 0; sleep.fading = false; Radio.pause(); UI.renderSeg('#sleepSeg', [[0, 'OFF'], [15, '15'], [30, '30'], [60, '60'], [90, '90']], 0, setSleep); UI.toast('SLEEP TIMER DONE'); }
+}
+setInterval(sleepCheck, 1000);
 function setSleep(min) {
   min = +min;
   sleep.end = min ? Date.now() + min * 60000 : 0; sleep.fading = false;
@@ -3193,7 +3217,12 @@ if (!['radio', 'playlist', 'local'].includes(settings.src)) {
   if (settings.src === 'playlist' && !Sp.plId) { Sp.plId = old.slice(3); store.set('sp_pl', Sp.plId); }
   saveSettings();
 }
-if (HOST) { settings.src = 'playlist'; settings.station = 'spotify'; }
+if (HOST) {
+  settings.src = 'playlist'; settings.station = 'spotify';
+  // le volume de DRFT est celui de Spotify : on part du sien, et on le relit à chaque ouverture
+  const syncVol = () => { const v = HOST.volume(); if (v >= 0) { settings.vol = Math.sqrt(clamp(v, 0, 1)); UI.renderVol(); } };
+  syncVol(); HOST.onShow = syncVol;
+}
 syncSource();
 Radio.station = settings.src === 'local' ? 'local' : 'spotify';
 if (typeof settings.xfade !== 'number') settings.xfade = 4;

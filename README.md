@@ -4,7 +4,10 @@
 
 ![DRFT](spicetify/preview.png)
 
-Install the extension and a **DRFT** button appears at the top of Spotify. Press it, press **LISTEN**: the DRFT playlist plays shuffled, in an endless loop, while a night drive in pixel art goes on behind the music. Close DRFT and the music keeps going in Spotify; the radio keeps feeding the queue.
+Install the extension and a **DRFT** button appears at the top of Spotify. Press it, press **LISTEN**: the DRFT playlist plays shuffled, in an endless loop, while a night drive in pixel art goes on behind the music.
+
+- **Back to Spotify:** **✕ SPOTIFY** at the top right, Esc, or the DRFT button again. The music keeps going and the radio keeps feeding the queue.
+- **Play something else** in Spotify and DRFT steps aside: it takes its tracks out of your queue (yours stay). Press play in DRFT to bring the radio back.
 
 No developer account, no Client ID, no login: DRFT uses your Spotify app as it is.
 
@@ -33,7 +36,7 @@ One playlist, picked by DRFT, played shuffled and looping:
 
 - never a track heard recently;
 - never the same artist twice in four tracks;
-- when the queue runs low, DRFT adds the next tracks on its own.
+- when the queue runs low, DRFT adds the next tracks on its own, and starts over once the whole playlist has played.
 
 The playlist is the curator's choice: everyone who installs DRFT hears the same selection.
 
@@ -60,13 +63,13 @@ One endless night drive, seen from the driver's seat of a tuned race car, in dit
 | ↑ ↓ | Volume |
 | Esc | Back to Spotify |
 
-The progress bar is a line with a playhead moving in real time: hover it to read the time, drag it to move through the track (or focus it and use ← →, 5 s steps). Pause fades the sound out instead of cutting it.
+The progress bar is a line with a playhead moving in real time: hover it to read the time, drag it to move through the track (or focus it and use ← →, 5 s steps). DRFT's volume is Spotify's volume. **OPEN ↗** on a track opens it in Spotify.
 
 ## Notes
 
 - Spicetify modifies the Spotify desktop app, which Spotify's terms don't allow. Install it knowing that.
 - Spotify updates sometimes break Spicetify for a few days; run `spicetify apply` again after an update.
-- DRFT's fades move Spotify's own volume.
+- DRFT plays through the Spotify app and never calls Spotify's Web API for playback, so it isn't affected by its rate limits.
 
 ## Development
 

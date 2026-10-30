@@ -33,14 +33,20 @@ const ext = `/* DRFT pour Spicetify : fichier généré par spicetify/build.mjs 
   var HTML = ${JSON.stringify(html)};
   var ICON = ${JSON.stringify(icon)};
 
-  /* DRFT s'affiche par-dessus Spotify, dans une iframe de même origine (son CSS et ses raccourcis restent chez elle).
+  /* DRFT s'affiche par-dessus Spotify, sous sa barre du haut (boutons de fenêtre, recherche, bouton DRFT),
+     dans une iframe de même origine : son CSS et ses raccourcis restent chez elle.
      Refermée, l'iframe reste chargée : la radio continue de remplir la file de Spotify. */
   var layer = null, frame = null;
+  function topOffset() {
+    var nav = document.querySelector('.Root__globalNav, .Root__top-bar, header[data-testid="topbar"]');
+    var b = nav ? nav.getBoundingClientRect().bottom : 0;
+    return b > 0 && b < 200 ? Math.round(b) : 64;
+  }
+  function isOpen() { return !!layer && layer.style.display !== 'none'; }
   function show() {
     if (!layer) {
       layer = document.createElement('div');
       layer.id = 'drft-layer';
-      layer.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#05030f';
       frame = document.createElement('iframe');
       frame.title = 'DRFT'; frame.allow = 'autoplay; fullscreen';
       frame.style.cssText = 'width:100%;height:100%;border:0;display:block';
@@ -48,14 +54,25 @@ const ext = `/* DRFT pour Spicetify : fichier généré par spicetify/build.mjs 
       layer.appendChild(frame);
       document.body.appendChild(layer);
     }
-    layer.style.display = 'block';
+    layer.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:' + topOffset() + 'px;z-index:2147483000;background:#05030f;-webkit-app-region:no-drag;display:block';
+    try { var h = frame.contentWindow.DRFT_HOST; if (h && h.onShow) h.onShow(); } catch (e) {}
     setTimeout(function () { try { frame.focus(); } catch (e) {} }, 50);
   }
-  function hide() { if (layer) layer.style.display = 'none'; }
-  window.DRFT_EXT = { show: show, hide: hide, toggle: function () { layer && layer.style.display !== 'none' ? hide() : show(); } };
+  /* le clavier revient à Spotify : sans ça, Espace et les flèches iraient encore à DRFT caché */
+  function hide() {
+    if (!layer) return;
+    try { if (frame.contentDocument.activeElement) frame.contentDocument.activeElement.blur(); } catch (e) {}
+    layer.style.display = 'none';
+    try { frame.blur(); window.focus(); } catch (e) {}
+  }
+  function toggle() { if (isOpen()) hide(); else show(); }
+  window.DRFT_EXT = { show: show, hide: hide, toggle: toggle };
 
-  if (S.Topbar && S.Topbar.Button) new S.Topbar.Button('DRFT radio', ICON, show);
-  else new S.Playbar.Button('DRFT radio', ICON, show);
+  // Échap quand le focus est resté dans Spotify
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) hide(); });
+
+  if (S.Topbar && S.Topbar.Button) new S.Topbar.Button('DRFT radio', ICON, toggle);
+  else new S.Playbar.Button('DRFT radio', ICON, toggle);
 })();
 `;
 
