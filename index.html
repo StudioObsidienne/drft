@@ -1418,7 +1418,7 @@ function weatherUpdate(dt, F) {
   for (const f of WX.snow) { f.y += f.v * H * dt * (1 + F.energy); f.p += dt * 1.5; f.x += Math.sin(f.p) * dt * W * 0.02; if (f.y > H) { f.y = -2; f.x = Math.random() * W; } }
   const lt = ENV.lightning * amt;
   if (lt > 0.3 && WX.boltT <= 0 && ((F.pulse > 0.8 && Math.random() < 0.05 * lt) || Math.random() < dt * 0.04 * lt)) {
-    ENV.flash = 0.55; WX.boltT = 0.35;
+    ENV.flash = 0.4; WX.boltT = 0.35;
     let x = W * (0.15 + Math.random() * 0.7), y = 0; const pts = [[x, y]];
     while (y < H * 0.45) { y += H * (0.03 + Math.random() * 0.05); x += (Math.random() - 0.5) * W * 0.06; pts.push([x, y]); }
     WX.bolt = pts;
@@ -1528,14 +1528,15 @@ const GLOW = { fog: 1 };
 function gl(c, tex, x, y, r, a) { if (!(a > 0.004) || !(r > 0.2)) return; r *= GLOW.fog; c.globalAlpha = Math.min(1, a); c.drawImage(tex, x - r, y - r, r * 2, r * 2); c.globalAlpha = 1; }
 const COL = { red: 'rgb(255,50,40)', redD: 'rgb(150,26,22)', amber: 'rgb(255,160,40)', amberD: 'rgb(140,84,20)', green: 'rgb(80,235,120)', greenD: 'rgb(30,120,60)', blue: 'rgb(60,120,255)', blueD: 'rgb(28,58,140)', pink: 'rgb(255,60,200)', pinkD: 'rgb(140,30,110)', cyan: 'rgb(60,230,255)', cyanD: 'rgb(24,110,130)' };
 
-/* police bitmap 3x5 : le texte du tableau de bord reste net en pixels */
+/* police bitmap 3x5 du tableau de bord, dans l'esprit de Chakra Petch (la police de l'interface) :
+   formes carrées, coins coupés en biais (en haut à gauche et en bas à droite), pour un texte net en pixels */
 const FONT5 = {
-  '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111', '4': '101101111001001', '5': '111100111001111',
-  '6': '111100111101111', '7': '111001010010010', '8': '111101111101111', '9': '111101111001111',
-  A: '010101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
-  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101010', K: '101101110101101', L: '100100100100111',
-  M: '101111111101101', N: '110101101101101', O: '010101101101010', P: '110101110100100', Q: '010101101110011', R: '110101110101101',
-  S: '011100010001110', T: '111010010010010', U: '101101101101111', V: '101101101101010', W: '101101111111101', X: '101101010101101',
+  '0': '011101101101110', '1': '010110010010111', '2': '110001111100111', '3': '110001011001110', '4': '101101111001001', '5': '111100110001110',
+  '6': '011100111101110', '7': '111001001010010', '8': '011101111101110', '9': '011101111001110',
+  A: '011101111101101', B: '110101110101110', C: '011100100100011', D: '110101101101110', E: '111100110100111', F: '111100110100100',
+  G: '011100101101011', H: '101101111101101', I: '111010010010111', J: '001001001101110', K: '101101110101101', L: '100100100100111',
+  M: '101111111101101', N: '110101101101101', O: '011101101101110', P: '110101110100100', Q: '011101101110011', R: '110101110101101',
+  S: '011100010001110', T: '111010010010010', U: '101101101101110', V: '101101101101010', W: '101101111111101', X: '101101010101101',
   Y: '101101010010010', Z: '111001010100111', ':': '000010000010000', '.': '000000000000010', '-': '000000111000000', '/': '001001010100100',
   '+': '000010111010000', '%': '101001010100101', ' ': '000000000000000'
 };
@@ -1544,6 +1545,20 @@ function px5(c, str, x, y, s, col) {
   for (const ch of String(str).toUpperCase()) { const g = FONT5[ch]; if (g) for (let i = 0; i < 15; i++) if (g.charCodeAt(i) === 49) c.fillRect(cx + (i % 3) * s, y + ((i / 3) | 0) * s, s, s); cx += 4 * s; }
 }
 const px5w = (str, s) => String(str).length * 4 * s - s;
+/* grands chiffres 5x8 (vitesse, rapport), même dessin : coins coupés, traits droits */
+const FONTB = {
+  '0': ['01111', '10001', '10001', '10001', '10001', '10001', '10001', '11110'], '1': ['00100', '01100', '00100', '00100', '00100', '00100', '00100', '01110'],
+  '2': ['11110', '00001', '00001', '01110', '10000', '10000', '10000', '11111'], '3': ['11110', '00001', '00001', '01110', '00001', '00001', '00001', '11110'],
+  '4': ['10001', '10001', '10001', '10001', '11111', '00001', '00001', '00001'], '5': ['11111', '10000', '10000', '11110', '00001', '00001', '00001', '11110'],
+  '6': ['01111', '10000', '10000', '11110', '10001', '10001', '10001', '11110'], '7': ['11111', '00001', '00001', '00010', '00100', '00100', '00100', '00100'],
+  '8': ['01111', '10001', '10001', '11111', '10001', '10001', '10001', '11110'], '9': ['01111', '10001', '10001', '10001', '01111', '00001', '00001', '11110'],
+  N: ['10001', '11001', '11001', '10101', '10101', '10011', '10011', '10001'], R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001', '10001']
+};
+function pxB(c, str, x, y, s, col) {
+  c.fillStyle = col; let cx = x;
+  for (const ch of String(str)) { const g = FONTB[ch]; if (g) for (let r = 0; r < 8; r++) for (let k = 0; k < 5; k++) if (g[r].charCodeAt(k) === 49) c.fillRect(cx + k * s, y + r * s, s, s); cx += 6 * s; }
+}
+const pxBw = (str, s) => String(str).length * 6 * s - s;
 
 /* bruit lisse 1D (déterministe) */
 function vnoise(x, seed) { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return lerp(ih(i * 7919 + seed * 104729) * 2 - 1, ih((i + 1) * 7919 + seed * 104729) * 2 - 1, u); }
@@ -1925,8 +1940,9 @@ const SceneDrive = {
       c.drawImage(this.offA, -off + tr, 0); c.drawImage(this.offB, side * W * 1.08 - off + tr, 0);
     }
     c.globalAlpha = 1;
-    c.fillStyle = 'rgba(255,255,255,0.18)';
-    for (let i = 0; i < 18; i++) { const y = ih(i * 7 + Math.floor(t / 60)) * H; c.fillRect(0, y | 0, W, 1); }
+    // filé du mouvement de tête : quelques traits discrets, renouvelés lentement (pas de scintillement)
+    c.fillStyle = 'rgba(255,255,255,0.09)';
+    for (let i = 0; i < 9; i++) { const y = ih(i * 7 + Math.floor(t / 140)) * H; c.fillRect(0, y | 0, W, 1); }
   },
   /* coup d'œil au rétroviseur : le regard monte vers le miroir (zoom en pixels entiers, sans lissage), puis revient */
   drawGlance(c, t, dt, F, T, dur) {
@@ -1996,8 +2012,8 @@ const SceneDrive = {
     const bst = clamp(1 - (performance.now() - this.boostT) / 9000, 0, 1) * smooth((this.v - 60) / 25);
     const edge = smooth((this.v * 3.6 - 150) / 70) * 0.45, amt = Math.max(bst, edge), lim = bst >= edge ? 0.45 : 0.8;
     if (amt > 0.05) {
-      c.strokeStyle = 'rgba(255,255,255,' + (0.35 * amt).toFixed(3) + ')'; c.lineWidth = 0.6; c.beginPath();
-      const fr = Math.floor(t / 70);
+      c.strokeStyle = 'rgba(255,255,255,' + (0.28 * amt).toFixed(3) + ')'; c.lineWidth = 0.6; c.beginPath();
+      const fr = Math.floor(t / 110);
       for (let i = 0; i < 26; i++) { const a = ih(i * 13 + fr * 7) * Math.PI * 2, r0 = 70 + ih(i * 3 + fr) * 50, r1 = r0 + 30 + ih(i * 5 + fr) * 50; if (Math.abs(Math.cos(a)) < lim) continue; c.moveTo(160 + Math.cos(a) * r0, 40 + Math.sin(a) * r0 * 0.5); c.lineTo(160 + Math.cos(a) * r1, 40 + Math.sin(a) * r1 * 0.5); }
       c.stroke();
     }
@@ -2030,13 +2046,13 @@ const SceneDrive = {
     // lignes de vitesse : figées pendant l'arrêt sur image, elles filent ensuite
     const amt = T < 0.75 ? 1 : a.slip * 0.8;
     if (amt > 0.05) {
-      c.strokeStyle = 'rgba(255,255,255,' + (0.45 * amt).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath();
-      const fr = Math.floor(a.w / 0.06);
+      c.strokeStyle = 'rgba(255,255,255,' + (0.35 * amt).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath();
+      const fr = Math.floor(a.w / 0.09);
       for (let i = 0; i < 44; i++) { const an = ih(i * 17 + fr * 5) * Math.PI * 2, r0 = 55 + ih(i * 7 + fr) * 60, r1 = r0 + 40 + ih(i * 3 + fr) * 70; c.moveTo(160 + Math.cos(an) * r0, 45 + Math.sin(an) * r0 * 0.55); c.lineTo(160 + Math.cos(an) * r1, 45 + Math.sin(an) * r1 * 0.55); }
       c.stroke();
     }
     // éclair blanc au moment de l'arrêt sur image
-    if (T > 0.3 && T < 0.45) { c.fillStyle = 'rgba(255,255,255,' + (0.6 * (1 - (T - 0.3) / 0.15)).toFixed(3) + ')'; c.fillRect(this.XL, -20, this.XR - this.XL, VH + 40); }
+    if (T > 0.3 && T < 0.55) { c.fillStyle = 'rgba(255,255,255,' + (0.3 * (1 - (T - 0.3) / 0.25)).toFixed(3) + ')'; c.fillRect(this.XL, -20, this.XR - this.XL, VH + 40); }
     c.globalCompositeOperation = 'source-over';
   },
   /* ---------- vue arrière (pendant qu'il se retourne) ---------- */
@@ -2580,16 +2596,19 @@ const SceneDrive = {
     // feux rouges des voitures devant : reflet sur l'arceau
     const red = this.traffic.reduce((m, car) => { const d = car.s - this.S; return d > 3 && d < 70 ? Math.max(m, 1 - d / 70) : m; }, 0);
     if (red > 0.02) { c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,50,40,' + (0.55 * red).toFixed(3) + ')'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(38, -4); c.lineTo(8, 70); c.stroke(); c.globalCompositeOperation = 'source-over'; }
-    // tableau de bord : bord supérieur courbe et masse sombre
-    c.fillStyle = gs(0.016);
+    // tableau de bord : planche en matière mate, éclairée par le pare-brise en haut, plus sombre vers les genoux
+    // (sous ~0,04 la courbe de tons donne du noir pur : les matières visibles vivent entre 0,05 et 0,1, en trame légère)
+    const df = c.createLinearGradient(0, 66, 0, 150); df.addColorStop(0, gs(0.07)); df.addColorStop(0.3, gs(0.045)); df.addColorStop(1, gs(0.015));
+    c.fillStyle = df;
     c.beginPath(); c.moveTo(this.XL, 120); c.lineTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.lineTo(this.XR, 92); c.lineTo(this.XR, VH + 20); c.lineTo(this.XL, VH + 20); c.closePath(); c.fill();
     const dg = c.createLinearGradient(0, 62, 0, 84); dg.addColorStop(0, 'rgba(255,255,255,0.07)'); dg.addColorStop(1, 'rgba(255,255,255,0)');
     c.fillStyle = dg; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.lineTo(304, 92); c.quadraticCurveTo(160, 70, 18, 110); c.closePath(); c.fill();
     c.strokeStyle = gs(0.12); c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.stroke();
     c.strokeStyle = gs(0.035); c.beginPath(); c.moveTo(40, 100); c.quadraticCurveTo(160, 66, 300, 88); c.stroke();
-    // aérations à droite
-    c.fillStyle = gs(0.03); poly(c, [[196, 72], [244, 74], [250, 84], [200, 84]]);
-    c.strokeStyle = gs(0.06); c.lineWidth = 0.5; for (let i = 0; i < 5; i++) { c.beginPath(); c.moveTo(199 + i, 74 + i * 2); c.lineTo(246 + i * 0.6, 75 + i * 2); c.stroke(); }
+    // aérations à droite (à côté du combiné)
+    c.fillStyle = gs(0.012); poly(c, [[228, 75], [270, 77], [275, 87], [232, 87]]);
+    c.strokeStyle = gs(0.06); c.lineWidth = 0.5; for (let i = 0; i < 5; i++) { c.beginPath(); c.moveTo(230 + i, 77 + i * 2); c.lineTo(271 + i * 0.6, 78.5 + i * 2); c.stroke(); }
+    c.strokeStyle = gs(0.1); c.beginPath(); c.moveTo(232, 87); c.lineTo(275, 87); c.stroke();
     // rétroviseur intérieur
     c.save(); c.translate(292, 9); c.rotate(0.08);
     c.fillStyle = gs(0.16); rrect(c, -28.5, -9.5, 57, 21, 4);
@@ -2618,13 +2637,19 @@ const SceneDrive = {
     }
     c.globalCompositeOperation = 'source-over';
     c.restore();
+    // combiné d'instruments, encastré dans la planche (le volant passe devant)
+    this.drawCluster(c, now);
     // le volant tourne avec la route
     const wa = this.steer * 0.55, wx = 150, wy = 182;
     c.save(); c.translate(wx, wy); c.rotate(wa);
-    c.strokeStyle = gs(0.03); c.lineWidth = 9; c.beginPath(); c.arc(0, 0, 70, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
-    c.strokeStyle = gs(0.1); c.lineWidth = 0.8; c.beginPath(); c.arc(0, 0, 74.5, Math.PI * 1.12, Math.PI * 1.88); c.stroke();
-    c.strokeStyle = gs(0.045); c.lineWidth = 5; c.beginPath(); c.moveTo(-66, -18); c.lineTo(-22, -12); c.moveTo(66, -18); c.lineTo(22, -12); c.stroke();
-    c.strokeStyle = gs(0.12); c.lineWidth = 0.6; c.beginPath(); c.moveTo(-64, -21); c.lineTo(-24, -15); c.stroke();
+    // jante en cuir : masse sombre, partie haute éclairée par le pare-brise et les écrans, ombre à l'intérieur
+    const arc = (r, w, v, a0, a1) => { c.strokeStyle = gs(v); c.lineWidth = w; c.beginPath(); c.arc(0, 0, r, Math.PI * a0, Math.PI * a1); c.stroke(); };
+    arc(70, 10, 0.05, 1.08, 1.92); arc(73, 3, 0.085, 1.1, 1.9); arc(74.8, 0.8, 0.2, 1.16, 1.84); arc(65.5, 1, 0.015, 1.1, 1.9);
+    // branches et platines des boutons : les boutons sont posés sur quelque chose
+    c.fillStyle = gs(0.065);
+    poly(c, [[-68, -24], [-30, -18], [-22, -8], [-66, -12]]); poly(c, [[68, -24], [30, -18], [22, -8], [66, -12]]);
+    c.fillStyle = gs(0.05); rrect(c, -63, -55, 28, 50, 3); rrect(c, 35, -79, 30, 68, 3);
+    c.strokeStyle = gs(0.15); c.lineWidth = 0.6; c.beginPath(); c.moveTo(-61, -55.3); c.lineTo(-37, -55.3); c.moveTo(37, -79.3); c.lineTo(63, -79.3); c.moveTo(-66, -24.5); c.lineTo(-31, -18.5); c.moveTo(66, -24.5); c.lineTo(31, -18.5); c.stroke();
     // boutons du volant (accents de couleur)
     c.globalCompositeOperation = 'lighter';
     // LED des boutons : halo qui respire doucement, chaque bouton à son rythme
@@ -2634,16 +2659,16 @@ const SceneDrive = {
     c.globalCompositeOperation = 'source-over';
     c.fillStyle = gs(0.35); for (let r = 0; r < 6; r++) c.fillRect(50, -72.5 + r * 6.2, 0.7, 0.7);
     c.restore();
-    // écrans du tableau de bord : mini-carte à gauche, instruments au centre
-    this.drawMiniMap(c, now);
-    this.drawDisplay(c, now);
     // lampadaires et lampes de tunnel : leur lumière entre par le haut du pare-brise et balaie l'habitacle vers l'arrière
     const lb2 = Road.typeAt(this.S), bb = BIOMES[lb2];
     if (bb.lamps) {
       const spc = bb.lamps, ph = (((this.S % spc) + spc) % spc) / spc, u = ph < 0.5 ? ph + 1 : ph;
-      const I = Math.exp(-Math.pow((u - 1) / 0.16, 2)) * (lb2 === 'tunnel' ? 0.6 : 1) * (1 - ENV.day * 0.8);
+      // dans un tunnel les lampes se suivent tous les 8 m : un balayage par lampe ferait un stroboscope (8 fois par seconde).
+      // La lumière y est donc une lueur continue qui ondule lentement, posée sur le haut de l'habitacle
+      const tun = lb2 === 'tunnel';
+      const I = (tun ? 0.32 + 0.08 * Math.sin(this.S * 0.02) : Math.exp(-Math.pow((u - 1) / 0.16, 2))) * (1 - ENV.day * 0.8);
       if (I > 0.02) {
-        const y = lerp(-10, 150, (u - 0.6) / 0.8), rgb = lb2 === 'city' ? '235,240,255' : '255,170,70';
+        const y = tun ? 18 : lerp(-10, 150, (u - 0.6) / 0.8), rgb = lb2 === 'city' ? '235,240,255' : '255,170,70';
         const g = c.createLinearGradient(0, y - 22, 0, y + 22);
         g.addColorStop(0, 'rgba(' + rgb + ',0)'); g.addColorStop(0.5, 'rgba(' + rgb + ',' + (0.13 * I).toFixed(3) + ')'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
         c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(this.XL, y - 22, this.XR - this.XL, 44);
@@ -2664,63 +2689,88 @@ const SceneDrive = {
       c.strokeStyle = (L > R ? 'rgba(255,50,40,' : 'rgba(60,120,255,') + (pf * 0.35).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.stroke();
       c.globalCompositeOperation = 'source-over';
     }
+    this.drawScreens(c, now);
   },
   // reflets qui s'estompent après un regard en arrière (sirenT : fin du dernier regard)
   policeFade(now) { const since = (now - this.sirenT) / 1000; return since < 0 || since > 24 ? 0 : clamp(Math.exp(-since / 7), 0, 1) * smooth((24 - since) / 4); },
+  /* combiné d'instruments : une visière qui dépasse de la planche, un logement, une seule vitre pour la carte et les instruments.
+     Centré sur le volant, qui passe devant le bas de la vitre, comme dans une vraie voiture */
+  drawCluster(c, now) {
+    // visière : sa crête accroche la lumière du dehors, ses flancs descendent dans la planche
+    const vg = c.createLinearGradient(0, 64, 0, 100); vg.addColorStop(0, gs(0.09)); vg.addColorStop(1, gs(0.05));
+    c.fillStyle = vg;
+    c.beginPath(); c.moveTo(79, 100); c.lineTo(85, 73); c.quadraticCurveTo(150, 62, 215, 73); c.lineTo(221, 100); c.closePath(); c.fill();
+    c.strokeStyle = gs(0.22); c.lineWidth = 0.7; c.beginPath(); c.moveTo(85, 73); c.quadraticCurveTo(150, 62, 215, 73); c.stroke();
+    c.strokeStyle = gs(0.1); c.beginPath(); c.moveTo(85, 73.5); c.lineTo(79, 100); c.moveTo(215, 73.5); c.lineTo(221, 100); c.stroke();
+    // logement : noir sous la visière, bord inférieur qui prend la lumière des écrans
+    c.fillStyle = gs(0.01); c.fillRect(86, 74, 128, 37);
+    c.fillStyle = gs(0.14); c.fillRect(86, 110, 128, 1);
+  },
+  /* contenu des écrans, dessiné en dernier pour rester net (les lumières de l'habitacle ne le brouillent pas),
+     et découpé autour de la jante pour que le volant reste devant */
+  drawScreens(c, now) {
+    // les écrans éclairent un peu le bas du logement, la planche et le haut de la jante (sous la vitre seulement)
+    c.save(); c.beginPath(); c.rect(this.XL, 109, this.XR - this.XL, 60); c.clip();
+    c.globalCompositeOperation = 'lighter'; gl(c, GT.white, 150, 110, 46, 0.035); gl(c, GT.white, 104, 110, 22, 0.02); c.globalCompositeOperation = 'source-over';
+    c.restore();
+    c.save();
+    c.beginPath(); c.rect(88, 78, 124, 31); c.arc(150, 182, 75.5, 0, Math.PI * 2); c.clip('evenodd');
+    c.fillStyle = gs(0); c.fillRect(88, 78, 124, 31);
+    this.drawMiniMap(c, now);
+    this.drawDisplay(c, now);
+    // séparation entre la carte et les instruments
+    c.fillStyle = gs(0.1); c.fillRect(118, 80, 1, 26);
+    c.restore();
+  },
   /* l'écran : couleurs posées exactement sur les tons de la palette, pour un texte net, sans trame */
   drawDisplay(c, now) {
     const T1 = gs(0.236), T2 = gs(0.557), T3 = gs(1);
-    const x0 = 106, y0 = 86, w = 68, h = 26;
-    c.fillStyle = gs(0); c.fillRect(x0 - 2, y0 - 7, w + 4, h + 9);
+    const x0 = 120, y0 = 80, w = 92;
     c.globalCompositeOperation = 'lighter';
-    // témoins de passage de rapport : ils s'allument des bords vers le centre, vert, puis orange, puis rouge ; tout clignote au rupteur
-    const n = 10, frac = clamp((this.rpm - 5200) / 3000, 0, 1), lit = Math.round(frac * n), lim = this.rpm > 8150 && Math.floor(now / 70) % 2 === 0;
-    const pulse = 0.85 + 0.15 * Math.sin(now * 0.006);
+    // témoins de passage de rapport, sur la lèvre de la visière : ils s'allument des bords vers le centre,
+    // vert, puis orange, puis rouge ; au rupteur tout passe au rouge et clignote lentement
+    const n = 10, frac = clamp((this.rpm - 5200) / 3000, 0, 1), lit = Math.round(frac * n), lim = this.rpm > 8150 && Math.floor(now / 160) % 2 === 0;
+    const pulse = 0.85 + 0.15 * Math.sin(now * 0.004);
     for (let i = 0; i < n; i++) {
-      const x = x0 + 12 + i * 4.6 + (i >= 5 ? 3 : 0), y = y0 - 4, e = i < 5 ? i : n - 1 - i;
-      const col = lim ? 'red' : e < 2 ? 'green' : e < 4 ? 'amber' : 'red';
-      const on = lim || e < lit / 2 + 0.01;
-      c.fillStyle = on ? COL[col] : 'rgb(20,20,20)'; c.fillRect(Math.round(x), y, 2, 1);
-      if (on) gl(c, GT[col], x + 1, y + 0.5, 3.5, 0.4 * pulse);
+      const x = 126 + i * 5 + (i >= 5 ? 2 : 0), y = 75.5, e = i < 5 ? i : n - 1 - i;
+      const col = this.rpm > 8150 ? 'red' : e < 2 ? 'green' : e < 4 ? 'amber' : 'red';
+      const on = this.rpm > 8150 ? lim : e < lit / 2 + 0.01;
+      c.fillStyle = on ? COL[col] : 'rgb(14,14,14)'; c.fillRect(x, Math.round(y), 3, 1);
+      if (on) gl(c, GT[col], x + 1.5, y + 0.5, 4, 0.38 * pulse);
     }
     c.globalCompositeOperation = 'source-over';
-    // cadres des cases
-    c.strokeStyle = T1; c.lineWidth = 0.5;
-    c.strokeRect(x0 + 26.5, y0 + 0.5, 16, 7); c.strokeRect(x0 + 26.5, y0 + 8.5, 16, 17);
-    // colonne gauche
+    // colonne gauche : réglages
     const lab = ['ABS', 'TC', 'MAP', 'BB'], val = ['3', '2', '1', '54'];
-    for (let i = 0; i < 4; i++) { px5(c, lab[i], x0 + 1, y0 + 2 + i * 6, 1, T1); px5(c, val[i], x0 + 15, y0 + 2 + i * 6, 1, T2); }
-    // vitesse (lissée, pour que les chiffres ne sautent pas) et rapport
-    const kmh = String(Math.round(this.kmhD));
-    px5(c, kmh, Math.round(x0 + 34.5 - px5w(kmh, 1) / 2), y0 + 2, 1, T3);
-    const fresh = now - this.shiftT < 180;
-    if (fresh) { c.fillStyle = T1; c.fillRect(x0 + 27, y0 + 9, 15, 16); }
-    px5(c, String(this.gear), x0 + 30, y0 + 10, 3, T3);
-    // chrono du tour en cours et écart avec le rythme moyen (vert : en avance)
-    const lap = this.lapT, mm = Math.floor(lap / 60), ss = (lap % 60).toFixed(2).padStart(5, '0');
-    px5(c, 'LAP', x0 + 45, y0 + 1, 1, T1);
-    px5(c, mm + ':' + ss, x0 + 45, y0 + 7, 1, T2);
-    const dv = clamp(this.deltaD, -9.99, 9.99), delta = dv.toFixed(2), dCol = dv < 0 ? COL.green : COL.red;
-    c.globalCompositeOperation = 'lighter'; px5(c, (dv > 0 ? '+' : '') + delta, x0 + 46, y0 + 14, 1, dCol); c.globalCompositeOperation = 'source-over';
-    c.strokeStyle = COL.amberD; c.lineWidth = 0.5; c.strokeRect(x0 + 44.5, y0 + 12.5, 22, 7);
-    // DRFT s'allume pendant les dérapages (séquences anime, ou forte charge latérale), avec un halo qui pulse
+    for (let i = 0; i < 4; i++) { px5(c, lab[i], x0 + 2, y0 + 2 + i * 6, 1, T1); px5(c, val[i], x0 + 25 - px5w(val[i], 1), y0 + 2 + i * 6, 1, T2); }
+    // au centre : vitesse (lissée, pour que les chiffres ne sautent pas) et grand rapport encadré
+    const kmh = String(Math.round(this.kmhD)), cx = x0 + 38;
+    pxB(c, kmh, Math.round(cx - pxBw(kmh, 1) / 2), y0 + 1, 1, T3);
+    c.strokeStyle = T1; c.lineWidth = 0.5; c.strokeRect(cx - 8.5, y0 + 10.5, 17, 18);
+    if (now - this.shiftT < 180) { c.fillStyle = T1; c.fillRect(cx - 8, y0 + 11, 16, 17); }
+    pxB(c, String(this.gear), cx - 5, y0 + 12, 2, T3);
+    // colonne droite : chrono du tour, écart avec le rythme moyen (vert : en avance), DRFT
+    const rx = x0 + 50, lap = this.lapT, mm = Math.floor(lap / 60), ss = (lap % 60).toFixed(2).padStart(5, '0');
+    px5(c, 'LAP', rx, y0 + 2, 1, T1);
+    px5(c, mm + ':' + ss, rx, y0 + 8, 1, T2);
+    const dv = clamp(this.deltaD, -9.99, 9.99), delta = (dv > 0 ? '+' : '') + dv.toFixed(2), dCol = dv < 0 ? COL.green : COL.red;
+    c.strokeStyle = COL.amberD; c.lineWidth = 0.5; c.strokeRect(rx - 1.5, y0 + 13.5, 24, 7);
+    c.globalCompositeOperation = 'lighter'; px5(c, delta, rx + 1, y0 + 15, 1, dCol); c.globalCompositeOperation = 'source-over';
+    // DRFT s'allume pendant les dérapages (séquences anime, ou forte charge latérale), avec un halo doux
     const drift = this.anime ? this.anime.slip : smooth((Math.abs(this.gLat) - 7) / 5);
     if (drift > 0.15) {
       c.globalCompositeOperation = 'lighter';
-      px5(c, 'DRFT', x0 + 47, y0 + 21, 1, Math.floor(now / 120) % 2 || drift > 0.6 ? COL.amber : COL.amberD);
-      gl(c, GT.amber, x0 + 54, y0 + 23, 9, 0.35 * drift);
+      px5(c, 'DRFT', rx + 2, y0 + 23, 1, drift > 0.5 ? COL.amber : COL.amberD);
+      gl(c, GT.amber, rx + 9, y0 + 25, 10, 0.3 * drift);
       c.globalCompositeOperation = 'source-over';
-    } else px5(c, 'DRFT', x0 + 47, y0 + 21, 1, T1);
+    } else px5(c, 'DRFT', rx + 2, y0 + 23, 1, T1);
     // reflet des gyrophares sur la vitre de l'écran
     const sr = this.siren(now);
     if (sr.I > 0.02) { c.globalCompositeOperation = 'lighter'; gl(c, GT.red, x0 + 10, y0 + 6, 18, sr.I * sr.L * 0.22); gl(c, GT.blue, x0 + w - 10, y0 + 6, 18, sr.I * sr.R * 0.22); c.globalCompositeOperation = 'source-over'; }
   },
-  /* mini-carte sur un petit écran à gauche : le tracé en pointillés de 120 m derrière à 520 m devant, cap en haut.
+  /* mini-carte, partie gauche de la vitre : le tracé en pointillés de 120 m derrière à 520 m devant, cap en haut.
      Marqueurs qui avancent avec la route : nous (vert), les voitures (bleu), la police (rouge / bleu), le prochain péage ou tunnel (orange) */
   drawMiniMap(c, now) {
-    const x0 = 72, y0 = 86, w = 29, h = 25, T1 = gs(0.236), T2 = gs(0.557), back = 120, ahead = 520, step = 8;
-    c.fillStyle = gs(0); c.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
-    c.strokeStyle = T1; c.lineWidth = 0.5; c.strokeRect(x0 - 0.5, y0 - 0.5, w + 1, h + 1);
+    const x0 = 90, y0 = 80, w = 26, h = 27, T1 = gs(0.236), T2 = gs(0.557), back = 120, ahead = 520, step = 8;
     // le tracé : on intègre les courbes devant et derrière nous
     const pts = [];
     let x = 0, y = 0, ph = 0;
