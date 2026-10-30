@@ -376,7 +376,9 @@ class FilePlayer {
    SPOTIFY : ton compte Premium, lecteur officiel (Web Playback SDK)
    Connexion PKCE dans le navigateur : aucun serveur, aucun secret.
    ===================================================================== */
-const SP_SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-read-private playlist-read-collaborative';
+/* hôte embarquant DRFT (version Spicetify : session et lecture du client Spotify, voir spicetify/host.js) ; null sur le site */
+const HOST = window.DRFT_HOST || null;
+const SP_SCOPES ='streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-library-read playlist-read-private playlist-read-collaborative';
 // styles drum & bass reconnus quand on vérifie qu'un artiste trouvé par mot-clé est bien de la famille
 const DNB_RX = /drum|dnb|d&b|jungle|liquid|neurofunk|breakbeat|breakcore|jazzstep|halftime|darkstep|techstep|atmospheric/i;
 const waitMs = ms => new Promise(r => setTimeout(r, ms));
@@ -401,14 +403,14 @@ function trackItem(t, aid) {
 const Sp = {
   cid: store.get('sp_cid', ''), tok: store.get('sp_tok', null), user: store.get('sp_user', null), uid: store.get('sp_uid', ''),
   radioPl: store.get('sp_radio_pl', ''), radioName: store.get('sp_radio_name', ''), radioSnap: store.get('sp_radio_snap', ''),
-  plId: store.get('sp_pl', ''), plName: store.get('sp_pl_name', ''),
+  plId: HOST ? HOST.playlist : store.get('sp_pl', ''), plName: HOST ? 'DRFT RADIO' : store.get('sp_pl_name', ''),
   source: 'fm',
   recent: (() => { const r = store.get('sp_recent', []); return Array.isArray(r) ? r : []; })(),
   player: null, device: null, ready: false, state: null, stateAt: 0, playlists: null, lastUri: null, topping: false, refreshing: null,
   pool: null, poolKey: '', building: null, resolved: store.get('sp_resolved', null), sent: [],
   guardUntil: 0, starting: false, fadeTok: 0, initing: null, sdkLoading: null, byUri: new Map(), artistCache: new Map(),
   get redirect() { return location.origin + location.pathname.replace(/index\.html$/, ''); },
-  connected() { return !!(this.cid && this.tok && this.tok.refresh); },
+  connected() { return HOST ? true : !!(this.cid && this.tok && this.tok.refresh); },
   guard(ms = 2500) { this.guardUntil = Math.max(this.guardUntil, performance.now() + ms); },
   b64url(buf) { let s = ''; new Uint8Array(buf).forEach(b => { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
   setClient(id) { this.cid = (id || '').trim(); store.set('sp_cid', this.cid); },
@@ -460,14 +462,16 @@ const Sp = {
     this.saveTok(j);
   },
   async token() {
+    if (HOST) return HOST.token();
     if (!this.tok) { const e = new Error('nologin'); e.status = 401; throw e; }
     if (Date.now() > this.tok.exp - 60000) { if (!this.refreshing) this.refreshing = this.refresh().finally(() => { this.refreshing = null; }); await this.refreshing; }
     return this.tok.access;
   },
   async api(method, path, body, retry = 2) {
     const t = await this.token();
+    if (HOST) path = HOST.path(path);
     const r = await fetch('https://api.spotify.com/v1' + path, { method, headers: Object.assign({ Authorization: 'Bearer ' + t }, body ? { 'Content-Type': 'application/json' } : {}), body: body ? JSON.stringify(body) : undefined });
-    if (r.status === 401 && retry) { if (this.tok) this.tok.exp = 0; return this.api(method, path, body, retry - 1); }
+    if (r.status === 401 && retry) { if (this.tok) this.tok.exp = 0; if (HOST) await waitMs(500); return this.api(method, path, body, retry - 1); }
     if (r.status === 429 && retry) { await waitMs(Math.min(8, +(r.headers.get('Retry-After') || 1)) * 1000 + 200); return this.api(method, path, body, retry - 1); }
     if (r.status === 502 && retry) { await waitMs(600); return this.api(method, path, body, retry - 1); }
     if (r.status === 204 || r.status === 202) return null;
@@ -674,7 +678,9 @@ const Sp = {
     if (this.building && this.building.key === key) return this.building.p;
     const p = (async () => {
       let items;
-      if (src.startsWith('pl:')) items = await this.collect('/playlists/' + src.slice(3) + '/items?limit=50', it => it.item || it.track);
+      if (src.startsWith('pl:') && HOST && HOST.playlistItems) items = await HOST.playlistItems(src.slice(3), trackItem);
+      if (items) for (const it of items) this.byUri.set(it.uri, it);
+      else if (src.startsWith('pl:')) items = await this.collect('/playlists/' + src.slice(3) + '/items?limit=50', it => it.item || it.track);
       else {
         // la radio garde sa liste 12 h, pour ne pas tout rechercher à chaque ouverture
         const c = store.get('sp_pool', null);
@@ -2826,7 +2832,8 @@ const UI = {
     }
     head.appendChild(mk('span', 'lbl', (settings.src === 'radio' ? 'DRFT FM' : 'YOUR PLAYLISTS') + (Sp.user ? ' · ' + String(Sp.user).toUpperCase() : '')));
     const out = mk('button', 'btn ghost sm', 'DISCONNECT'); out.type = 'button'; out.addEventListener('click', () => Sp.logout());
-    head.appendChild(out); el.appendChild(head);
+    if (!HOST) head.appendChild(out);
+    el.appendChild(head);
     if (settings.src === 'playlist') {
       if (!Sp.playlists) { el.appendChild(mk('p', 'mini', 'Loading your playlists…')); return; }
       if (!Sp.playlists.length) { el.appendChild(mk('p', 'mini', 'No playlist of yours on this Spotify account. Create one in Spotify, then reopen this menu.')); return; }
@@ -2867,6 +2874,7 @@ function setSrc(src) { settings.src = src; settings.station = src === 'local' ? 
 /* les 3 choix : la radio, ta playlist, tes WAV */
 function pickSource(id, force) {
   $('#start').hidden = true;
+  if (HOST) id = 'playlist'; // le plugin n'a qu'une source : la radio DRFT
   if (id === 'local') {
     if (!Radio.files.length) { UI.toast('ADD YOUR WAVS FIRST'); setDrawer(true, 'music'); $('#dLib').open = true; return; }
     const same = settings.src === 'local' && Radio.cur && Radio.cur !== SpPlayer;
@@ -3171,6 +3179,7 @@ window.addEventListener('keydown', e => {
 window.addEventListener('dragover', e => { e.preventDefault(); });
 window.addEventListener('drop', e => {
   e.preventDefault();
+  if (HOST) return;
   const fs = e.dataTransfer && e.dataTransfer.files ? [...e.dataTransfer.files] : [];
   const auds = fs.filter(f => (f.type && f.type.startsWith('audio/')) || AUDIO_EXT.test(f.name));
   if (auds.length) addAudioFiles(auds); else UI.toast('DROP WAV FILES');
@@ -3184,6 +3193,7 @@ if (!['radio', 'playlist', 'local'].includes(settings.src)) {
   if (settings.src === 'playlist' && !Sp.plId) { Sp.plId = old.slice(3); store.set('sp_pl', Sp.plId); }
   saveSettings();
 }
+if (HOST) { settings.src = 'playlist'; settings.station = 'spotify'; }
 syncSource();
 Radio.station = settings.src === 'local' ? 'local' : 'spotify';
 if (typeof settings.xfade !== 'number') settings.xfade = 4;
