@@ -1,0 +1,9 @@
+{
+  "name": "DRFT",
+  "description": "A drum & bass radio inside Spotify: a curated playlist, shuffled and looping, with an endless pixel-art Tokyo night drive seen from the cockpit.",
+  "preview": "spicetify/preview.png",
+  "main": "spicetify/dist/drft.js",
+  "readme": "README.md",
+  "authors": [{ "name": "Studio Obsidienne", "url": "https://github.com/StudioObsidienne" }],
+  "tags": ["radio", "visualizer", "drum and bass"]
+}

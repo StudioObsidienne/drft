@@ -1,0 +1,15 @@
+<!doctype html>
+<!-- Pochette de la playlist DRFT : la route de nuit avec le titre, sans commandes.
+     Servir le dépôt en HTTP, puis capturer cette page en carré (voir README, Development). -->
+<html><head><meta charset="utf-8"><title>DRFT cover</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#05030f}iframe{width:100%;height:100%;border:0;display:block}</style></head>
+<body><iframe src="../../index.html"></iframe>
+<script>
+const fr = document.querySelector('iframe');
+fr.addEventListener('load', () => {
+  const d = fr.contentDocument, s = d.createElement('style');
+  s.textContent = '.corner,.hud,.panel,.toast,.start .acts,.start-tag{display:none!important}.start{pointer-events:none}';
+  d.head.appendChild(s);
+});
+</script>
+</body></html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<!-- Banc d'essai hors Spotify : un faux Spicetify minimal pour vérifier que l'extension démarre et pilote le lecteur.
+     Construire d'abord (node spicetify/build.mjs), puis ouvrir ce fichier via un serveur local. -->
+<html><head><meta charset="utf-8"><title>DRFT mock</title>
+<style>html,body{margin:0;height:100%;background:#111;color:#ccc;font:14px sans-serif}button{margin:12px}</style></head>
+<body><p>Fake Spotify client.</p>
+<script>
+const ev = {};
+let playing = false, pos = 0, vol = 0.8;
+const item = { uri: 'spotify:track:abc', name: 'Mock Track', artists: [{ name: 'Mock Artist', uri: 'spotify:artist:a1' }], duration: { milliseconds: 240000 } };
+const plTrack = i => ({ uri: 'spotify:track:t' + i, name: 'Track ' + i, isPlayable: true, isExplicit: false, duration: { milliseconds: 200000 + i }, artists: [{ name: 'Artist ' + (i % 7), uri: 'spotify:artist:ar' + (i % 7) }] });
+window.mockLog = [];
+window.topbarButtons = [];
+window.Spicetify = {
+  Topbar: { Button: function (label, icon, onClick) { const b = document.createElement('button'); b.textContent = label; b.onclick = onClick; document.body.appendChild(b); topbarButtons.push(b); } },
+  Platform: {
+    Session: { accessToken: 'mock-token' },
+    ConnectAPI: { state: { devices: [{ id: 'dev-local', isLocal: true }] } },
+    PlaylistAPI: { getContents: async uri => { mockLog.push('contents ' + uri); return { items: Array.from({ length: 30 }, (_, i) => plTrack(i)) }; } }
+  },
+  Queue: { nextTracks: [{ contextTrack: { uri: 'spotify:track:next', metadata: { title: 'Next One', artist_name: 'Someone' } } }], prevTracks: [] },
+  Player: {
+    data: { item },
+    addEventListener: (e, f) => { (ev[e] = ev[e] || []).push(f); },
+    removeEventListener: (e, f) => { ev[e] = (ev[e] || []).filter(x => x !== f); },
+    isPlaying: () => playing, getProgress: () => pos, getDuration: () => 240000,
+    getVolume: () => vol, setVolume: v => { vol = v; },
+    play: () => { playing = true; mockLog.push('play'); (ev.onplaypause || []).forEach(f => f()); },
+    pause: () => { playing = false; mockLog.push('pause'); (ev.onplaypause || []).forEach(f => f()); },
+    togglePlay() { playing ? this.pause() : this.play(); }, seek: ms => { pos = ms; mockLog.push('seek ' + ms); },
+    next: () => mockLog.push('next'), back: () => mockLog.push('back')
+  }
+};
+window.mockListeners = () => Object.fromEntries(Object.entries(ev).map(([k, v]) => [k, v.length]));
+window.drft = () => document.querySelector('#drft-layer iframe').contentWindow;
+</script>
+<script src="../dist/drft.js"></script>
+<script>if (location.hash === '#open') topbarButtons[0].click(); // ouvre DRFT d'emblée (captures)</script>
+</body></html>
