@@ -221,6 +221,7 @@ body.boot .hud,body.boot .corner{visibility:hidden}
 
     <div class="pane" data-pane="visual" role="tabpanel" aria-labelledby="tab-visual" hidden>
       <section><div class="lbl-row"><span class="lbl">MOOD</span><div class="seg" id="themeCycleSeg"></div></div><div class="tiles" id="themeTiles"></div></section>
+      <section><div class="lbl-row"><span class="lbl">DAY / NIGHT</span><div class="seg" id="daySeg"></div></div></section>
       <p class="mini">One endless night drive. Each mood sets the colours and the weather; they change slowly on their own.</p>
     </div>
 
@@ -259,6 +260,8 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
 const fract = x => x - Math.floor(x);
 const smooth = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+// départ rapide, léger dépassement, puis retour en place (mouvement de tête)
+const backOut = x => { x = clamp(x, 0, 1) - 1; return 1 + 2.2 * x * x * x + 1.2 * x * x; };
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function ih(n) { n = (n << 13) ^ n; n = (Math.imul(n, (Math.imul(Math.imul(n, n), 15731) + 789221) | 0) + 1376312589) & 0x7fffffff; return n / 2147483647; }
 function h1(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
@@ -1319,7 +1322,7 @@ const wa = a => 'rgba(255,255,255,' + clamp(a, 0, 1).toFixed(3) + ')';
 
 const settings = Object.assign({
   scene: 0, theme: 'nuit', themeCycle: '60', px: window.innerWidth < 700 ? 3 : 4, react: 1, weather: 1,
-  cycle: 'auto', vol: 0.8, station: 'spotify', xfade: 4
+  cycle: 'auto', vol: 0.8, station: 'spotify', xfade: 4, daycycle: 'off'
 }, store.get('settings', {}));
 if (!THEMES.some(t => t.id === settings.theme)) settings.theme = 'nuit';
 if (!['spotify', 'local'].includes(settings.station)) settings.station = 'spotify';
@@ -1328,8 +1331,8 @@ if (typeof settings.xfade !== 'number') settings.xfade = 4;
 function saveSettings() { store.set('settings', settings); }
 const themeById = id => THEMES.find(t => t.id === id) || THEMES[0];
 
-let themeTarget = themeById(settings.theme), themeTimer = 0, lastUIColor = 0;
-const ENV = { flash: 0 }, curCols = themeTarget.rgb.map(c => c.slice()), uiInk = themeTarget.inkRgb.slice();
+let themeTarget = themeById(settings.theme), themeTimer = 0, lastUIColor = 0, dayT0 = performance.now();
+const ENV = { flash: 0, day: 0 }, curCols = themeTarget.rgb.map(c => c.slice()), uiInk = themeTarget.inkRgb.slice();
 for (const k of ENV_KEYS) ENV[k] = themeTarget.env[k];
 let PAL32 = curCols.map(packRGB);
 function updateTheme(dt, now) {
@@ -1338,6 +1341,10 @@ function updateTheme(dt, now) {
   for (let i = 0; i < 4; i++) { for (let j = 0; j < 3; j++) curCols[i][j] = lerp(curCols[i][j], themeTarget.rgb[i][j], a); PAL32[i] = packRGB(curCols[i]); }
   for (let j = 0; j < 3; j++) uiInk[j] = lerp(uiInk[j], themeTarget.inkRgb[j], a);
   ENV.flash *= Math.exp(-dt * 7);
+  // cycle jour / nuit (option, nuit par défaut) : un tour en 20 minutes, en partant de la nuit
+  let day = 0;
+  if (settings.daycycle === 'on') { const ph = ((now - dayT0) / 1000 % 1200) / 1200; day = smooth(((0.5 - 0.5 * Math.cos(ph * Math.PI * 2)) - 0.35) / 0.5); }
+  ENV.day = lerp(ENV.day, day, 1 - Math.exp(-dt / 3));
   if (now - lastUIColor > 120) {
     lastUIColor = now;
     const st = document.documentElement.style, bg = curCols[0].map(Math.round), ink = uiInk.map(Math.round);
@@ -1366,13 +1373,14 @@ function resize() {
   for (const s of SCENES) if (s.resize) s.resize();
 }
 
-/* lumières colorées : gyrophares, feux arrière, LED du volant… elles gardent leur couleur, tramées en deux intensités */
+/* lumières colorées : gyrophares, feux arrière, LED du volant, néons… elles gardent leur couleur, tramées en deux intensités.
+   Six teintes : rouge, ambre, vert, bleu, rose et cyan (les deux dernières pour les néons de la ville) */
 // courbe de tons : les noirs de l'habitacle restent noirs, les gris de la route et du ciel remontent
 const TONE = new Float32Array(256); for (let i = 0; i < 256; i++) TONE[i] = Math.max(0, (Math.pow(i / 255, 0.62) - 0.12) * 1.16);
-const ACCENTS = [[255, 58, 48], [255, 164, 48], [96, 232, 128], [72, 128, 255]].map(c => [packRGB(c), packRGB(c.map(v => Math.round(v * 0.42)))]);
+const ACCENTS = [[255, 58, 48], [255, 164, 48], [96, 232, 128], [72, 128, 255], [255, 64, 200], [64, 228, 255]].map(c => [packRGB(c), packRGB(c.map(v => Math.round(v * 0.42)))]);
 function compose(srcA, srcB, mix, FR) {
   const W = V.W, H = V.H, pal = PAL32, L = pal.length - 1, out = OUT32, dis = DIS;
-  const bias = ENV.flash * 0.35;
+  const bias = ENV.flash * 0.35 + ENV.day * 0.16;
   for (let y = 0; y < H; y++) {
     const q = (y & 3) << 2, row = y * W;
     for (let x = 0; x < W; x++) {
@@ -1381,8 +1389,10 @@ function compose(srcA, srcB, mix, FR) {
       const r = src[j], g = src[j + 1], b = src[j + 2];
       const mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b), sat = mx - mn;
       if (sat > 44 && (sat - 44) * 0.011 > th) {
-        // teinte : rouge, ambre, vert ou bleu (un feu rouge sur fond gris reste rouge)
-        const k = r >= g && r >= b ? ((g - mn) > (r - mn) * 0.45 ? 1 : 0) : (g >= b ? 2 : 3);
+        // teinte : rouge, ambre, vert, bleu, rose ou cyan (un feu rouge sur fond gris reste rouge)
+        const k = r >= g && r >= b ? ((b - mn) > (r - mn) * 0.55 ? 4 : (g - mn) > (r - mn) * 0.45 ? 1 : 0)
+          : g >= b ? ((b - mn) > (g - mn) * 0.6 ? 5 : 2)
+          : (r - mn) > (b - mn) * 0.55 ? 4 : (g - mn) > (b - mn) * 0.6 ? 5 : 3;
         out[i] = ACCENTS[k][mx * 0.0039 > 0.5 + (th - 0.5) * 0.5 ? 0 : 1];
         continue;
       }
@@ -1512,10 +1522,11 @@ function glowTex(rgb) {
   g.addColorStop(0, 'rgba(' + rgb + ',1)'); g.addColorStop(0.22, 'rgba(' + rgb + ',0.55)'); g.addColorStop(0.55, 'rgba(' + rgb + ',0.14)'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
   x.fillStyle = g; x.fillRect(0, 0, 64, 64); return c;
 }
-const GT = { white: glowTex('255,255,255'), warm: glowTex('255,236,210'), red: glowTex('255,50,40'), amber: glowTex('255,160,40'), green: glowTex('80,235,120'), blue: glowTex('60,120,255') };
-// à appeler avec globalCompositeOperation = 'lighter'
-function gl(c, tex, x, y, r, a) { if (!(a > 0.004) || !(r > 0.2)) return; c.globalAlpha = Math.min(1, a); c.drawImage(tex, x - r, y - r, r * 2, r * 2); c.globalAlpha = 1; }
-const COL = { red: 'rgb(255,50,40)', redD: 'rgb(150,26,22)', amber: 'rgb(255,160,40)', amberD: 'rgb(140,84,20)', green: 'rgb(80,235,120)', greenD: 'rgb(30,120,60)', blue: 'rgb(60,120,255)', blueD: 'rgb(28,58,140)' };
+const GT = { white: glowTex('255,255,255'), warm: glowTex('255,236,210'), red: glowTex('255,50,40'), amber: glowTex('255,160,40'), green: glowTex('80,235,120'), blue: glowTex('60,120,255'), pink: glowTex('255,60,200'), cyan: glowTex('60,230,255') };
+// à appeler avec globalCompositeOperation = 'lighter' ; dehors, la brume élargit les halos (GLOW.fog, posé par drawWorld)
+const GLOW = { fog: 1 };
+function gl(c, tex, x, y, r, a) { if (!(a > 0.004) || !(r > 0.2)) return; r *= GLOW.fog; c.globalAlpha = Math.min(1, a); c.drawImage(tex, x - r, y - r, r * 2, r * 2); c.globalAlpha = 1; }
+const COL = { red: 'rgb(255,50,40)', redD: 'rgb(150,26,22)', amber: 'rgb(255,160,40)', amberD: 'rgb(140,84,20)', green: 'rgb(80,235,120)', greenD: 'rgb(30,120,60)', blue: 'rgb(60,120,255)', blueD: 'rgb(28,58,140)', pink: 'rgb(255,60,200)', pinkD: 'rgb(140,30,110)', cyan: 'rgb(60,230,255)', cyanD: 'rgb(24,110,130)' };
 
 /* police bitmap 3x5 : le texte du tableau de bord reste net en pixels */
 const FONT5 = {
@@ -1543,7 +1554,8 @@ const SEG = 4;
 const BIOMES = {
   highway: { len: [1700, 2600], w: 6.2, lanes: 3, k: 1 / 650, kScale: 520, hill: 4, hScale: 700, v: 255, lamps: 32, traffic: 7 },
   tunnel:  { len: [650, 1100], w: 4.4, lanes: 2, k: 1 / 900, kScale: 600, hill: 1, hScale: 900, v: 245, lamps: 8, traffic: 4 },
-  touge:   { len: [1800, 2600], w: 3.5, lanes: 2, k: 1 / 55, kScale: 75, hill: 16, hScale: 260, v: 150, lamps: 0, traffic: 0 },
+  touge:   { len: [1800, 2600], w: 3.5, lanes: 2, k: 1 / 55, kScale: 75, hill: 16, hScale: 260, v: 150, lamps: 0, traffic: 0, hair: 1 },
+  forest:  { len: [1300, 2000], w: 3.6, lanes: 2, k: 1 / 140, kScale: 150, hill: 9, hScale: 320, v: 175, lamps: 0, traffic: 1 },
   city:    { len: [1200, 1900], w: 5.0, lanes: 2, k: 1 / 400, kScale: 300, hill: 2, hScale: 500, v: 165, lamps: 28, traffic: 6 },
   bridge:  { len: [900, 1400], w: 6.2, lanes: 3, k: 1 / 2500, kScale: 800, hill: 0, hScale: 900, v: 250, lamps: 24, traffic: 6 },
   coast:   { len: [1500, 2300], w: 3.9, lanes: 2, k: 1 / 180, kScale: 160, hill: 7, hScale: 380, v: 200, lamps: 0, traffic: 2 }
@@ -1566,7 +1578,7 @@ const Road = {
       if (last.type !== 'tunnel' && ih(this.seed + n * 5) < 0.4) type = 'tunnel';
       else {
         if (!this.bag || !this.bag.length) {
-          const r = mulberry32(this.seed + n * 101); this.bag = ['highway', 'touge', 'city', 'bridge', 'coast'];
+          const r = mulberry32(this.seed + n * 101); this.bag = ['highway', 'touge', 'city', 'bridge', 'coast', 'forest'];
           for (let i = this.bag.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [this.bag[i], this.bag[j]] = [this.bag[j], this.bag[i]]; }
           if (this.bag[this.bag.length - 1] === this.lastMain) this.bag.unshift(this.bag.pop());
         }
@@ -1588,7 +1600,16 @@ const Road = {
     else if (e.s1 - s < X / 2 && idx < this.plan.length - 1) { const nx = this.plan[idx + 1], w = smooth(0.5 - (e.s1 - s) / X); v = lerp(v, f(BIOMES[nx.type], nx), w); }
     return v;
   },
-  curv(s) { return this.blend(s, b => b.k * clamp(fbm(s / b.kScale, this.seed + 1) * 1.6, -1, 1)); },
+  curv(s) { return this.blend(s, b => b.k * clamp(fbm(s / b.kScale, this.seed + 1) * 1.6, -1, 1) + (b.hair ? this.hairpin(s) : 0)); },
+  /* épingles du col : environ une tous les 560 m (une case sur trois n'en a pas), un demi-tour serré sur ~50 m */
+  hairpin(s) {
+    const P = 560, cell = Math.floor(s / P);
+    if (ih(this.seed + cell * 71) > 0.66) return 0;
+    const d = s - (cell * P + 180 + ih(this.seed + cell * 31) * 200), W = 26;
+    if (Math.abs(d) >= W) return 0;
+    const u = Math.cos(d / W * Math.PI / 2);
+    return (ih(this.seed + cell * 53) < 0.5 ? -1 : 1) * u * u / 9;
+  },
   height(s) { return this.blend(s, b => b.hill * fbm(s / b.hScale, this.seed + 2)); },
   width(s) { return this.blend(s, b => b.w); },
   // nombre de voies « continu » : aux changements, les voies restantes glissent sans saut
@@ -1620,9 +1641,13 @@ const Road = {
       for (let k = 0; k < 3; k++) if (r(10 + k) < 0.55) { const sd = r(20 + k) < 0.5 ? -1 : 1; out.push({ t: 'tree', x: sd * (w + 2.5 + r(30 + k) * 22), h: 7 + r(40 + k) * 9 }); }
       if (i % 3 === 0) for (const sd of [-1, 1]) out.push({ t: 'post', x: sd * (w + 0.7) });
       if (r(5) < 0.004) out.push({ t: 'vending', x: (w + 3.2) * (r(6) < 0.5 ? -1 : 1) });
+    } else if (type === 'forest') {
+      // forêt dense : les arbres serrent la route des deux côtés
+      for (let k = 0; k < 5; k++) if (r(10 + k) < 0.75) { const sd = r(20 + k) < 0.5 ? -1 : 1; out.push({ t: 'tree', x: sd * (w + 1.6 + r(30 + k) * 14), h: 9 + r(40 + k) * 12 }); }
+      if (i % 4 === 0) for (const sd of [-1, 1]) out.push({ t: 'post', x: sd * (w + 0.7) });
     } else if (type === 'city') {
       for (const sd of [-1, 1]) if (i % 4 === 0 && r(sd + 50) < 0.85) out.push({ t: 'bldg', x: sd * (w + 5 + r(sd + 60) * 6), sd, h: 12 + r(sd + 70) * 46, d: 10 + r(sd + 80) * 16, seed: i * 3 + sd });
-      for (const sd of [-1, 1]) if (r(sd + 90) < 0.09) out.push({ t: 'neon', x: sd * (w + 3.6), sd, h: 4 + r(sd + 95) * 7, txt: NEON[Math.floor(r(sd + 99) * NEON.length)], col: ['red', 'blue', 'green', 'amber'][Math.floor(r(sd + 97) * 4)] });
+      for (const sd of [-1, 1]) if (r(sd + 90) < 0.09) out.push({ t: 'neon', x: sd * (w + 3.6), sd, h: 4 + r(sd + 95) * 7, txt: NEON[Math.floor(r(sd + 99) * NEON.length)], col: ['red', 'blue', 'green', 'amber', 'pink', 'cyan'][Math.floor(r(sd + 97) * 6)] });
       if (i % 60 === 0) out.push({ t: 'signal', col: r(7) < 0.5 ? 'green' : 'amber' }, { t: 'zebra' });
     } else if (type === 'bridge') {
       if (i % 110 === 30) out.push({ t: 'tower' });
@@ -1641,15 +1666,43 @@ const SceneDrive = {
   name: 'Night drive', jp: '夜走', indoor: true,
   S: 0, v: 62, gear: 5, rpm: 6000, shiftT: 0, lane: 0, camX: 0, camXV: 0, heading: 0, steer: 0, gLat: 0, pitchV: 0, bump: 0, lapT: 0, last: 0,
   traffic: [], drops: [], streaks: [], flakes: [], wiper: { a: -0.95, phase: 0, t: 0 }, lb: null, pol: 0, boostT: -1e9, offA: null, offB: null, mirrorLight: 0,
+  // poursuite : heat = proximité de la police (0 loin, 1 collée), next = prochain regard en arrière
+  chase: { heat: 0.1, next: 0 }, lookN: 0, shiftX: 0, sirenT: -1e9, glance: 0,
+  // séquence anime : ralenti / arrêt sur image (timeK = vitesse du temps du monde), dérive, étincelles, fumée
+  anime: null, animeCool: 0, timeK: 1, driftYaw: 0, sparks: [], smoke: [],
+  // tableau de bord : tour (distance), vitesse moyenne de référence, affichages lissés
+  lapS: 0, vAvg: 0, kmhD: 0, deltaD: 0,
   resize() {
     for (const k of ['offA', 'offB']) { const c = document.createElement('canvas'); c.width = V.W; c.height = V.H; this[k] = c; this[k + 'x'] = c.getContext('2d'); }
   },
-  /* appelée à chaque nouveau morceau : le pilote se retourne */
-  lookBack() { if (this.lb) return; this.lb = { t: 0 }; this.pol = 0; },
+  /* le pilote se retourne : à chaque nouveau morceau, et de temps en temps pendant la route.
+     Trois regards qui alternent : par-dessus l'épaule droite, l'épaule gauche, ou un coup d'œil au rétroviseur.
+     À chaque regard la police est un peu plus près ; quand elle est collée, il la sème. */
+  lookBack(kind) {
+    if (this.lb || this.anime) return;
+    kind = kind || ['right', 'left', 'mirror'][this.lookN++ % 3];
+    this.lb = { t: 0, kind, dur: kind === 'mirror' ? 1.9 : 3.8 }; this.pol = 0;
+    this.chase.heat = Math.min(1, this.chase.heat + 0.18);
+    this.chase.next = performance.now() + 38000 + Math.random() * 32000;
+  },
+  endLook(now) {
+    const kind = this.lb.kind; this.lb = null;
+    this.sirenT = now;
+    if (kind === 'mirror') return;
+    // il a vu la police : il accélère ; si elle était tout près, il la sème
+    this.boostT = now; this.gear = Math.max(3, this.gear - 1); this.shiftT = now;
+    if (this.chase.heat >= 0.95) this.chase.heat = 0.12;
+  },
+  /* gyrophares : intensité (regard en arrière, reflets qui s'estompent, ou police proche) et phase rouge / bleu */
+  siren(now) {
+    const ph = now * 0.0075, h = this.chase.heat;
+    return { I: Math.max(this.policeFade(now), h > 0.3 ? (h - 0.3) * 0.45 : 0, this.lb ? 0.6 : 0), L: Math.max(0, Math.sin(ph)), R: Math.max(0, Math.sin(ph + Math.PI)) };
+  },
+  policeDist() { return lerp(160, 38, this.chase.heat); },
   view(ctx) {
     const ox = Math.floor((V.W - VW) / 2);
     this.XL = -ox - 30; this.XR = V.W - ox + 30;
-    ctx.setTransform(1, 0, 0, 1, ox, 0);
+    ctx.setTransform(1, 0, 0, 1, ox + this.shiftX, 0);
   },
   XL: -30, XR: 350,
   /* géométrie locale autour de la voiture : centre de la route, cap, hauteur, à chaque segment */
@@ -1684,9 +1737,11 @@ const SceneDrive = {
     Road.extend(S + 6000);
     // vitesse cible : le paysage, la musique (WAV) ou la conduite simulée, les virages à venir, le boost après la police
     let kMax = 0; for (let d = 20; d <= 160; d += 10) kMax = Math.max(kMax, Math.abs(Road.curv(S + d)) * (1 - d / 240));
-    const vCurve = kMax > 0 ? Math.sqrt(11.5 / kMax) : 999;
+    // météo : sous la pluie l'adhérence baisse (virages plus lents), et on roule plus doucement sous la pluie et dans la brume
+    const wet = clamp(ENV.rain * settings.weather, 0, 1), fogD = clamp(ENV.fog * settings.weather, 0, 1);
+    const vCurve = kMax > 0 ? Math.sqrt(11.5 * (1 - 0.25 * wet) / kMax) : 999;
     const boost = clamp(1 - (now - this.boostT) / 14000, 0, 1);
-    let target = Math.min(b.v / 3.6 * (0.88 + 0.22 * (F.drive != null ? F.drive : 0.5)), vCurve) + boost * 17;
+    let target = Math.min(b.v / 3.6 * (0.88 + 0.22 * (F.drive != null ? F.drive : 0.5)) * (1 - 0.14 * wet - 0.08 * fogD), vCurve) + boost * 17 * (1 - 0.4 * wet);
     // péage : on ralentit pour passer sous la barrière ETC
     const toll = this.tollAt(S, 160);
     if (toll != null) target = Math.min(target, lerp(85, 260, smooth((toll - 40) / 120)) / 3.6);
@@ -1772,6 +1827,16 @@ const SceneDrive = {
     const acc = target > this.v ? (4.8 * (1 - this.v / 100) + boost * 3) : (lead && lead.d < safe ? -11 : -8.5);
     this.v = clamp(this.v + clamp(target - this.v, -Math.abs(acc) * dt, Math.abs(acc) * dt), 8, 95);
     this.S += this.v * dt; this.lapT += dt;
+    // tour de 2,6 km : chrono, et écart en direct avec le rythme moyen de la voiture au même point du tour
+    // (le parcours change à chaque tour : un « meilleur tour » ne serait pas comparable)
+    const LAP = 2600;
+    this.lapS += this.v * dt;
+    if (this.lapS >= LAP) { this.lapT = 0; this.lapS -= LAP; }
+    this.vAvg = lerp(this.vAvg || this.v, this.v, 1 - Math.exp(-dt / 90));
+    this.deltaD = lerp(this.deltaD, this.lapT - this.lapS / Math.max(5, this.vAvg), 1 - Math.exp(-dt * 3));
+    this.kmhD = lerp(this.kmhD || this.v * 3.6, this.v * 3.6, 1 - Math.exp(-dt * 10));
+    // petites routes : bosses irrégulières
+    if ((type === 'touge' || type === 'forest' || type === 'coast') && Math.random() < dt * this.v * 0.012) this.bump += (Math.random() - 0.3) * 0.5 * (this.v / 40);
     // garde-fous : on ne touche jamais personne
     for (const c of this.traffic) {
       if (Math.abs(c.x - this.camX) > 2.2) continue;
@@ -1820,52 +1885,120 @@ const SceneDrive = {
     if (!Road.plan.length) Road.init();
     if (!this.offA || this.offA.width !== V.W || this.offA.height !== V.H) this.resize();
     dt = Math.min(dt, 0.05);
-    this.update(dt, F);
-    this.weather(dt, t);
+    const now = performance.now();
+    // la police : on se retourne de temps en temps, en plus de chaque nouveau morceau
+    if (!this.chase.next) this.chase.next = now + 22000 + Math.random() * 10000;
+    if (!this.lb && !this.anime && now > this.chase.next) this.lookBack();
+    // le temps du monde ralentit (et s'arrête un instant) pendant les séquences anime ; le reste suit le temps réel
+    this.animeStep(dt, now);
+    const dtW = dt * this.timeK;
+    this.update(dtW, F);
+    this.weather(dtW, t);
     const lb = this.lb;
-    let pan = 0;
+    let pan = 0, os = 0;
     if (lb) {
-      lb.t += dt;
+      lb.t += dt; this.pol = lb.t;
       const T = lb.t;
-      if (T < 0.55) pan = smooth(T / 0.55); else if (T < 3.35) pan = 1; else if (T < 3.9) pan = 1 - smooth((T - 3.35) / 0.55); else { this.lb = null; this.boostT = performance.now(); this.gear = Math.max(3, this.gear - 1); this.shiftT = performance.now(); }
-      this.pol = T;
+      if (lb.kind !== 'mirror') {
+        // tête qui tourne : départ rapide, léger dépassement, tenue, puis retour avec le même petit dépassement
+        const In = 0.6, Out = 0.6, Hold = lb.dur - In - Out;
+        const e = T < In ? backOut(T / In) : T < In + Hold ? 1 : 1 - backOut((T - In - Hold) / Out);
+        pan = clamp(e, 0, 1); os = e - pan;
+      }
+      if (T >= lb.dur) this.endLook(now);
     }
     c.setTransform(1, 0, 0, 1, 0, 0);
-    if (pan <= 0.001) { this.drawFront(c, t, dt, F); return; }
-    if (pan >= 0.999) { this.drawRear(c, t); return; }
-    // panoramique filé, comme un mouvement de tête rapide
-    this.drawFront(this.offAx, t, dt, F); this.drawRear(this.offBx, t);
-    const W = V.W, H = V.H, off = pan * W * 1.08;
+    const side = lb && lb.kind === 'left' ? -1 : 1;
+    // le dépassement : la vue continue un peu sur sa lancée avant de se poser
+    this.shiftX = -os * side * V.W * 0.5;
+    if (lb && lb.kind === 'mirror') { this.drawGlance(c, t, dt, F, lb.t, lb.dur); this.shiftX = 0; return; }
+    if (pan <= 0.001) { this.drawFront(c, t, dt, F); this.shiftX = 0; return; }
+    if (pan >= 0.999) { this.drawRear(c, t, side); this.shiftX = 0; return; }
+    // panoramique filé, comme un mouvement de tête rapide (vers la droite ou vers la gauche)
+    this.drawFront(this.offAx, t, dt, F); this.drawRear(this.offBx, t, side);
+    this.shiftX = 0;
+    const W = V.W, H = V.H, off = pan * W * 1.08 * side;
     c.fillStyle = gs(0); c.fillRect(0, 0, W, H);
     for (let k = 3; k >= 0; k--) {
       c.globalAlpha = k ? 0.22 : 1;
-      c.drawImage(this.offA, -off + k * W * 0.035, 0); c.drawImage(this.offB, W * 1.08 - off + k * W * 0.035, 0);
+      const tr = k * W * 0.035 * side;
+      c.drawImage(this.offA, -off + tr, 0); c.drawImage(this.offB, side * W * 1.08 - off + tr, 0);
     }
     c.globalAlpha = 1;
     c.fillStyle = 'rgba(255,255,255,0.18)';
     for (let i = 0; i < 18; i++) { const y = ih(i * 7 + Math.floor(t / 60)) * H; c.fillRect(0, y | 0, W, 1); }
   },
+  /* coup d'œil au rétroviseur : le regard monte vers le miroir (zoom en pixels entiers, sans lissage), puis revient */
+  drawGlance(c, t, dt, F, T, dur) {
+    const g = T < 0.35 ? backOut(T / 0.35) : T < dur - 0.4 ? 1 : 1 - smooth((T - (dur - 0.4)) / 0.4);
+    this.glance = clamp(g, 0, 1.1);
+    this.drawFront(this.offAx, t, dt, F);
+    const ox = Math.floor((V.W - VW) / 2), mx = 292 + ox, my = 10, z = 1 + 0.6 * g;
+    // le regard monte vers le rétro, sans jamais sortir de l'image (sur un écran étroit, le rétro est au bord)
+    const e = clamp(mx - mx * z + g * (V.W * 0.5 - mx) * 0.75, V.W * (1 - z), 0), f = clamp(my - my * z + g * (V.H * 0.3 - my) * 0.75, V.H * (1 - z), 0);
+    c.fillStyle = gs(0); c.fillRect(0, 0, V.W, V.H);
+    c.imageSmoothingEnabled = false;
+    c.setTransform(z, 0, 0, z, e, f); c.drawImage(this.offA, 0, 0);
+    c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = true;
+    this.glance = 0;
+  },
+  /* séquences « anime » : sur certaines épingles du col (route sèche), dérive exagérée.
+     Ralenti à l'entrée, arrêt sur image avec éclair, puis la voiture glisse dans l'épingle et réaccélère.
+     Une à la fois, au plus une toutes les 70 s : elles restent ponctuelles. */
+  animeStep(dt, now) {
+    const a = this.anime;
+    if (!a) {
+      this.timeK = lerp(this.timeK, 1, 1 - Math.exp(-dt * 4)); this.driftYaw = lerp(this.driftYaw, 0, 1 - Math.exp(-dt * 3));
+      if (this.lb || now < this.animeCool || Road.typeAt(this.S) !== 'touge' || ENV.rain * settings.weather > 0.5) return;
+      for (let d = 25; d <= 60; d += 5) {
+        const k = Road.curv(this.S + d);
+        if (Math.abs(k) > 0.075) { this.anime = { t: 0, w: 0, dir: Math.sign(k), dur: 4.4, slip: 0 }; this.animeCool = now + 70000; this.sparks = []; this.smoke = []; break; }
+      }
+      return;
+    }
+    a.t += dt; a.w += dt * this.timeK;
+    const T = a.t;
+    this.timeK = T < 0.3 ? lerp(1, 0.25, smooth(T / 0.3)) : T < 0.75 ? 0.05 : T < 1.6 ? lerp(0.05, 1, smooth((T - 0.75) / 0.85)) : 1;
+    a.slip = T < 0.75 ? smooth(T / 0.75) * 0.6 : T < 3.2 ? lerp(0.6, 1, smooth((T - 0.75) / 0.8)) : 1 - smooth((T - 3.2) / 1.2);
+    // le nez de la voiture rentre dans le virage : le regard tourne vers l'intérieur
+    this.driftYaw = a.dir * 0.3 * a.slip;
+    if (T > a.dur) { this.anime = null; this.boostT = now; this.shiftT = now; }
+  },
   /* ---------- vue avant ---------- */
   drawFront(c, t, dt, F) {
     const sx = (vnoise(t * 0.011, 4) * 0.5 + vnoise(t * 0.031, 5) * 0.25) * (0.25 + this.v / 95 * 0.8);
     const fast = smooth((this.v - 55) / 35), hf = vnoise(t * 0.09, 12) * 0.35 * fast;
-    const sy = (vnoise(t * 0.013, 6) * 0.5 + vnoise(t * 0.037, 8) * 0.3) * (0.3 + this.v / 95 * 0.9) + this.bump + hf + clamp((this.accel || 0) * 0.32, -3, 2);
-    const lean = -this.gLat * 0.18, roll = clamp(this.gLat * 0.0035, -0.06, 0.06);
+    // vibration du moteur (fine, suit le régime), bosses, tangage à l'accélération et au freinage
+    const eng = vnoise(t * 0.21, 23) * 0.22 * (this.rpm / 8600);
+    const sy = (vnoise(t * 0.013, 6) * 0.5 + vnoise(t * 0.037, 8) * 0.3) * (0.3 + this.v / 95 * 0.9) + this.bump + hf + eng + clamp((this.accel || 0) * 0.32, -3, 2);
+    // en dérive anime, la caisse penche plus et tremble
+    const slip = this.anime ? this.anime.slip : 0, ad = this.anime ? this.anime.dir : 0;
+    const lean = -this.gLat * 0.18 + ad * slip * (vnoise(t * 0.05, 31) * 1.5), roll = clamp(this.gLat * 0.0035, -0.06, 0.06) + ad * slip * 0.06;
     this.view(c);
     c.save();
     c.translate(sx + lean, sy);
     c.translate(160, 40); c.rotate(roll); c.translate(-160, -40);
     this.drawWorld(c, t, 1);
+    // gyrophares derrière nous : la lumière rouge puis bleue se reflète sur la route, bien plus sur route mouillée
+    const sr = this.siren(performance.now());
+    if (sr.I > 0.02) {
+      const wet = clamp(ENV.rain * settings.weather, 0, 1);
+      c.globalCompositeOperation = 'lighter';
+      gl(c, GT.red, 100, 84, 70, sr.I * sr.L * (0.1 + 0.32 * wet)); gl(c, GT.blue, 220, 84, 70, sr.I * sr.R * (0.1 + 0.32 * wet));
+      c.globalCompositeOperation = 'source-over';
+    }
     // œil qui s'habitue : sombre en entrant dans un tunnel, éblouissement en sortant
     const ex = this.expo || 0;
     if (ex < -0.02) { c.fillStyle = 'rgba(0,0,0,' + Math.min(0.75, -ex).toFixed(3) + ')'; c.fillRect(this.XL, -20, this.XR - this.XL, 120); }
     else if (ex > 0.02) { c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,255,255,' + Math.min(0.6, ex * 0.55).toFixed(3) + ')'; c.fillRect(this.XL, -20, this.XR - this.XL, 120); c.globalCompositeOperation = 'source-over'; }
-    // au boost, de fines lignes de vitesse filent sur les bords du pare-brise
+    // au boost, de fines lignes de vitesse filent sur les bords du pare-brise ;
+    // à haute vitesse, un flou de vitesse discret ne garde que les bords gauche et droit
     const bst = clamp(1 - (performance.now() - this.boostT) / 9000, 0, 1) * smooth((this.v - 60) / 25);
-    if (bst > 0.05) {
-      c.strokeStyle = 'rgba(255,255,255,' + (0.35 * bst).toFixed(3) + ')'; c.lineWidth = 0.6; c.beginPath();
+    const edge = smooth((this.v * 3.6 - 150) / 70) * 0.45, amt = Math.max(bst, edge), lim = bst >= edge ? 0.45 : 0.8;
+    if (amt > 0.05) {
+      c.strokeStyle = 'rgba(255,255,255,' + (0.35 * amt).toFixed(3) + ')'; c.lineWidth = 0.6; c.beginPath();
       const fr = Math.floor(t / 70);
-      for (let i = 0; i < 26; i++) { const a = ih(i * 13 + fr * 7) * Math.PI * 2, r0 = 70 + ih(i * 3 + fr) * 50, r1 = r0 + 30 + ih(i * 5 + fr) * 50; if (Math.abs(Math.cos(a)) < 0.45) continue; c.moveTo(160 + Math.cos(a) * r0, 40 + Math.sin(a) * r0 * 0.5); c.lineTo(160 + Math.cos(a) * r1, 40 + Math.sin(a) * r1 * 0.5); }
+      for (let i = 0; i < 26; i++) { const a = ih(i * 13 + fr * 7) * Math.PI * 2, r0 = 70 + ih(i * 3 + fr) * 50, r1 = r0 + 30 + ih(i * 5 + fr) * 50; if (Math.abs(Math.cos(a)) < lim) continue; c.moveTo(160 + Math.cos(a) * r0, 40 + Math.sin(a) * r0 * 0.5); c.lineTo(160 + Math.cos(a) * r1, 40 + Math.sin(a) * r1 * 0.5); }
       c.stroke();
     }
     c.restore();
@@ -1875,20 +2008,50 @@ const SceneDrive = {
     this.drawCockpit(c, t);
     c.restore();
     this.view(c);
+    if (this.anime) this.drawAnimeFx(c, t, dt);
     this.vignette(c);
     c.setTransform(1, 0, 0, 1, 0, 0);
   },
+  /* effets anime : éclair et lignes de vitesse façon manga, étincelles et fumée des pneus côté extérieur du virage */
+  drawAnimeFx(c, t, dt) {
+    const a = this.anime, T = a.t, dW = dt * this.timeK, out = -a.dir;
+    // côté extérieur : la fumée et les étincelles entrent par le bas du pare-brise, de ce côté
+    const ex = out > 0 ? 292 : 28;
+    if (a.slip > 0.4 && this.timeK > 0.2) {
+      if (Math.random() < dW * 40) this.smoke.push({ x: ex + (Math.random() - 0.5) * 20, y: 92, r: 6, life: 1, vx: out * (6 + Math.random() * 10), vy: -4 - Math.random() * 6 });
+      for (let n = 0; n < 3; n++) if (Math.random() < dW * 60) this.sparks.push({ x: ex - out * 10 + Math.random() * 6, y: 78 + Math.random() * 8, vx: out * (30 + Math.random() * 60), vy: -10 - Math.random() * 30, life: 0.3 + Math.random() * 0.4 });
+    }
+    for (const s of this.smoke) { s.x += s.vx * dW; s.y += s.vy * dW; s.r += dW * 22; s.life -= dW * 0.45; }
+    for (const s of this.sparks) { s.x += s.vx * dW; s.y += s.vy * dW; s.vy += 140 * dW; s.life -= dW; }
+    this.smoke = this.smoke.filter(s => s.life > 0).slice(-40); this.sparks = this.sparks.filter(s => s.life > 0).slice(-120);
+    for (const s of this.smoke) { c.globalCompositeOperation = 'lighter'; gl(c, GT.white, s.x, s.y, s.r, 0.22 * s.life); c.globalCompositeOperation = 'source-over'; }
+    c.globalCompositeOperation = 'lighter';
+    for (const s of this.sparks) { c.fillStyle = COL.amber; c.fillRect(s.x | 0, s.y | 0, 1, 1); c.fillStyle = 'rgba(255,160,40,0.45)'; c.fillRect((s.x - s.vx * 0.02) | 0, (s.y - s.vy * 0.02) | 0, 1, 1); }
+    // lignes de vitesse : figées pendant l'arrêt sur image, elles filent ensuite
+    const amt = T < 0.75 ? 1 : a.slip * 0.8;
+    if (amt > 0.05) {
+      c.strokeStyle = 'rgba(255,255,255,' + (0.45 * amt).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath();
+      const fr = Math.floor(a.w / 0.06);
+      for (let i = 0; i < 44; i++) { const an = ih(i * 17 + fr * 5) * Math.PI * 2, r0 = 55 + ih(i * 7 + fr) * 60, r1 = r0 + 40 + ih(i * 3 + fr) * 70; c.moveTo(160 + Math.cos(an) * r0, 45 + Math.sin(an) * r0 * 0.55); c.lineTo(160 + Math.cos(an) * r1, 45 + Math.sin(an) * r1 * 0.55); }
+      c.stroke();
+    }
+    // éclair blanc au moment de l'arrêt sur image
+    if (T > 0.3 && T < 0.45) { c.fillStyle = 'rgba(255,255,255,' + (0.6 * (1 - (T - 0.3) / 0.15)).toFixed(3) + ')'; c.fillRect(this.XL, -20, this.XR - this.XL, VH + 40); }
+    c.globalCompositeOperation = 'source-over';
+  },
   /* ---------- vue arrière (pendant qu'il se retourne) ---------- */
-  drawRear(c, t) {
+  drawRear(c, t, side) {
     this.view(c);
-    const T = this.pol, sx = vnoise(t * 0.006, 9) * 1.6, sy = vnoise(t * 0.008, 10) * 1.2 + vnoise(t * 0.03, 11) * 0.4;
+    const T = this.pol, sx = vnoise(t * 0.006, 9) * 1.6 + (side || 1) * 6, sy = vnoise(t * 0.008, 10) * 1.2 + vnoise(t * 0.03, 11) * 0.4;
     c.save(); c.translate(sx, sy);
-    // la police au loin : elle se rapproche un peu pendant qu'on la regarde
-    const dist = 125 - clamp(T, 0, 3.5) * 9;
+    // la police : plus près à chaque regard, et elle gagne encore un peu pendant qu'on la regarde
+    const dist = Math.max(30, this.policeDist() - clamp(T, 0, 3.5) * 6);
     this._pc = c;
     this.drawWorld(c, t, -1, (P, pts) => this.policeItem(P, pts, t, dist));
     c.restore();
-    this.drawRearCabin(c, t);
+    // par-dessus l'épaule gauche : l'habitacle est vu de l'autre côté (siège à droite)
+    if (side < 0) { c.save(); c.translate(320, 0); c.scale(-1, 1); this.drawRearCabin(c, t); c.restore(); }
+    else this.drawRearCabin(c, t);
     this.vignette(c);
     c.setTransform(1, 0, 0, 1, 0, 0);
   },
@@ -1898,9 +2061,10 @@ const SceneDrive = {
     const type = Road.typeAt(S), camY = Road.height(S) + h;
     // tangage : la caméra suit la pente dans le sens où elle regarde
     const slope = (Road.height(S + 6 * dir) - Road.height(S)) / 6;
-    const yaw = dir > 0 ? (this.yaw || 0) : 0;
+    const yaw = dir > 0 ? (this.yaw || 0) + this.driftYaw : 0;
     const cy = Math.cos(yaw), sy = Math.sin(yaw), camX = this.camX;
     const fog = clamp(ENV.fog * settings.weather, 0, 1.2), rain = clamp(ENV.rain * settings.weather, 0, 2);
+    GLOW.fog = 1 + fog * 0.9;
     const P = (p, L, yy) => {
       let rx = p.x + L * Math.cos(p.phi) - camX, rz = p.z - L * Math.sin(p.phi);
       if (dir < 0) { rx = -rx; rz = -rz; }
@@ -1957,31 +2121,32 @@ const SceneDrive = {
         c.globalCompositeOperation = 'source-over';
       }
     }
+    GLOW.fog = 1;
   },
   drawSky(c, t, dir, type, hz) {
     const glowAmt = type === 'city' ? 0.16 : type === 'highway' || type === 'bridge' ? 0.1 : 0.06;
     const g = c.createLinearGradient(0, -10, 0, hz + 2);
-    const top = 0.012 + ENV.sun * 0.05, bot = 0.06 + glowAmt * (0.7 + ENV.glow * 0.7) + ENV.sun * 0.18 + ENV.flash * 0.45;
+    const top = 0.012 + ENV.sun * 0.05 + ENV.day * 0.3, bot = 0.06 + glowAmt * (0.7 + ENV.glow * 0.7) + ENV.sun * 0.18 + ENV.flash * 0.45 + ENV.day * 0.4;
     g.addColorStop(0, gs(top + ENV.flash * 0.2)); g.addColorStop(1, gs(bot));
     c.fillStyle = g; c.fillRect(this.XL, -20, (this.XR - this.XL), hz + 22);
     if (type === 'tunnel') return;
-    const par = (this.heading * dir) * 165, star = ENV.stars * (1 - ENV.cloud * 0.85) * (type === 'city' ? 0.3 : 1);
+    const par = (this.heading * dir) * 165, star = ENV.stars * (1 - ENV.cloud * 0.85) * (type === 'city' ? 0.3 : 1) * (1 - ENV.day);
     if (star > 0.03) for (const st of STARS) {
       const x = ((st.x * 900 - par * 0.98) % 900 + 900) % 900 - 290; if (x < -5 || x > VW + 5) continue;
       const y = st.y * (hz - 6); const b = (0.15 + 0.5 * (0.5 + 0.5 * Math.sin(t * 0.0017 + st.p))) * star * (0.4 + st.s * 0.6);
       c.fillStyle = gs(b); c.fillRect(x | 0, y | 0, 1, 1);
     }
     // à l'aube : le soleil se lève sur l'horizon
-    if (ENV.sun > 0.25 && type !== 'city') {
-      const sx2 = ((420 - par * 0.9) % 1400 + 1400) % 1400 - 540, rise = ENV.sun;
+    if (Math.max(ENV.sun, ENV.day) > 0.25 && type !== 'city') {
+      const sx2 = ((420 - par * 0.9) % 1400 + 1400) % 1400 - 540, rise = Math.max(ENV.sun, ENV.day);
       if (sx2 > this.XL - 40 && sx2 < this.XR + 40) {
         c.globalCompositeOperation = 'lighter'; gl(c, GT.amber, sx2, hz, 70 * rise, 0.35 * rise); gl(c, GT.warm, sx2, hz - 2, 26, 0.4 * rise); c.globalCompositeOperation = 'source-over';
         c.fillStyle = gs(0.9); c.beginPath(); c.arc(sx2, hz + 1, 7 * rise, Math.PI, 0); c.fill();
         c.fillStyle = 'rgba(255,255,255,0.35)'; for (let i = 0; i < 4; i++) c.fillRect(sx2 - 14 + i * 2, hz + 3 + i * 2, 28 - i * 4, 0.7);
       }
     }
-    // lune
-    if ((type === 'touge' || type === 'coast') && ENV.cloud < 0.7 && ENV.sun < 0.3) {
+    // lune (partout où le ciel est dégagé et sombre)
+    if (type !== 'city' && ENV.cloud < 0.7 && ENV.sun < 0.3 && ENV.day < 0.4) {
       const mx = ((250 - par * 0.9) % 900 + 900) % 900 - 290, my = hz * 0.32;
       if (mx > -20 && mx < this.XR) {
         c.globalCompositeOperation = 'lighter'; gl(c, GT.warm, mx, my, 22, 0.14); c.globalCompositeOperation = 'source-over';
@@ -1997,7 +2162,18 @@ const SceneDrive = {
       }
     }
     // silhouettes lointaines
-    if (type === 'touge' || type === 'coast') {
+    if (type === 'forest') {
+      // collines lointaines, puis la cime des cèdres, plus proche (et qui défile plus vite)
+      c.fillStyle = gs(0.06); c.beginPath(); c.moveTo(this.XL, hz + 1);
+      for (let x = this.XL; x <= this.XR; x += 4) c.lineTo(x, hz + 1 - (fbm((x + par * 0.3) * 0.01, 11) * 0.5 + 0.55) * 18);
+      c.lineTo(this.XR, hz + 1); c.closePath(); c.fill();
+      c.fillStyle = gs(0.035); c.beginPath(); c.moveTo(this.XL, hz + 2);
+      for (let x = this.XL; x <= this.XR; x += 1.5) {
+        const u = (x + par * 0.75) / 4, i0 = Math.floor(u), f = u - i0;
+        c.lineTo(x, hz + 1 - 4 - ih(i0 * 13 + 7) * 7 * (1 - Math.abs(2 * f - 1)) - (fbm(u * 0.04, 17) * 0.5 + 0.5) * 6);
+      }
+      c.lineTo(this.XR, hz + 2); c.closePath(); c.fill();
+    } else if (type === 'touge' || type === 'coast') {
       for (const [amp, val, sp, sd] of [[30, 0.075, 0.35, 3], [20, 0.05, 0.6, 7]]) {
         c.fillStyle = gs(val); c.beginPath(); c.moveTo(this.XL, hz + 1);
         for (let x = this.XL; x <= this.XR; x += 4) { const u = (x + par * sp) * 0.012; c.lineTo(x, hz + 1 - (fbm(u, sd) * 0.5 + 0.55) * amp * (type === 'coast' && x < 160 ? 0.15 : 1)); }
@@ -2048,7 +2224,7 @@ const SceneDrive = {
     const wall = (off, y0, y1, v) => q(off, off, y0, y1, v);
     const band = (g.i >> 1) & 1;
     // accotements / terre-plein
-    if (type === 'touge') { q(-w - 3, -w, 0, 0, 0.035 + L * 0.3); q(w, w + 3, 0, 0, 0.035 + L * 0.3); }
+    if (type === 'touge' || type === 'forest') { q(-w - 3, -w, 0, 0, 0.035 + L * 0.3); q(w, w + 3, 0, 0, 0.035 + L * 0.3); }
     else if (type === 'city') { q(-w - 4, -w, 0.15, 0.15, 0.06 + L * 0.4); q(w, w + 4, 0.15, 0.15, 0.06 + L * 0.4); }
     else if (type === 'coast') q(w, w + 2, 0, 0, 0.04 + L * 0.3);
     // chaussée (mouillée = plus sombre, plus brillante sous les lampes)
@@ -2067,7 +2243,7 @@ const SceneDrive = {
     // marquages
     const nF = Road.lanesF(g.s), lanes = Math.ceil(nF - 0.01), lw = 2 * w / nF, hb2 = dir > 0 ? Math.exp(-vz / 40) * 0.25 : 0, mv = 0.42 + L * 1.4 + hb2;
     q(-w + 0.12, -w + 0.32, 0.01, 0.01, mv); q(w - 0.32, w - 0.12, 0.01, 0.01, mv);
-    if ((g.i % 4) < 2) for (let j = 1; j < lanes; j++) { const x = -w + lw * j; q(x - 0.1, x + 0.1, 0.01, 0.01, type === 'touge' ? 0.5 + L + hb2 : mv); }
+    if ((g.i % 4) < 2) for (let j = 1; j < lanes; j++) { const x = -w + lw * j; q(x - 0.1, x + 0.1, 0.01, 0.01, type === 'touge' || type === 'forest' ? 0.5 + L + hb2 : mv); }
     // murs, rails, tunnels
     if (type === 'tunnel') {
       const W2 = w + 1.1, H2 = 5.2;
@@ -2166,7 +2342,8 @@ const SceneDrive = {
     } else if (sp.t === 'tree') {
       const A = P(a, sp.x, 0), B = P(a, sp.x, sp.h); if (!A || !B) return;
       const hw = (A[1] - B[1]) * 0.28;
-      c.fillStyle = gs(fogMix(0.03 + 0.02 * Math.exp(-vz / 40), vz));
+      // les phares éclairent les troncs et les branches les plus proches
+      c.fillStyle = gs(fogMix(0.035 + (dir > 0 ? 0.075 : 0.03) * Math.exp(-vz / 35), vz));
       c.beginPath(); c.moveTo(B[0], B[1]); c.lineTo(A[0] + hw, A[1] - (A[1] - B[1]) * 0.15); c.lineTo(A[0] - hw, A[1] - (A[1] - B[1]) * 0.15); c.closePath(); c.fill();
       c.beginPath(); c.moveTo(B[0], B[1] + (A[1] - B[1]) * 0.3); c.lineTo(A[0] + hw * 1.25, A[1]); c.lineTo(A[0] - hw * 1.25, A[1]); c.closePath(); c.fill();
     } else if (sp.t === 'rock') {
@@ -2185,9 +2362,12 @@ const SceneDrive = {
       if (!A0 || !A1 || !F0 || !F1) return;
       c.fillStyle = gs(fogMix(0.045 + ih(sp.seed) * 0.03, vz)); poly(c, [A0, A1, F1, F0]);
       const cols = 6, rows = Math.min(22, Math.floor(sp.h / 2.6));
-      c.fillStyle = gs(fogMix(0.32, vz));
+      const winCol = ['cyanD', 'pinkD', 'amberD'][Math.floor(ih(sp.seed * 7) * 3)];
       for (let r = 0; r < rows; r++) for (let q = 0; q < cols; q++) {
-        if (ih(sp.seed * 977 + r * 31 + q) > 0.28) continue;
+        const hw = ih(sp.seed * 977 + r * 31 + q);
+        if (hw > 0.28) continue;
+        // la plupart des fenêtres en blanc tramé, quelques-unes en couleur (enseignes, écrans)
+        c.fillStyle = hw < 0.025 && vz < 160 ? COL[winCol] : gs(fogMix(0.32, vz));
         const u = (q + 0.3) / cols, vv = (r + 0.5) / (rows + 0.5);
         const x = lerp(lerp(A0[0], F0[0], u), lerp(A1[0], F1[0], u), vv), y = lerp(lerp(A0[1], F0[1], u), lerp(A1[1], F1[1], u), vv);
         const sz = Math.max(0.6, lerp(A0[2], F0[2], u) * 0.7);
@@ -2264,13 +2444,19 @@ const SceneDrive = {
     // clignotant quand elle change de voie
     if (blinkOn) { const bx = x + car.blink * w * 0.47; c.fillStyle = COL.amber; c.fillRect(bx - w * 0.05, ty - th, w * 0.1, th); gl(c, GT.amber, bx, ty - th / 2, Math.max(2, w * 0.4), 0.6); }
     if (rain > 0.1) { c.fillStyle = 'rgba(255,50,40,' + (0.25 * Math.min(1, rain)).toFixed(3) + ')'; c.fillRect(x - w * 0.45, y, w * 0.12, Math.min(25, h * 1.6)); c.fillRect(x + w * 0.33, y, w * 0.12, Math.min(25, h * 1.6)); }
+    // sous la pluie, les roues soulèvent un nuage d'eau éclairé par les feux arrière
+    if (rain > 0.1 && vz < 140) {
+      const sp = 0.16 * Math.min(1, rain) * Math.exp(-vz / 90) * clamp(car.v / 25, 0.3, 1.2);
+      for (const sd of [-1, 1]) gl(c, GT.white, x + sd * w * 0.36, y - h * 0.08, Math.max(2, w * 0.55), sp);
+      gl(c, GT.red, x, y - h * 0.15, Math.max(2, w * 0.8), sp * 0.6);
+    }
     c.globalCompositeOperation = 'source-over';
   },
   /* une voiture de police japonaise au loin : phares blancs, rampe rouge qui tourne */
   policeItem(P, pts, t, dist) {
     // on la place là où on la voit vraiment par la lunette (sur un col, la route tourne derrière nous)
     let best = null;
-    for (let d = dist; d >= 35 && !best; d -= 6) {
+    for (let d = Math.max(36, dist); d >= 35 && !best; d -= 6) {
       const k = Math.floor(d / SEG), a = pts[k], b = pts[k + 1];
       if (!a || !b) continue;
       const f = (d - k * SEG) / SEG, p = { x: lerp(a.x, b.x, f), z: lerp(a.z, b.z, f), phi: lerp(a.phi, b.phi, f), y: lerp(a.y, b.y, f) };
@@ -2291,16 +2477,17 @@ const SceneDrive = {
     // phares blancs
     for (const sd of [-1, 1]) { gl(c, GT.white, sx + sd * w * 0.36, sy - hh * 0.3, Math.max(6, w * 2.2), 0.95); c.fillStyle = '#fff'; c.fillRect(sx + sd * w * 0.36 - 1, sy - hh * 0.32, 2, 1.2); }
     c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(sx - 26, sy - hh * 0.3, 52, 0.6);
-    // rampe rouge qui tourne : un côté puis l'autre
+    // rampe de gyrophares qui tourne : rouge d'un côté, bleu de l'autre, en alternance
     const ph = t * 0.0078, L = Math.max(0, Math.sin(ph)), R = Math.max(0, Math.sin(ph + Math.PI));
-    c.fillStyle = COL.redD; c.fillRect(sx - w * 0.4, sy - hh * 1.1, w * 0.8, Math.max(1, hh * 0.14));
-    for (const [sd, I] of [[-1, L], [1, R]]) {
-      const lx = sx + sd * w * 0.24, ly = sy - hh * 1.04;
-      gl(c, GT.red, lx, ly, Math.max(9, w * 4.5) * (0.6 + I * 0.7), 0.25 + I * 0.75);
-      if (I > 0.2) { c.fillStyle = COL.red; c.fillRect(lx - 1, ly - 0.8, 2, 1.6); c.fillStyle = 'rgba(255,50,40,' + (0.5 * I).toFixed(3) + ')'; c.fillRect(lx - 18 * I, ly - 0.3, 36 * I, 0.6); }
+    c.fillStyle = COL.redD; c.fillRect(sx - w * 0.4, sy - hh * 1.1, w * 0.4, Math.max(1, hh * 0.14));
+    c.fillStyle = COL.blueD; c.fillRect(sx, sy - hh * 1.1, w * 0.4, Math.max(1, hh * 0.14));
+    for (const [sd, I, col] of [[-1, L, 'red'], [1, R, 'blue']]) {
+      const lx = sx + sd * w * 0.24, ly = sy - hh * 1.04, rgb = col === 'red' ? '255,50,40' : '60,120,255';
+      gl(c, GT[col], lx, ly, Math.min(34, Math.max(9, w * 4.5)) * (0.6 + I * 0.7), 0.25 + I * 0.75);
+      if (I > 0.2) { c.fillStyle = COL[col]; c.fillRect(lx - 1, ly - 0.8, 2, 1.6); c.fillStyle = 'rgba(' + rgb + ',' + (0.5 * I).toFixed(3) + ')'; c.fillRect(lx - 18 * I, ly - 0.3, 36 * I, 0.6); }
     }
-    // la lumière rouge balaie la route et les murs autour d'elle
-    gl(c, GT.red, sx + Math.sin(ph) * 26, sy - 3, 30, 0.16);
+    // la lumière balaie la route et les murs autour d'elle
+    gl(c, L > R ? GT.red : GT.blue, sx + Math.sin(ph) * 26, sy - 3, 30, 0.16);
     c.globalCompositeOperation = 'source-over';
   },
   /* ---------- météo dehors ---------- */
@@ -2314,7 +2501,9 @@ const SceneDrive = {
     // gouttes sur le pare-brise : l'air les fait remonter, elles glissent vers les côtés, la gravité les retient à basse vitesse
     const wet = rain + snow * 0.4;
     if (wet > 0.02 && !this.lb) {
-      const rate = wet * (18 + v * 0.9);
+      // derrière une voiture, ses projections arrivent sur le pare-brise
+      const lead = this.traffic.reduce((m, car) => { const d = car.s - this.S; return d > 2 && d < 40 && Math.abs(car.x - this.camX) < 2.4 ? Math.max(m, 1 - d / 40) : m; }, 0);
+      const rate = wet * (18 + v * 0.9) * (1 + 2.5 * lead * Math.min(1, rain));
       let n = rate * dt; while (n > 0) { if (Math.random() < n) this.drops.push({ x: 40 + Math.random() * 250, y: 14 + Math.random() * 56, r: 0.3 + Math.random() * Math.random() * 1.4, vx: 0, vy: 0, stick: Math.random() * 0.4, life: 1, snow: snow > rain && Math.random() < 0.6 }); n -= 1; }
     }
     const air = Math.max(0, v - 14);
@@ -2414,8 +2603,19 @@ const SceneDrive = {
       const mx = clamp(-(car.x - this.camX) / d * 140, -22, 22), r = clamp(70 / d, 0.8, 6), my = 2 - clamp(18 / d, 0, 3);
       gl(c, GT.white, mx - r * 0.45, my, r * 1.6, 0.55); gl(c, GT.white, mx + r * 0.45, my, r * 1.6, 0.55);
     }
-    const pf = this.policeFade(now);
-    if (pf > 0) { const ph = now * 0.0075; gl(c, GT.red, -3 + Math.sin(ph) * 3, -2, 7, pf * (0.5 + 0.5 * Math.sin(ph))); gl(c, GT.red, 3 - Math.sin(ph) * 3, -2, 7, pf * (0.5 - 0.5 * Math.sin(ph))); }
+    // la police dans le rétro : petite et lointaine, puis de plus en plus grosse ; nette pendant le coup d'œil
+    const sr = this.siren(now), seen = Math.max(sr.I, this.glance || 0, this.chase.heat > 0.3 ? 0.35 : 0);
+    if (seen > 0.02) {
+      const sz = 1 + this.chase.heat * 3.2, py = 1 - this.chase.heat * 2;
+      gl(c, GT.white, -sz * 0.9, py + sz * 0.5, 2 + sz * 1.4, 0.4 * seen); gl(c, GT.white, sz * 0.9, py + sz * 0.5, 2 + sz * 1.4, 0.4 * seen);
+      gl(c, GT.red, -sz * 0.6, py - sz * 0.4, 4 + sz * 2.5, seen * sr.L); gl(c, GT.blue, sz * 0.6, py - sz * 0.4, 4 + sz * 2.5, seen * sr.R);
+      if (seen > 0.3) { c.fillStyle = sr.L > sr.R ? COL.red : COL.blue; c.fillRect(Math.round((sr.L > sr.R ? -sz * 0.6 : sz * 0.6) - 0.5), Math.round(py - sz * 0.4), 1, 1); }
+    }
+    // dérive anime : nos feux arrière laissent des traînées rouges dans le rétro
+    if (this.anime && this.anime.slip > 0.3) {
+      c.strokeStyle = 'rgba(255,50,40,' + (0.7 * this.anime.slip).toFixed(3) + ')'; c.lineWidth = 1;
+      for (const yy of [5, 7.5]) { c.beginPath(); c.moveTo(-24, yy + this.anime.dir * 2); c.quadraticCurveTo(0, yy - this.anime.dir * 3, 24, yy + this.anime.dir * 2); c.stroke(); }
+    }
     c.globalCompositeOperation = 'source-over';
     c.restore();
     // le volant tourne avec la route
@@ -2427,42 +2627,61 @@ const SceneDrive = {
     c.strokeStyle = gs(0.12); c.lineWidth = 0.6; c.beginPath(); c.moveTo(-64, -21); c.lineTo(-24, -15); c.stroke();
     // boutons du volant (accents de couleur)
     c.globalCompositeOperation = 'lighter';
-    const btn = (x, y, col, r) => { c.fillStyle = COL[col + 'D']; c.fillRect(x - r, y - r, r * 2, r * 2); c.fillStyle = COL[col]; c.fillRect(x - r * 0.5, y - r * 0.5, r, r); gl(c, GT[col], x, y, r * 3, 0.32); };
+    // LED des boutons : halo qui respire doucement, chaque bouton à son rythme
+    const btn = (x, y, col, r) => { c.fillStyle = COL[col + 'D']; c.fillRect(x - r, y - r, r * 2, r * 2); c.fillStyle = COL[col]; c.fillRect(x - r * 0.5, y - r * 0.5, r, r); gl(c, GT[col], x, y, r * 3, 0.32 * (0.8 + 0.2 * Math.sin(now * 0.003 + x * 0.7 + y))); };
     for (let r = 0; r < 6; r++) for (let q = 0; q < 2; q++) btn(50 + q * 9, -72 + r * 6.2, 'blue', 1.6);
     btn(-50, -41, 'green', 2.2); btn(-57, -48, 'blue', 1.7); btn(-42, -20, 'red', 2); btn(-42, -12, 'amber', 1.8); btn(40, -22, 'amber', 2); btn(51, -27, 'red', 1.9);
     c.globalCompositeOperation = 'source-over';
     c.fillStyle = gs(0.35); for (let r = 0; r < 6; r++) c.fillRect(50, -72.5 + r * 6.2, 0.7, 0.7);
     c.restore();
-    // écran du tableau de bord
+    // écrans du tableau de bord : mini-carte à gauche, instruments au centre
+    this.drawMiniMap(c, now);
     this.drawDisplay(c, now);
-    // reflets rouges des gyrophares dans l'habitacle, qui s'estompent
+    // lampadaires et lampes de tunnel : leur lumière entre par le haut du pare-brise et balaie l'habitacle vers l'arrière
+    const lb2 = Road.typeAt(this.S), bb = BIOMES[lb2];
+    if (bb.lamps) {
+      const spc = bb.lamps, ph = (((this.S % spc) + spc) % spc) / spc, u = ph < 0.5 ? ph + 1 : ph;
+      const I = Math.exp(-Math.pow((u - 1) / 0.16, 2)) * (lb2 === 'tunnel' ? 0.6 : 1) * (1 - ENV.day * 0.8);
+      if (I > 0.02) {
+        const y = lerp(-10, 150, (u - 0.6) / 0.8), rgb = lb2 === 'city' ? '235,240,255' : '255,170,70';
+        const g = c.createLinearGradient(0, y - 22, 0, y + 22);
+        g.addColorStop(0, 'rgba(' + rgb + ',0)'); g.addColorStop(0.5, 'rgba(' + rgb + ',' + (0.13 * I).toFixed(3) + ')'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+        c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(this.XL, y - 22, this.XR - this.XL, 44);
+        c.strokeStyle = 'rgba(' + rgb + ',' + (0.3 * I).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.stroke();
+        c.globalCompositeOperation = 'source-over';
+      }
+    }
+    // reflets des gyrophares dans l'habitacle (après un regard, ou quand la police est proche) : rouge à gauche, bleu à droite
+    const pf = sr.I;
     if (pf > 0.01) {
       // la lumière vient de derrière : elle accroche les montants, l'arceau, le bord du toit et le dessus de planche
-      const ph = now * 0.0075, L = Math.max(0, Math.sin(ph)), R = Math.max(0, Math.sin(ph + Math.PI));
-      const rim = (a, x1, y1, x2, y2, w) => { if (a < 0.02) return; c.strokeStyle = 'rgba(255,50,40,' + Math.min(1, a).toFixed(3) + ')'; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
+      const L = sr.L, R = sr.R;
+      const rim = (a, rgb, x1, y1, x2, y2, w) => { if (a < 0.02) return; c.strokeStyle = 'rgba(' + rgb + ',' + Math.min(1, a).toFixed(3) + ')'; c.lineWidth = w; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); };
       c.globalCompositeOperation = 'lighter';
-      gl(c, GT.red, 26, 46, 64, pf * (0.15 + L * 0.75)); gl(c, GT.red, 298, 40, 58, pf * (0.15 + R * 0.7)); gl(c, GT.red, 160, 4, 80, pf * 0.3);
-      rim(pf * L, 39, -10, -3, 92, 1); rim(pf * L * 0.8, 62, 9, 18, 96, 0.8); rim(pf * R * 0.8, 268, 8, 304, 80, 0.8);
-      rim(pf * (L + R) * 0.45, 30, 7.5, 290, 7.5, 0.7);
-      c.strokeStyle = 'rgba(255,50,40,' + (pf * 0.35).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.stroke();
+      gl(c, GT.red, 26, 46, 64, pf * (0.15 + L * 0.75)); gl(c, GT.blue, 298, 40, 58, pf * (0.15 + R * 0.7)); gl(c, L > R ? GT.red : GT.blue, 160, 4, 80, pf * 0.3);
+      rim(pf * L, '255,50,40', 39, -10, -3, 92, 1); rim(pf * L * 0.8, '255,50,40', 62, 9, 18, 96, 0.8); rim(pf * R * 0.8, '60,120,255', 268, 8, 304, 80, 0.8);
+      rim(pf * (L + R) * 0.45, L > R ? '255,50,40' : '60,120,255', 30, 7.5, 290, 7.5, 0.7);
+      c.strokeStyle = (L > R ? 'rgba(255,50,40,' : 'rgba(60,120,255,') + (pf * 0.35).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(18, 96); c.quadraticCurveTo(160, 58, 304, 80); c.stroke();
       c.globalCompositeOperation = 'source-over';
     }
   },
-  policeFade(now) { const since = (now - this.boostT) / 1000; return since < 0 || since > 24 ? 0 : clamp(Math.exp(-since / 7), 0, 1) * smooth((24 - since) / 4); },
+  // reflets qui s'estompent après un regard en arrière (sirenT : fin du dernier regard)
+  policeFade(now) { const since = (now - this.sirenT) / 1000; return since < 0 || since > 24 ? 0 : clamp(Math.exp(-since / 7), 0, 1) * smooth((24 - since) / 4); },
   /* l'écran : couleurs posées exactement sur les tons de la palette, pour un texte net, sans trame */
   drawDisplay(c, now) {
     const T1 = gs(0.236), T2 = gs(0.557), T3 = gs(1);
     const x0 = 106, y0 = 86, w = 68, h = 26;
     c.fillStyle = gs(0); c.fillRect(x0 - 2, y0 - 7, w + 4, h + 9);
     c.globalCompositeOperation = 'lighter';
-    // témoins de passage de rapport
+    // témoins de passage de rapport : ils s'allument des bords vers le centre, vert, puis orange, puis rouge ; tout clignote au rupteur
     const n = 10, frac = clamp((this.rpm - 5200) / 3000, 0, 1), lit = Math.round(frac * n), lim = this.rpm > 8150 && Math.floor(now / 70) % 2 === 0;
+    const pulse = 0.85 + 0.15 * Math.sin(now * 0.006);
     for (let i = 0; i < n; i++) {
-      const x = x0 + 12 + i * 4.6 + (i >= 5 ? 3 : 0), y = y0 - 4;
-      const col = lim ? 'blue' : i < 3 || i > 6 ? 'green' : 'amber';
-      const on = lim || (i < 5 ? i < lit / 2 + 0.01 : n - 1 - i < lit / 2 + 0.01);
+      const x = x0 + 12 + i * 4.6 + (i >= 5 ? 3 : 0), y = y0 - 4, e = i < 5 ? i : n - 1 - i;
+      const col = lim ? 'red' : e < 2 ? 'green' : e < 4 ? 'amber' : 'red';
+      const on = lim || e < lit / 2 + 0.01;
       c.fillStyle = on ? COL[col] : 'rgb(20,20,20)'; c.fillRect(Math.round(x), y, 2, 1);
-      if (on) gl(c, GT[col], x + 1, y + 0.5, 3, 0.35);
+      if (on) gl(c, GT[col], x + 1, y + 0.5, 3.5, 0.4 * pulse);
     }
     c.globalCompositeOperation = 'source-over';
     // cadres des cases
@@ -2471,20 +2690,67 @@ const SceneDrive = {
     // colonne gauche
     const lab = ['ABS', 'TC', 'MAP', 'BB'], val = ['3', '2', '1', '54'];
     for (let i = 0; i < 4; i++) { px5(c, lab[i], x0 + 1, y0 + 2 + i * 6, 1, T1); px5(c, val[i], x0 + 15, y0 + 2 + i * 6, 1, T2); }
-    // vitesse et rapport
-    const kmh = String(Math.round(this.v * 3.6));
+    // vitesse (lissée, pour que les chiffres ne sautent pas) et rapport
+    const kmh = String(Math.round(this.kmhD));
     px5(c, kmh, Math.round(x0 + 34.5 - px5w(kmh, 1) / 2), y0 + 2, 1, T3);
     const fresh = now - this.shiftT < 180;
     if (fresh) { c.fillStyle = T1; c.fillRect(x0 + 27, y0 + 9, 15, 16); }
     px5(c, String(this.gear), x0 + 30, y0 + 10, 3, T3);
-    // chrono et écart
-    const lap = this.lapT % 118, mm = Math.floor(lap / 60), ss = (lap % 60).toFixed(2).padStart(5, '0');
+    // chrono du tour en cours et écart avec le rythme moyen (vert : en avance)
+    const lap = this.lapT, mm = Math.floor(lap / 60), ss = (lap % 60).toFixed(2).padStart(5, '0');
     px5(c, 'LAP', x0 + 45, y0 + 1, 1, T1);
     px5(c, mm + ':' + ss, x0 + 45, y0 + 7, 1, T2);
-    const delta = (Math.sin(this.lapT * 0.07) * 0.6).toFixed(2), dCol = +delta < 0 ? COL.green : COL.red;
-    c.globalCompositeOperation = 'lighter'; px5(c, (+delta > 0 ? '+' : '') + delta, x0 + 46, y0 + 14, 1, dCol); c.globalCompositeOperation = 'source-over';
+    const dv = clamp(this.deltaD, -9.99, 9.99), delta = dv.toFixed(2), dCol = dv < 0 ? COL.green : COL.red;
+    c.globalCompositeOperation = 'lighter'; px5(c, (dv > 0 ? '+' : '') + delta, x0 + 46, y0 + 14, 1, dCol); c.globalCompositeOperation = 'source-over';
     c.strokeStyle = COL.amberD; c.lineWidth = 0.5; c.strokeRect(x0 + 44.5, y0 + 12.5, 22, 7);
-    px5(c, 'DRFT', x0 + 47, y0 + 21, 1, T1);
+    // DRFT s'allume pendant les dérapages (séquences anime, ou forte charge latérale), avec un halo qui pulse
+    const drift = this.anime ? this.anime.slip : smooth((Math.abs(this.gLat) - 7) / 5);
+    if (drift > 0.15) {
+      c.globalCompositeOperation = 'lighter';
+      px5(c, 'DRFT', x0 + 47, y0 + 21, 1, Math.floor(now / 120) % 2 || drift > 0.6 ? COL.amber : COL.amberD);
+      gl(c, GT.amber, x0 + 54, y0 + 23, 9, 0.35 * drift);
+      c.globalCompositeOperation = 'source-over';
+    } else px5(c, 'DRFT', x0 + 47, y0 + 21, 1, T1);
+    // reflet des gyrophares sur la vitre de l'écran
+    const sr = this.siren(now);
+    if (sr.I > 0.02) { c.globalCompositeOperation = 'lighter'; gl(c, GT.red, x0 + 10, y0 + 6, 18, sr.I * sr.L * 0.22); gl(c, GT.blue, x0 + w - 10, y0 + 6, 18, sr.I * sr.R * 0.22); c.globalCompositeOperation = 'source-over'; }
+  },
+  /* mini-carte sur un petit écran à gauche : le tracé en pointillés de 120 m derrière à 520 m devant, cap en haut.
+     Marqueurs qui avancent avec la route : nous (vert), les voitures (bleu), la police (rouge / bleu), le prochain péage ou tunnel (orange) */
+  drawMiniMap(c, now) {
+    const x0 = 72, y0 = 86, w = 29, h = 25, T1 = gs(0.236), T2 = gs(0.557), back = 120, ahead = 520, step = 8;
+    c.fillStyle = gs(0); c.fillRect(x0 - 2, y0 - 2, w + 4, h + 4);
+    c.strokeStyle = T1; c.lineWidth = 0.5; c.strokeRect(x0 - 0.5, y0 - 0.5, w + 1, h + 1);
+    // le tracé : on intègre les courbes devant et derrière nous
+    const pts = [];
+    let x = 0, y = 0, ph = 0;
+    for (let d = 0; d <= ahead; d += step) { pts.push([x, y, d]); ph += Road.curv(this.S + d + step / 2) * step; x += Math.sin(ph) * step; y += Math.cos(ph) * step; }
+    x = 0; y = 0; ph = 0;
+    for (let d = step; d <= back; d += step) { ph -= Road.curv(this.S - d + step / 2) * step; x -= Math.sin(ph) * step; y -= Math.cos(ph) * step; pts.unshift([x, y, -d]); }
+    // échelle : tout le tracé tient dans l'écran, et elle change en douceur
+    let ex = 1, ey = 1;
+    for (const p of pts) { ex = Math.max(ex, Math.abs(p[0])); ey = Math.max(ey, p[1]); }
+    const s = Math.min((w / 2 - 2) / ex, (h - 9) / ey);
+    this.mapS = this.mapS ? lerp(this.mapS, s, 0.05) : s;
+    const cx = x0 + w / 2, cy = y0 + h - 6, k = this.mapS;
+    const at = d => { const i = clamp(Math.round((d + back) / step), 0, pts.length - 1), p = pts[i]; return [cx + p[0] * k, cy - p[1] * k]; };
+    const inBox = (px, py) => px >= x0 && px < x0 + w && py >= y0 && py < y0 + h;
+    // pointillés : un point sur deux, et ils défilent avec la distance parcourue
+    const shift = Math.floor(this.S / step) & 1;
+    for (let i = 0; i < pts.length; i++) {
+      if (((i + shift) & 1) === 0) continue;
+      const px = Math.round(cx + pts[i][0] * k), py = Math.round(cy - pts[i][1] * k);
+      if (inBox(px, py)) { c.fillStyle = pts[i][2] < 0 ? T1 : T2; c.fillRect(px, py, 1, 1); }
+    }
+    c.globalCompositeOperation = 'lighter';
+    const dot = (d, col, a) => { const [px, py] = at(d); if (!inBox(px, py)) return; c.fillStyle = COL[col]; c.fillRect(Math.round(px), Math.round(py), 1, 1); gl(c, GT[col], px + 0.5, py + 0.5, 2.5, a); };
+    for (const car of this.traffic) { const d = car.s - this.S; if (d > -back && d < ahead) dot(d, 'blue', 0.3); }
+    // prochain péage ou entrée de tunnel
+    for (let d = 40; d < ahead; d += 20) { const g = Road.seg(Math.floor((this.S + d) / SEG)); if (g.sp.some(q => q.t === 'toll') || (g.type === 'tunnel' && Road.typeAt(this.S + d - 20) !== 'tunnel')) { dot(d, 'amber', 0.35); break; } }
+    if (this.chase.heat > 0.05) { const sr = this.siren(now); dot(-Math.min(back - 4, this.policeDist() * 0.75), sr.L > sr.R ? 'red' : 'blue', 0.45); }
+    const blink = 0.5 + 0.5 * Math.sin(now * 0.008);
+    c.fillStyle = COL.green; c.fillRect(Math.round(cx) - 1, Math.round(cy), 2, 2); gl(c, GT.green, cx, cy + 1, 3.5, 0.3 + 0.3 * blink);
+    c.globalCompositeOperation = 'source-over';
   },
   drawRearCabin(c, t) {
     const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.0075);
@@ -2503,11 +2769,13 @@ const SceneDrive = {
     c.strokeStyle = gs(0.09); c.lineWidth = 0.7; c.beginPath(); c.moveTo(this.XL, 40); c.quadraticCurveTo(40, 30, 58, 70); c.lineTo(66, 190); c.stroke();
     // harnais
     c.strokeStyle = gs(0.06); c.lineWidth = 3; c.beginPath(); c.moveTo(30, 60); c.lineTo(46, 190); c.stroke();
-    // lueur rouge de la police dans l'habitacle
+    // lueur rouge et bleue de la police dans l'habitacle, de plus en plus forte quand elle se rapproche
+    const near = 0.7 + this.chase.heat * 0.6;
     c.globalCompositeOperation = 'lighter';
-    gl(c, GT.red, 160, 30, 110, 0.1 + 0.16 * pulse); gl(c, GT.red, 286, 60, 46, 0.35 * pulse); gl(c, GT.red, 38, 60, 46, 0.35 * (1 - pulse));
+    gl(c, GT.red, 160, 30, 90, (0.04 + 0.1 * pulse) * near); gl(c, GT.blue, 160, 30, 90, (0.04 + 0.1 * (1 - pulse)) * near);
+    gl(c, GT.red, 286, 60, 46, 0.35 * pulse * near); gl(c, GT.blue, 38, 60, 46, 0.35 * (1 - pulse) * near);
     c.strokeStyle = 'rgba(255,50,40,' + (0.5 * pulse).toFixed(3) + ')'; c.lineWidth = 0.7; c.beginPath(); c.moveTo(278, 8); c.lineTo(290, 190); c.stroke();
-    c.strokeStyle = 'rgba(255,50,40,' + (0.5 * (1 - pulse)).toFixed(3) + ')'; c.beginPath(); c.moveTo(46, 8); c.lineTo(34, 190); c.stroke();
+    c.strokeStyle = 'rgba(60,120,255,' + (0.5 * (1 - pulse)).toFixed(3) + ')'; c.beginPath(); c.moveTo(46, 8); c.lineTo(34, 190); c.stroke();
     // nos propres feux arrière éclairent le bas de la lunette
     gl(c, GT.red, 96, 98, 22, 0.25); gl(c, GT.red, 228, 98, 22, 0.25);
     c.globalCompositeOperation = 'source-over';
@@ -2621,7 +2889,7 @@ function frame(now) {
     vctx.putImageData(OUT, 0, 0);
     themeTimer += dt;
     // l'ambiance (couleurs + météo) change toutes les 4 minutes environ, en fondu lent
-    if (settings.themeCycle !== 'off' && themeTimer > 240) nextTheme(true);
+    if (settings.themeCycle !== 'off' && themeTimer > 240) autoWeather();
     UI.frame(now);
   } catch (e) { console.error('[drft] frame', e); }
   requestAnimationFrame(frame);
@@ -2949,6 +3217,16 @@ function setTheme(id, quiet) {
   if (!quiet) UI.toast(themeTarget.name.toUpperCase());
 }
 function nextTheme(quiet) { const i = THEMES.indexOf(themeTarget); setTheme(THEMES[(i + 1) % THEMES.length].id, quiet); }
+/* météo automatique : elle évolue par étapes voisines (dégagé, brume, pluie, orage, la pluie retombe, retour au calme…)
+   plutôt que de sauter d'une ambiance à l'autre ; chaque étape dure ~4 min et se fond dans la suivante */
+const WEATHER_ROUTE = ['nuit', 'brume', 'pluie', 'orage', 'pluie', 'nuit', 'sodium', 'neige', 'aube'];
+let weatherStep = -1;
+function autoWeather() {
+  if (weatherStep < 0 || WEATHER_ROUTE[weatherStep] !== themeTarget.id) weatherStep = Math.max(0, WEATHER_ROUTE.indexOf(themeTarget.id));
+  weatherStep = (weatherStep + 1) % WEATHER_ROUTE.length;
+  setTheme(WEATHER_ROUTE[weatherStep], true);
+}
+function setDayCycle(v) { settings.daycycle = v; saveSettings(); dayT0 = performance.now(); UI.renderSeg('#daySeg', [['off', 'NIGHT'], ['on', 'CYCLE']], settings.daycycle === 'on' ? 'on' : 'off', setDayCycle); }
 function setThemeCycle(v) { settings.themeCycle = v; saveSettings(); themeTimer = 0; UI.renderSeg('#themeCycleSeg', [['60', 'AUTO'], ['off', 'FIXED']], settings.themeCycle === 'off' ? 'off' : '60', setThemeCycle); }
 function setCycle(v) { settings.cycle = 'auto'; }
 function setXfade(v) { settings.xfade = +v; saveSettings(); UI.renderSeg('#xfadeSeg', [[0, '0 S'], [2, '2 S'], [4, '4 S'], [8, '8 S']], settings.xfade, setXfade); }
@@ -3229,7 +3507,7 @@ if (typeof settings.xfade !== 'number') settings.xfade = 4;
 resize();
 setTheme(settings.theme, true);
 UI.renderStations(); UI.renderVol();
-setThemeCycle(settings.themeCycle); setSleep(0); setXfade(settings.xfade);
+setThemeCycle(settings.themeCycle); setDayCycle(settings.daycycle); setSleep(0); setXfade(settings.xfade);
 setReact(settings.react); setWeather(settings.weather);
 UI.renderLibrary(); UI.renderFavs(); UI.renderHistory(); UI.renderSpotify(); UI.renderStart(); updateCounts(); UI.syncPlay();
 IDB.open().then(async () => {
