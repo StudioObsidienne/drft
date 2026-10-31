@@ -1,10 +1,10 @@
 # DRFT
 
-**A drum & bass radio inside Spotify, with a pixel-art Tokyo night drive. A Spicetify extension.**
+**A drum & bass radio inside Spotify, with a car cruising along a city bay at sunset. A Spicetify extension.**
 
 ![DRFT](spicetify/preview.png)
 
-Install the extension and a **DRFT** button appears at the top of Spotify. Press it, press **LISTEN**: the DRFT playlist plays shuffled, in an endless loop, while a night drive in pixel art goes on behind the music.
+Install the extension and a **DRFT** button appears at the top of Spotify. Press it, press **LISTEN**: the DRFT playlist plays shuffled, in an endless loop, while a car cruises along the bay at sunset behind the music.
 
 - **Back to Spotify:** **✕ SPOTIFY** at the top right, Esc, or the DRFT button again. The music keeps going and the radio keeps feeding the queue.
 - **Play something else** in Spotify and DRFT steps aside, and your shuffle and repeat settings come back as they were. Press play in DRFT to bring the radio back.
@@ -38,6 +38,19 @@ The playlist is the curator's choice: everyone who installs DRFT hears the same 
 
 ## Visuals
 
+### Sunset (default)
+
+A car cruising along a city bay at sunset, seen from the side, in an endless loop: a big sun between the towers, palm trees and street lights going by, the guardrail and the road rushing past. Everything is drawn live in the page, nothing is a video.
+
+- **Film look.** Contrast-adaptive sharpening for a crisp, upscaled image, bloom and a little red halation around the lights, chromatic aberration toward the edges, an anamorphic streak across the sun, depth of field on the distant city and palms, a soft film curve, vignette and moving grain.
+- **The scene.** Dense towers in several hazy layers with small lit windows, lit crowns, water towers, blinking antenna lights and a few windows switching on and off; a starry sky with twinkling stars and the odd shooting star; drifting clouds lit from below; palm trees with ringed trunks, dead fronds and coconuts that sway in the wind; dust floating in the backlight and out-of-focus specks passing in front of the lens.
+- **Three cars**, each with see-through windows (driver and seats in silhouette), the horizon and passing lights reflected on the paint, brake discs and calipers behind the spokes, headlights on: a red 80s wedge supercar, a gloss-black Supra MK4 with its hoop wing, a red M3 E36 coupé. Change car with **C** or in Menu › Visuals: the old one speeds off, the new one drives in.
+- **Weather.** Clear, Cloudy, Rain, Storm and Fog, with smooth transitions. In AUTO the sky changes on its own every two to four minutes. Rain falls in two layers, splashes on the road and sprays from the wheels; the wet road darkens and reflects the scenery, the lights and the car (it dries slowly once the rain stops); storms bring lightning and wind in the palms; fog swallows the city and widens every halo. Pick a sky with **W** or in Menu › Visuals.
+
+### Night drive (pixel art)
+
+The earlier scene is still there, in Menu › Visuals › Scene › NIGHT DRIVE.
+
 One endless night drive, seen from the driver's seat of a tuned race car, through a wide windshield: low-resolution, softly grained rendering with a colour grade that follows the mood (teal at night), glowing lights, the digital dash with the big gear number, shift lights and lap timer, the wheel and its lit buttons turning with the road, the wiper, the mirror.
 
 - **The road never repeats.** It is generated from a random seed as you drive and moves through expressway (sodium lamps, gantry signs, traffic to overtake), tunnels, mountain pass (tight hairpins, guardrails, cedars, a vending machine glowing at a pull-out), forest, city (neon signs, crossings), suspension bridge over the bay, coast road, and now and then a cyberpunk city: towers covered in pink and cyan neon, huge light boards, overpasses, streets always wet. Curves, hills, speed and gear changes follow the road.
@@ -57,7 +70,8 @@ One endless night drive, seen from the driver's seat of a tuned race car, throug
 | N or → | Next track |
 | ← | Previous track |
 | L | Favorite |
-| P | Next mood |
+| C | Next car (Shift+C: previous) |
+| W or P | Next sky (Shift: previous); with Night drive, P changes the mood |
 | F | Fullscreen |
 | M | Menu |
 | ↑ ↓ | Volume |

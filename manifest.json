@@ -1,6 +1,6 @@
 {
   "name": "DRFT",
-  "description": "A drum & bass radio inside Spotify: a curated playlist, shuffled and looping, with an endless pixel-art Tokyo night drive seen from the cockpit.",
+  "description": "A drum & bass radio inside Spotify: a curated playlist, shuffled and looping, with a car cruising along a city bay at sunset, three cars and live weather.",
   "preview": "spicetify/preview.png",
   "main": "spicetify/dist/drft.js",
   "readme": "README.md",
