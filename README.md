@@ -45,22 +45,11 @@ A car cruising along a city bay at sunset, seen from the side, in an endless loo
 - **Film look.** Contrast-adaptive sharpening for a crisp, upscaled image, bloom and a little red halation around the lights, chromatic aberration toward the edges, an anamorphic streak across the sun, depth of field on the distant city and palms, a soft film curve, vignette and moving grain.
 - **The scene.** Dense towers in several hazy layers with small lit windows, lit crowns, water towers, blinking antenna lights and a few windows switching on and off; a starry sky with twinkling stars and the odd shooting star; drifting clouds lit from below; palm trees with ringed trunks, dead fronds and coconuts that sway in the wind; dust floating in the backlight and out-of-focus specks passing in front of the lens.
 - **Three cars**, each with see-through windows (driver and seats in silhouette), the horizon and passing lights reflected on the paint, brake discs and calipers behind the spokes, headlights on: a red 80s wedge supercar, a gloss-black Supra MK4 with its hoop wing, a red M3 E36 coupé. Change car with **C** or in Menu › Visuals: the old one speeds off, the new one drives in.
-- **Weather.** Clear, Cloudy, Rain, Storm and Fog, with smooth transitions. In AUTO the sky changes on its own every two to four minutes. Rain falls in two layers, splashes on the road and sprays from the wheels; the wet road darkens and reflects the scenery, the lights and the car (it dries slowly once the rain stops); storms bring lightning and wind in the palms; fog swallows the city and widens every halo. Pick a sky with **W** or in Menu › Visuals.
+- **Weather.** Clear, Cloudy, Rain, Storm and Fog, with smooth transitions, each with its own colour grade so bad weather stays just as colourful: a golden hour under a violet ceiling, a neon blue and magenta rainy night with the city lit up, an electric violet storm, a pastel peach and lavender fog. In AUTO the sky changes on its own every two to four minutes. Rain falls in two layers, splashes on the road and sprays from the wheels; the wet road darkens and reflects the scenery, the lights and the car (it dries slowly once the rain stops); storms bring lightning and wind in the palms; fog swallows the city and widens every halo. Pick a sky with **W** or in Menu › Visuals.
 
-### Night drive (pixel art)
+### Abstract
 
-The earlier scene is still there, in Menu › Visuals › Scene › NIGHT DRIVE.
-
-One endless night drive, seen from the driver's seat of a tuned race car, through a wide windshield: low-resolution, softly grained rendering with a colour grade that follows the mood (teal at night), glowing lights, the digital dash with the big gear number, shift lights and lap timer, the wheel and its lit buttons turning with the road, the wiper, the mirror.
-
-- **The road never repeats.** It is generated from a random seed as you drive and moves through expressway (sodium lamps, gantry signs, traffic to overtake), tunnels, mountain pass (tight hairpins, guardrails, cedars, a vending machine glowing at a pull-out), forest, city (neon signs, crossings), suspension bridge over the bay, coast road, and now and then a cyberpunk city: towers covered in pink and cyan neon, huge light boards, overpasses, streets always wet. Curves, hills, speed and gear changes follow the road.
-- **Weather.** Rain streaks toward the windshield and the drops climb up the glass as they would at speed, the wiper sweeps them away; snow, fog with headlight beams, storms with lightning. Moods change slowly on their own (Night, Rain, Fog, Sodium, Pink dawn, Dawn, Snow, Storm), each with its own colour grade; lights, neon and car paint keep their colours.
-- **Traffic and driving.** Painted cars and trucks to overtake on expressways and in the city, with smooth, anticipated lane changes and blinkers; oncoming headlights on the two-way mountain, forest and coast roads (the car keeps left, as in Japan); nobody ever touches anyone. The driver's eyes follow the corners, the view widens and lights streak as speed builds, an ETC toll now and then, the dazzle when leaving a tunnel, bridges over the city, the sun rising in the Dawn mood.
-- **The chase:** on every new track, and now and then along the road, the driver checks behind him: over the right shoulder, over the left shoulder, or a quick glance in the mirror. A police car follows, a little closer each time, red and blue lights turning; their glow sweeps the cabin, the screen and the wet road even while he looks ahead. When it's right behind, he floors it and loses it.
-- **Anime moments:** on some mountain hairpins (dry road only), the drive turns into an anime drift: slow motion, a frozen frame with speed lines, then an exaggerated slide with tyre smoke, sparks and tail-light trails in the mirror, and the car accelerates out.
-- **The dash:** speed, gear, revs and shift lights (green, orange, red) stay consistent with each other; the lap timer runs over 2.6 km with a live delta against the car's average pace; **DRFT** lights up during slides. A small map screen shows the road ahead as a dotted line, with the other cars, the police behind, and the next toll or tunnel.
-- **Lights:** pink and cyan neon in the city, street and tunnel lights that sweep across the cabin, LEDs that glow and breathe.
-- **Weather and driving:** in auto mode the weather moves step by step (clear, fog, rain, storm, rain, calm…); the car is slower and more careful in rain and fog, cars ahead throw spray, fog spreads the lights. An optional slow day / night cycle lives in Menu › Visuals (night by default).
+Abstract motion design, a new composition every twenty seconds or so, swept in by a slanted colour band: orbits of dashed rings and arcs snapping round a quarter turn, stripes running against each other inside a big disc, a grid of shapes turning as a wave crosses it, stacked ridges under a flat sun, slow drifting gradients, Bauhaus tiles, two-ink halftone, and scrolling DRFT type. Flat print colours, on paper (risograph and poster inks) or on night ink, slightly uneven edges, paper texture, film grain at 24 frames per second, the odd speck of dust and a faint gate weave: printed, not plastic. **P** skips to the next composition.
 
 ## Controls
 
@@ -71,7 +60,7 @@ One endless night drive, seen from the driver's seat of a tuned race car, throug
 | ← | Previous track |
 | L | Favorite |
 | C | Next car (Shift+C: previous) |
-| W or P | Next sky (Shift: previous); with Night drive, P changes the mood |
+| W or P | Sunset: next sky (Shift: previous). Abstract: next composition |
 | F | Fullscreen |
 | M | Menu |
 | ↑ ↓ | Volume |
