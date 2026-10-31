@@ -13,10 +13,10 @@
 /* Layout : le visuel tramé occupe tout l'écran. En bas à gauche le titre, en bas à droite quatre commandes,
    une barre de progression en blocs. Tout le reste vit dans un panneau à trois onglets.
    Direction : affiche de course japonaise de nuit. Titrage lourd (Dela Gothic One) avec katakana,
-   instruments en Chakra Petch, texte courant en Zen Kaku Gothic New. Les couleurs suivent l'ambiance météo. */
+   instruments en Chakra Petch, texte courant en Zen Kaku Gothic New. Encre turquoise pâle sur fond nuit. */
 :root{
-  --bg:#05030f; --bg-rgb:5,3,15;
-  --ink:#7fe8dc; --ink-rgb:127,232,220;
+  --bg:#020608; --bg-rgb:2,6,8;
+  --ink:#a6e0e3; --ink-rgb:166,224,227;
   --font-disp:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
   --font-px:"Chakra Petch","Arial Narrow",sans-serif;
   --font-txt:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
@@ -1312,12 +1312,6 @@ if (!['spotify', 'local'].includes(settings.station)) settings.station = 'spotif
 if (settings.cycle !== 'off') settings.cycle = 'auto';
 if (typeof settings.xfade !== 'number') settings.xfade = 4;
 function saveSettings() { store.set('settings', settings); }
-/* couleurs de l'interface : encre claire sur fond sombre */
-(() => {
-  const st = document.documentElement.style, bg = [2, 6, 8], ink = [166, 224, 227];
-  st.setProperty('--bg-rgb', bg.join(',')); st.setProperty('--ink-rgb', ink.join(','));
-  st.setProperty('--bg', 'rgb(' + bg.join(',') + ')'); st.setProperty('--ink', 'rgb(' + ink.join(',') + ')');
-})();
 
 function resize() {
   if (typeof Sunset !== 'undefined') Sunset.resize();
@@ -1337,7 +1331,7 @@ const Q = new URLSearchParams(location.search);
 const cv = document.getElementById('sunset');            // affichage : post-traitement WebGL
 const sc = document.createElement('canvas');             // la scène, dessinée en 2D
 const ctx = sc.getContext('2d', { alpha: false });
-const SS = 2;    // voiture et roues dessinées en double résolution puis réduites (bords plus propres)
+const SAT = 0.95;   // toute l'image un peu moins saturée que l'étalonnage de chaque ambiance
 let post = null;
 
 // hauteurs, en fraction de la hauteur de l'écran
@@ -1345,7 +1339,6 @@ const Y = { sun: 0.305, city: 0.658, shore: 0.665, rail: 0.689, beam: 0.722, wal
 // vitesses de défilement, en hauteurs d'écran par seconde (mesurées sur la vidéo de référence)
 const V = { cloud: 0.006, shore: 0.09, palmFar: 0.8, palmNear: 1.3, lamp: 2.05, rail: 2.5, road: [2.8, 3.4, 4.3], dash: 3.9 };
 const SUN_R = 0.148;   // rayon du soleil, en hauteur d'écran
-const CAR_L = 0.82;    // longueur de la voiture, en hauteur d'écran
 
 let W = 0, H = 0, U = 1, CX = 0, S = null;
 let t0 = 0, last = 0, ready = false, startCar = 0, onLabel = () => {};
@@ -1355,22 +1348,6 @@ const mk = (w, h) => { const c = document.createElement('canvas'); c.width = Mat
 const lerp = (a, b, t) => a + (b - a) * t;
 const rgb = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const mixc = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-
-// polygone aux angles arrondis ; points [x, y, rayon] dans les unités de l'appelant
-function rpath(g, pts, X, Yv, s, open) {
-  const n = pts.length;
-  g.beginPath();
-  if (open) {
-    g.moveTo(X(pts[0][0]), Yv(pts[0][1]));
-    for (let i = 1; i < n - 1; i++) { const p = pts[i], q = pts[i + 1]; g.arcTo(X(p[0]), Yv(p[1]), X(q[0]), Yv(q[1]), (p[2] || 0) * s); }
-    g.lineTo(X(pts[n - 1][0]), Yv(pts[n - 1][1]));
-    return;
-  }
-  const a = pts[n - 1], b = pts[0];
-  g.moveTo((X(a[0]) + X(b[0])) / 2, (Yv(a[1]) + Yv(b[1])) / 2);
-  for (let i = 0; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; g.arcTo(X(p[0]), Yv(p[1]), X(q[0]), Yv(q[1]), (p[2] || 0) * s); }
-  g.closePath();
-}
 
 // flou de bougé horizontal : moyenne exacte de copies décalées (addition prémultipliée)
 function motionBlur(src, px) {
@@ -1456,7 +1433,7 @@ function present(t) {
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, post.tS); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, sc);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, post.tB); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, bl);
   const gd = WX.cur.grade;
-  gl.uniform1f(post.uT, t); gl.uniform3f(post.uLift, gd[0], gd[1], gd[2]); gl.uniform3f(post.uGain, gd[3], gd[4], gd[5]); gl.uniform1f(post.uSat, gd[6]);
+  gl.uniform1f(post.uT, t); gl.uniform3f(post.uLift, gd[0], gd[1], gd[2]); gl.uniform3f(post.uGain, gd[3], gd[4], gd[5]); gl.uniform1f(post.uSat, gd[6] * SAT);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
@@ -1867,100 +1844,9 @@ function buildPalm(seed, h, blurPx, haze, dof) {
   return { c: out, ax: w * 0.5 + blurPx / 2, ay: hh };
 }
 
-function buildLamp(blurPx) {
-  const h = H * (Y.wall - 0.072), w = H * 0.07, c = mk(w, h), g = c.getContext('2d'), px = w * 0.72;
-  g.fillStyle = '#20162a';
-  g.beginPath(); g.moveTo(px - H * 0.005, h); g.lineTo(px + H * 0.005, h); g.lineTo(px + H * 0.003, H * 0.03); g.lineTo(px - H * 0.003, H * 0.03); g.closePath(); g.fill();
-  g.strokeStyle = '#20162a'; g.lineWidth = H * 0.0045; g.lineCap = 'round';
-  g.beginPath(); g.moveTo(px, H * 0.034); g.quadraticCurveTo(px, H * 0.012, px - H * 0.028, H * 0.012); g.stroke();
-  g.fillStyle = '#2a1e30'; g.beginPath(); g.ellipse(px - H * 0.036, H * 0.012, H * 0.014, H * 0.0045, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#fff1d6'; g.beginPath(); g.ellipse(px - H * 0.036, H * 0.0155, H * 0.011, H * 0.0022, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = 'rgba(255,170,130,0.35)'; g.fillRect(px - H * 0.0022, H * 0.03, Math.max(1, H * 0.0012), h - H * 0.03);
-  const out = blurPx > 1 ? motionBlur(c, blurPx) : c;
-  return { c: out, ax: px + blurPx / 2, ay: h, hx: px - H * 0.036 + blurPx / 2, hy: H * 0.0155 };
-}
-
-/* ---------- glissière, mur, route ---------- */
-
-function buildBeam() {
-  const bh = Math.ceil(H * 0.007), c = mk(W, bh), g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, bh);
-  gr.addColorStop(0, '#c89088'); gr.addColorStop(0.18, '#6a3a3a'); gr.addColorStop(0.6, '#34181c'); gr.addColorStop(1, '#180a0c');
-  g.fillStyle = gr; g.fillRect(0, 0, W, bh);
-  return c;
-}
-
-function buildWall() {
-  const y0 = H * Y.wall, y1 = H * Y.road, c = mk(W, y1 - y0 + H * 0.01), g = c.getContext('2d');
-  const ky = H * (Y.kerb - Y.wall), kh = H * (Y.road - Y.kerb);
-  let gr = g.createLinearGradient(0, 0, 0, ky);
-  gr.addColorStop(0, '#4e2626'); gr.addColorStop(1, '#3a1c1c');
-  g.fillStyle = gr; g.fillRect(0, 0, W, ky);
-  g.fillStyle = 'rgba(255,170,160,0.35)'; g.fillRect(0, 0, W, Math.max(1, H * 0.0015));
-  gr = g.createLinearGradient(0, ky, 0, ky + kh);
-  gr.addColorStop(0, '#ffb060'); gr.addColorStop(0.45, '#f08038'); gr.addColorStop(1, '#b8481e');
-  g.fillStyle = gr; g.fillRect(0, ky, W, kh);
-  gr = g.createLinearGradient(0, ky - H * 0.012, 0, ky);
-  gr.addColorStop(0, 'rgba(255,140,80,0)'); gr.addColorStop(1, 'rgba(255,140,80,0.4)');
-  g.fillStyle = gr; g.fillRect(0, ky - H * 0.012, W, H * 0.012);
-  return { c, y0 };
-}
-
-function buildRoad() {
-  const TW = Math.ceil(Math.max(W, H * 1.78) * 1.2), y0 = H * Y.road, h = Math.ceil(H - y0), c = mk(TW, h), g = c.getContext('2d'), r = rnd(53);
-  const gr = g.createLinearGradient(0, 0, 0, h);
-  gr.addColorStop(0, '#3a1618'); gr.addColorStop(0.3, '#3c1a1a'); gr.addColorStop(1, '#2e1a16');
-  g.fillStyle = gr; g.fillRect(0, 0, TW, h);
-  for (let i = 0, n = Math.round(TW * h / 500); i < n; i++) {
-    const y = Math.pow(r(), 0.8) * h, len = H * (0.03 + 0.3 * r()), x = r() * TW;
-    g.fillStyle = r() < 0.55 ? `rgba(255,190,170,${0.01 + 0.025 * r()})` : `rgba(0,0,0,${0.05 + 0.08 * r()})`;
-    const th = Math.max(1, U * (0.8 + 1.5 * r()));
-    g.fillRect(x, y, len, th); if (x + len > TW) g.fillRect(x - TW, y, len, th);
-  }
-  return { c, TW, y0 };
-}
-
-function buildRoadLight() {
-  const y0 = H * Y.road, h = Math.ceil(H - y0), c = mk(W, h), g = c.getContext('2d');
-  let gr = g.createLinearGradient(0, 0, 0, h * 0.25);
-  gr.addColorStop(0, 'rgba(255,140,80,0.12)'); gr.addColorStop(1, 'rgba(255,140,80,0)');
-  g.fillStyle = gr; g.fillRect(0, 0, W, h * 0.25);
-  g.setTransform(1.8, 0, 0, 1, CX, H * 0.03);
-  gr = g.createRadialGradient(0, 0, 0, 0, 0, H * 0.22);
-  gr.addColorStop(0, 'rgba(255,150,100,0.2)'); gr.addColorStop(1, 'rgba(255,150,100,0)');
-  g.fillStyle = gr; g.fillRect(-H * 0.22, -H * 0.22, H * 0.44, H * 0.44);
-  g.setTransform(1, 0, 0, 1, 0, 0);
-  gr = g.createLinearGradient(0, h * 0.4, 0, h);
-  gr.addColorStop(0, 'rgba(8,4,10,0)'); gr.addColorStop(1, 'rgba(8,4,10,0.15)');
-  g.fillStyle = gr; g.fillRect(0, h * 0.4, W, h * 0.6);
-  return c;
-}
-
-/* ---------- voitures ---------- */
-// Chaque voiture est une fiche : profil en unités, x de 0 (nez) à 1000 (poupe), y vers le haut depuis le sol,
-// rayon d'arrondi en 3e valeur. len : longueur réelle en mm (les voitures gardent leurs proportions entre elles).
-// profile : contour du bas du nez jusqu'au bas de la poupe en passant par le toit ; la caisse se referme par
-// le passage de roue arrière, le bas de caisse (sill) et le passage avant, calculés autour des roues.
-// Lignes : crease (arête qui accroche la lumière), panel (jour de carrosserie). horizon : hauteur où se reflète
-// l'horizon sur le flanc. cabin : tête du conducteur et volant, vus à travers les vitres.
-// glows : halos des feux [sprite W/O/R, x, y, rayon x, rayon y (en hauteur d'écran), intensité]. beam : phare avant.
-
-const PAINTS = {
-  red: {
-    stops: [[0, '#ff7058'], [0.05, '#ff4a2c'], [0.14, '#d81e0a'], [0.4, '#f01e06'], [0.53, '#fa1c04'], [0.63, '#e41a04'], [0.74, '#931006'], [0.85, '#5a0a04'], [1, '#200402']],
-    sheen: '255,70,30', band: '255,90,60', sky: '255,150,140', skyA: 0.2, crease: 'rgba(255,196,166,0.55)', panel: 'rgba(60,0,10,0.6)', mirror: '#b01a10', strut: '#3a0c10',
-    wing: ['#ff9a72', '#d8382a', '#5a0c10'], lower: 'rgba(50,0,8,0.12)', sill: 'rgba(255,120,90,0.35)',
-  },
-  // noir verni : côté caméra, le flanc reflète le ciel bleu-violet ; le dessus accroche le couchant
-  black: {
-    stops: [[0, '#ffb894'], [0.04, '#8a5a62'], [0.1, '#221a2c'], [0.28, '#16121f'], [0.4, '#2a2642'], [0.47, '#3a3458'], [0.53, '#14101c'], [0.72, '#08060a'], [1, '#030203']],
-    sheen: '130,120,210', band: '180,160,240', sky: '150,150,235', skyA: 0.3, crease: 'rgba(255,176,146,0.5)', panel: 'rgba(0,0,0,0.7)', mirror: '#1a1420', strut: '#0a0507',
-    wing: ['#ffa080', '#3a1c22', '#080406'], lower: 'rgba(0,0,0,0.2)', sill: 'rgba(255,130,100,0.3)',
-  },
-};
-
 const CARS = [
   {
-    id: 'countach', name: 'Countach', len: 4140, paint: 'red', rim: 'dial',
+    id: 'countach', name: 'Countach', len: 4140, width: 2000, ws: [300, 452], rw: [612, 700], paint: 'red', rim: 'dial',
     body: [
       [30, 34, 6], [14, 52, 8], [18, 86, 10], [58, 126, 14], [100, 160, 12], [190, 184, 40], [300, 200, 18], [452, 246, 34], [612, 248, 24], [700, 230, 20],
       [868, 214, 10], [985, 204, 8], [1000, 188, 6], [1000, 112, 6], [994, 72, 8], [978, 38, 6],
@@ -1979,28 +1865,18 @@ const CARS = [
       [[[106, 158, 2], [112, 170, 3], [138, 176, 3], [136, 166, 2]], '#fff4e6'], [[[148, 170, 2], [154, 180, 3], [178, 186, 3], [178, 177, 2]], '#fff4e6'],
       [[[24, 66, 2], [40, 76, 2], [42, 70, 2], [26, 60, 2]], '#ffa040'], [[[968, 180, 2], [1000, 182, 2], [1000, 164, 2], [970, 164, 2]], '#ff3a30'],
     ],
-    lines: [
-      ['crease', [[40, 104], [110, 146, 60], [220, 152], [740, 160], [998, 166]]], ['crease', [[750, 156], [860, 198, 80], [990, 178]]],
-      ['crease', [[20, 84], [132, 100]]], ['crease', [[608, 128], [640, 131]]],
-      ['panel', [[298, 178], [306, 110]]], ['panel', [[664, 184], [700, 118]]], ['panel', [[700, 229], [706, 208, 6], [980, 201]]],
-    ],
-    rimLines: [[[870, 243], [1016, 270]]],
-    sheen: [[470, 165, 420, 0.16], [880, 176, 130, 0.3]], bands: [[150, 176, 0.14]], lowerShade: [112, 128], horizon: 134,
-    exhaust: [[984, 50]], handles: [], shades: [],
-    cabin: { head: [462, 202], wheel: [384, 194] },
     wheels: [[224, 62], [818, 66]], beam: [150, 176],
     glows: [['W', 124, 170, 0.03, 0.026, 0.8], ['W', 165, 179, 0.03, 0.026, 0.8], ['O', 32, 68, 0.02, 0.02, 0.7], ['R', 990, 172, 0.04, 0.03, 0.85]],
   },
   {
     // Toyota Supra A80 : nez rond et bas, long capot, bulle de pavillon, lunette fuyante, poupe courte, aileron sur arceaux
-    id: 'supra', name: 'Supra MK4', len: 4520, paint: 'black', rim: 'spoke5', caliper: '#c42a20', drop: 4,
+    id: 'supra', name: 'Supra MK4', len: 4520, width: 1810, ws: [385, 548], rw: [700, 850], paint: 'black', rim: 'spoke5', caliper: '#c42a20', drop: 4,
     profile: [
       [22, 30, 6], [6, 48, 10], [0, 78, 18], [4, 104, 18], [22, 128, 24], [60, 146, 30], [150, 162, 60], [270, 180, 80], [385, 205, 16],
       [548, 280, 70], [640, 284, 70], [700, 270, 60], [850, 224, 30], [950, 222, 14], [990, 216, 8], [1000, 190, 8], [999, 120, 10], [992, 62, 10], [972, 38, 6],
     ],
     sill: 34, arch: 13,
     glass: [[[398, 206, 4], [540, 272, 30], [640, 276, 40], [700, 262, 30], [776, 238, 12], [740, 224, 4]]],
-    pillars: [[[652, 272], [664, 218]]],
     dark: [[[8, 54, 4], [70, 58, 4], [72, 44, 4], [12, 40, 4]]],
     mirror: [[400, 206, 4], [438, 214, 6], [442, 228, 6], [404, 226, 4]],
     wing: [[858, 262, 4], [1006, 268, 4], [1008, 280, 6], [866, 278, 6]],
@@ -2009,30 +1885,18 @@ const CARS = [
       [[[8, 98, 1], [58, 130, 2], [94, 140, 1], [60, 122, 2], [16, 92, 1]], '#fff2e2'], [[[22, 74, 3], [46, 78, 3], [46, 70, 3], [22, 66, 3]], '#ffa040'],
       [[[984, 206, 3], [1000, 200, 3], [1000, 166, 3], [986, 172, 3]], '#ff5a2a'], [[[958, 84, 2], [988, 86, 2], [988, 76, 2], [958, 74, 2]], '#ff9a30'],
     ],
-    lines: [
-      ['crease', [[30, 124], [150, 156, 60], [400, 186], [760, 198], [996, 206]]],
-      ['crease', [[300, 76], [520, 96, 120], [690, 146]]],
-      ['crease', [[14, 60], [120, 66]]],
-      ['panel', [[396, 204], [398, 44]]], ['panel', [[668, 222], [656, 44]]], ['panel', [[64, 146], [384, 202]]],
-    ],
-    shades: [[[[300, 76], [520, 96], [690, 146], [690, 30], [300, 30]], 0.14]],
-    handles: [[[628, 186], [662, 188]]], exhaust: [[982, 44]],
-    rimLines: [[[866, 278], [1008, 280]]],
-    sheen: [[480, 150, 420, 0.14], [800, 170, 140, 0.25]], bands: [[150, 176, 0.12]], lowerShade: [100, 110], horizon: 150,
-    cabin: { head: [585, 232], wheel: [490, 224] },
     wheels: [[210, 70], [774, 70]], beam: [44, 122],
     glows: [['W', 40, 120, 0.032, 0.024, 0.85], ['O', 34, 72, 0.016, 0.014, 0.6], ['R', 994, 186, 0.04, 0.03, 0.9], ['O', 973, 80, 0.02, 0.014, 0.5]],
   },
   {
     // BMW M3 E36 coupé : bouclier droit, capot plat et long, pare-brise très couché, vitres sans montant, malle courte
-    id: 'm3', name: 'M3 E36', len: 4433, paint: 'red', rim: 'mesh', caliper: '#c8a030', drop: 8,
+    id: 'm3', name: 'M3 E36', len: 4433, width: 1710, ws: [340, 520], rw: [640, 815], paint: 'red', rim: 'mesh', caliper: '#c8a030', drop: 8,
     profile: [
       [18, 34, 6], [2, 50, 8], [0, 104, 6], [6, 112, 4], [12, 140, 6], [24, 150, 14], [200, 186, 90], [340, 213, 18], [520, 298, 60], [640, 300, 60],
       [815, 232, 40], [975, 228, 10], [998, 220, 8], [1000, 190, 6], [999, 112, 8], [990, 54, 8], [972, 38, 6],
     ],
     sill: 36, arch: 12,
     glass: [[[372, 210, 4], [512, 288, 24], [630, 292, 40], [776, 238, 12], [752, 222, 4]]],
-    pillars: [[[618, 290], [606, 218]]],
     dark: [[[4, 70, 2], [70, 72, 2], [70, 54, 2], [6, 52, 2]]],
     mirror: [[372, 222, 4], [410, 230, 6], [414, 246, 6], [378, 242, 4]],
     wing: [[930, 228, 3], [996, 236, 3], [998, 226, 3], [934, 222, 3]],
@@ -2041,22 +1905,11 @@ const CARS = [
       [[[2, 114, 2], [12, 116, 2], [14, 138, 2], [6, 136, 2]], '#fff4e8'], [[[284, 146, 3], [304, 147, 3], [304, 140, 3], [284, 139, 3]], '#ffa040'],
       [[[8, 64, 2], [20, 66, 2], [20, 58, 2], [8, 56, 2]], '#fff0dc'], [[[962, 216, 3], [1000, 212, 3], [1000, 182, 3], [964, 186, 3]], '#ff2a1e'],
     ],
-    lines: [
-      ['crease', [[14, 142], [200, 176, 90], [380, 186], [780, 196], [998, 204]]], ['crease', [[100, 98], [990, 104]]],
-      ['crease', [[14, 58], [100, 66]]],
-      ['panel', [[372, 216], [376, 46]]], ['panel', [[692, 228], [694, 46]]], ['panel', [[24, 148], [338, 210]]], ['panel', [[815, 230], [972, 226]]],
-      ['panel', [[0, 108], [96, 110]]], ['panel', [[1000, 112], [880, 110]]],
-    ],
-    shades: [], handles: [[[636, 196], [670, 197]]], exhaust: [[968, 44], [944, 44]],
-    rimLines: [[[934, 225], [997, 233]]],
-    sheen: [[480, 160, 420, 0.15], [820, 180, 140, 0.25]], bands: [[160, 186, 0.12]], lowerShade: [96, 112], horizon: 156,
-    cabin: { head: [562, 246], wheel: [462, 232] },
     wheels: [[179, 72], [790, 72]], beam: [10, 126],
     glows: [['W', 8, 126, 0.035, 0.03, 0.85], ['O', 294, 143, 0.014, 0.012, 0.6], ['W', 14, 61, 0.02, 0.015, 0.5], ['R', 990, 198, 0.045, 0.034, 0.9]],
   },
 ];
 
-const carScale = def => H * CAR_L / 1000 * def.len / 4140;
 const bbox = pts => pts.reduce((b, [x, y]) => [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)], [1e9, 1e9, -1e9, -1e9]);
 
 // arc de passage de roue, de droite à gauche par-dessus la roue, ouvert au niveau du bas de caisse
@@ -2078,324 +1931,12 @@ function prepCar(def) {
   return def;
 }
 
-function buildCar(def) {
-  prepCar(def);
-  const P0 = PAINTS[def.paint], top = bbox(def.body.concat(def.wing || []))[3];
-  const s = carScale(def) * SS, ox = 35, gy = Math.ceil(top) + 20, c = mk(1070 * s, (gy + 12) * s), g = c.getContext('2d');
-  const X = u => (u + ox) * s, Yv = v => (gy - v) * s, P = (pts, open) => rpath(g, pts, X, Yv, s, open);
-  // passages de roue : puits sombre, un peu plus clair vers le haut (doublure éclairée par la route)
-  for (const a of [def.archF, def.archR]) {
-    const [, ay0, , ay1] = bbox(a);
-    const gr0 = g.createLinearGradient(0, Yv(ay1), 0, Yv(ay0));
-    gr0.addColorStop(0, '#1a1014'); gr0.addColorStop(1, '#050304');
-    P(a); g.fillStyle = gr0; g.fill();
-  }
-  // caisse
-  let gr = g.createLinearGradient(0, Yv(top + 10), 0, Yv(30));
-  for (const [o, col] of P0.stops) gr.addColorStop(o, col);
-  P(def.body); g.fillStyle = gr; g.fill();
-  g.save(); P(def.body); g.clip();
-  for (const [u, v, rad, a] of def.sheen) {
-    gr = g.createRadialGradient(X(u), Yv(v), 0, X(u), Yv(v), rad * s);
-    gr.addColorStop(0, `rgba(${P0.sheen},${a})`); gr.addColorStop(1, `rgba(${P0.sheen},0)`);
-    g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
-  }
-  // l'horizon se reflète sur le flanc : ciel au-dessus, bord net, route sombre en dessous, filet orange de la bordure
-  const hz = def.horizon;
-  gr = g.createLinearGradient(0, Yv(hz + 70), 0, Yv(hz));
-  gr.addColorStop(0, `rgba(${P0.sky},0)`); gr.addColorStop(1, `rgba(${P0.sky},${P0.skyA})`);
-  g.fillStyle = gr; g.fillRect(0, Yv(hz + 70), c.width, Yv(hz) - Yv(hz + 70));
-  gr = g.createLinearGradient(0, Yv(hz), 0, Yv(hz - 45));
-  gr.addColorStop(0, 'rgba(0,0,0,0.28)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
-  g.fillStyle = gr; g.fillRect(0, Yv(hz), c.width, Yv(hz - 45) - Yv(hz));
-  g.fillStyle = `rgba(${P0.sky},${P0.skyA * 1.6})`; g.fillRect(0, Yv(hz) - 1.3 * s, c.width, 1.3 * s);
-  g.fillStyle = 'rgba(255,140,60,0.22)'; g.fillRect(0, Yv(hz - 52), c.width, 1.6 * s);
-  for (const [pts, a] of def.shades) { P(pts); g.fillStyle = `rgba(0,0,0,${a})`; g.fill(); }
-  // sous l'arête latérale, la caisse rentre et s'assombrit
-  const [l0, l1] = def.lowerShade;
-  g.fillStyle = P0.lower;
-  g.beginPath(); g.moveTo(X(-10), Yv(l0)); g.lineTo(X(1010), Yv(l1)); g.lineTo(X(1010), Yv(0)); g.lineTo(X(-10), Yv(0)); g.fill();
-  gr = g.createLinearGradient(0, Yv(75), 0, Yv(34));
-  gr.addColorStop(0, 'rgba(20,0,4,0)'); gr.addColorStop(1, 'rgba(20,0,4,0.6)');
-  g.fillStyle = gr; g.fillRect(0, Yv(75), c.width, Yv(30) - Yv(75));
-  const x0 = bbox(def.archF)[2], x1 = bbox(def.archR)[0];
-  g.fillStyle = P0.sill; g.fillRect(X(x0), Yv(44), X(x1) - X(x0), 2 * s);
-  for (const [y0, y1, a] of def.bands) {
-    const b = g.createLinearGradient(0, Yv(y1), 0, Yv(y0));
-    b.addColorStop(0, `rgba(${P0.band},0)`); b.addColorStop(0.5, `rgba(${P0.band},${a})`); b.addColorStop(1, `rgba(${P0.band},0)`);
-    g.fillStyle = b; g.fillRect(0, Yv(y1), c.width, Yv(y0) - Yv(y1));
-  }
-  g.lineCap = 'round'; g.lineJoin = 'round';
-  for (const [kind, pts] of def.lines) {
-    g.strokeStyle = kind === 'crease' ? P0.crease : P0.panel; g.lineWidth = (kind === 'crease' ? 2.2 : 1.6) * s;
-    P(pts, true); g.stroke();
-  }
-  // poignées : creux sombre, liseré clair au-dessus
-  for (const [[a, b], [c2, d]] of def.handles) {
-    g.strokeStyle = 'rgba(0,0,0,0.75)'; g.lineWidth = 5 * s; g.beginPath(); g.moveTo(X(a), Yv(b)); g.lineTo(X(c2), Yv(d)); g.stroke();
-    g.strokeStyle = 'rgba(255,190,170,0.45)'; g.lineWidth = 1.4 * s; g.beginPath(); g.moveTo(X(a), Yv(b + 3.5)); g.lineTo(X(c2), Yv(d + 3.5)); g.stroke();
-  }
-  g.restore();
-  // lèvres des passages de roue
-  g.strokeStyle = 'rgba(255,176,140,0.55)'; g.lineWidth = 2.2 * s; g.lineCap = 'round';
-  for (const a of [def.archF, def.archR]) { rpath(g, a.slice(1, -1), X, Yv, s, true); g.stroke(); }
-  // vitres : on découpe la caisse, on dessine l'habitacle en ombres chinoises, puis un verre teinté par-dessus ;
-  // le décor reste visible au travers, assombri
-  g.globalCompositeOperation = 'destination-out';
-  for (const w of def.glass) { P(w); g.fill(); }
-  g.globalCompositeOperation = 'source-over';
-  for (const w of def.glass) {
-    const [bx0, by0, bx1, by1] = bbox(w), bw = bx1 - bx0, bh = by1 - by0;
-    g.save(); P(w); g.clip();
-    const silhouette = '#07050a';
-    // haut de portière et planche de bord du côté opposé
-    g.fillStyle = silhouette; g.fillRect(X(bx0 - 10), Yv(by0 + bh * 0.16), X(bx1 + 10) - X(bx0 - 10), Yv(by0 - 10) - Yv(by0 + bh * 0.16));
-    const cb = def.cabin;
-    if (cb && cb.head[0] > bx0 && cb.head[0] < bx1) {
-      const [hu, hv] = cb.head, [wu, wv] = cb.wheel;
-      // siège passager et appuie-tête, en retrait
-      g.beginPath(); g.ellipse(X(hu + 70), Yv(hv - 4), 16 * s, 22 * s, -0.15, 0, Math.PI * 2); g.fill();
-      g.fillRect(X(hu + 50), Yv(hv - 18), 40 * s, Yv(by0) - Yv(hv - 18));
-      // volant (vu par la tranche) et conducteur
-      g.strokeStyle = silhouette; g.lineWidth = 6 * s;
-      g.beginPath(); g.ellipse(X(wu), Yv(wv), 7 * s, 26 * s, 0.35, 0, Math.PI * 2); g.stroke();
-      g.beginPath(); g.ellipse(X(hu + 18), Yv(hv - 6), 18 * s, 26 * s, -0.12, 0, Math.PI * 2); g.fill();   // appuie-tête du conducteur
-      g.beginPath(); g.ellipse(X(hu), Yv(hv), 19 * s, 24 * s, 0.05, 0, Math.PI * 2); g.fill();             // tête
-      g.beginPath(); g.moveTo(X(hu - 40), Yv(by0)); g.quadraticCurveTo(X(hu - 34), Yv(hv - 40), X(hu - 6), Yv(hv - 30));
-      g.lineTo(X(hu + 24), Yv(hv - 30)); g.quadraticCurveTo(X(hu + 40), Yv(hv - 44), X(hu + 44), Yv(by0)); g.fill();  // épaules
-      // contre-jour : la lumière du couchant, de l'autre côté, découpe la nuque et le haut du crâne
-      g.strokeStyle = 'rgba(255,160,120,0.5)'; g.lineWidth = 2 * s;
-      g.beginPath(); g.ellipse(X(hu), Yv(hv), 19 * s, 24 * s, 0.05, -1.6, 0.3); g.stroke();
-    }
-    // verre teinté, plus sombre sous le pavillon, avec les reflets obliques du ciel
-    gr = g.createLinearGradient(0, Yv(by1), 0, Yv(by0));
-    gr.addColorStop(0, 'rgba(10,12,32,0.82)'); gr.addColorStop(0.35, 'rgba(18,22,56,0.55)'); gr.addColorStop(1, 'rgba(14,16,40,0.6)');
-    g.fillStyle = gr; g.fillRect(X(bx0 - 10), Yv(by1 + 10), X(bx1 + 10) - X(bx0 - 10), Yv(by0 - 10) - Yv(by1 + 10));
-    for (const [f, wd, a] of [[0.18, 0.28, 0.14], [0.58, 0.09, 0.08]]) {
-      const sx = bx0 + bw * f;
-      g.fillStyle = `rgba(255,150,180,${a})`;
-      g.beginPath(); g.moveTo(X(sx), Yv(by1 + 20)); g.lineTo(X(sx + bw * wd), Yv(by1 + 20)); g.lineTo(X(sx + bw * wd - 50), Yv(by0 - 10)); g.lineTo(X(sx - 50), Yv(by0 - 10)); g.fill();
-    }
-    g.restore();
-    // joint de vitre noir et liseré
-    g.strokeStyle = '#0a0608'; g.lineWidth = 4 * s; P(w); g.stroke();
-    g.strokeStyle = 'rgba(255,190,190,0.3)'; g.lineWidth = 1.2 * s; P(w); g.stroke();
-  }
-  g.strokeStyle = '#0a0608'; g.lineWidth = 7 * s;
-  for (const p of def.pillars || []) { P(p, true); g.stroke(); }
-  // prises d'air et grilles
-  for (const a of def.dark) {
-    const [, by0, , by1] = bbox(a);
-    P(a); gr = g.createLinearGradient(0, Yv(by1), 0, Yv(by0));
-    gr.addColorStop(0, '#08040a'); gr.addColorStop(1, '#2a0c12');
-    g.fillStyle = gr; g.fill();
-  }
-  // sorties d'échappement
-  for (const [u, v] of def.exhaust) {
-    g.fillStyle = '#0a0608'; g.beginPath(); g.ellipse(X(u), Yv(v), 9 * s, 6 * s, 0, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = 'rgba(220,200,210,0.75)'; g.lineWidth = 2 * s; g.stroke();
-  }
-  // rétroviseur
-  P(def.mirror); gr = g.createLinearGradient(0, Yv(bbox(def.mirror)[3]), 0, Yv(bbox(def.mirror)[1]));
-  gr.addColorStop(0, '#ff9a80'); gr.addColorStop(0.25, P0.mirror); gr.addColorStop(1, '#060304');
-  g.fillStyle = gr; g.fill();
-  // aileron ou becquet
-  g.strokeStyle = P0.strut; g.lineWidth = 10 * s; g.lineCap = 'round'; g.lineJoin = 'round';
-  for (const st of def.struts) { P(st, true); g.stroke(); }
-  if (def.wing) {
-    const [, wy0, , wy1] = bbox(def.wing);
-    P(def.wing); gr = g.createLinearGradient(0, Yv(wy1), 0, Yv(wy0));
-    gr.addColorStop(0, P0.wing[0]); gr.addColorStop(0.4, P0.wing[1]); gr.addColorStop(1, P0.wing[2]);
-    g.fillStyle = gr; g.fill();
-  }
-  // liserés de contre-jour sur le dessus
-  g.strokeStyle = 'rgba(255,150,110,0.35)'; g.lineWidth = 7 * s; P(def.top, true); g.stroke();
-  g.strokeStyle = 'rgba(255,224,200,0.92)'; g.lineWidth = 2.4 * s; P(def.top, true); g.stroke();
-  for (const l of def.rimLines) { P(l, true); g.stroke(); }
-  // feux : verre coloré, cœur plus clair
-  for (const [pts, col] of def.lamps) {
-    P(pts); g.fillStyle = col; g.fill();
-    const [lx0, ly0, lx1, ly1] = bbox(pts);
-    gr = g.createRadialGradient(X((lx0 + lx1) / 2), Yv((ly0 + ly1) / 2), 0, X((lx0 + lx1) / 2), Yv((ly0 + ly1) / 2), Math.max(lx1 - lx0, ly1 - ly0) * 0.6 * s);
-    gr.addColorStop(0, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-    g.save(); P(pts); g.clip(); g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height); g.restore();
-    g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 1.2 * s; P(pts); g.stroke();
-  }
-  // masque à pleine résolution d'écran, pour les reflets qui glissent sur la carrosserie
-  const mask = mk(c.width / SS, c.height / SS); mask.getContext('2d').drawImage(c, 0, 0, mask.width, mask.height);
-  return { c, mask, s: s / SS, ox, gy };
-}
-
-// Jantes. dial : disque à cinq trous ronds ; spoke5 : cinq branches ; mesh : dix doubles rayons.
-// Entre les branches on voit le disque de frein et l'étrier, qui ne tournent pas. La partie qui tourne est
-// pré-floutée (moyenne de copies tournées) ; les reflets restent fixes par-dessus.
-function buildWheel(R, style, caliper) {
-  const size = Math.ceil(R * 2 + 4), o = size / 2, rr = R * (style === 'dial' ? 0.62 : 0.72);
-  const tyre = mk(size, size), t = tyre.getContext('2d');
-  let gr = t.createRadialGradient(o, o, R * 0.62, o, o, R);
-  gr.addColorStop(0, '#2c2228'); gr.addColorStop(0.35, '#1a1418'); gr.addColorStop(0.9, '#100c10'); gr.addColorStop(1, '#060406');
-  t.fillStyle = gr; t.beginPath(); t.arc(o, o, R, 0, Math.PI * 2); t.fill();
-  t.strokeStyle = 'rgba(255,170,160,0.2)'; t.lineWidth = R * 0.05;
-  t.beginPath(); t.arc(o, o, R * 0.84, Math.PI * 1.05, Math.PI * 1.6); t.stroke();
-  t.strokeStyle = 'rgba(255,255,255,0.05)'; t.lineWidth = R * 0.02; t.beginPath(); t.arc(o, o, R * 0.93, 0, Math.PI * 2); t.stroke();
-  if (style !== 'dial') {
-    t.fillStyle = '#0c080b'; t.beginPath(); t.arc(o, o, rr, 0, Math.PI * 2); t.fill();
-    gr = t.createRadialGradient(o, o, rr * 0.25, o, o, rr * 0.8);
-    gr.addColorStop(0, '#2e282c'); gr.addColorStop(0.7, '#5e5258'); gr.addColorStop(1, '#3a3236');
-    t.fillStyle = gr; t.beginPath(); t.arc(o, o, rr * 0.8, 0, Math.PI * 2); t.fill();
-    t.fillStyle = 'rgba(10,6,8,0.8)';
-    for (let i = 0; i < 30; i++) { const a = i / 30 * Math.PI * 2; t.beginPath(); t.arc(o + Math.cos(a) * rr * 0.62, o + Math.sin(a) * rr * 0.62, rr * 0.025, 0, Math.PI * 2); t.fill(); }
-    t.fillStyle = '#0c080b'; t.beginPath(); t.arc(o, o, rr * 0.34, 0, Math.PI * 2); t.fill();
-    // étrier, en haut vers l'arrière de la voiture
-    t.save(); t.translate(o, o); t.rotate(-0.6);
-    t.fillStyle = caliper || '#a02018';
-    t.beginPath(); t.arc(0, 0, rr * 0.84, -0.42, 0.42); t.arc(0, 0, rr * 0.5, 0.42, -0.42, true); t.closePath(); t.fill();
-    t.strokeStyle = 'rgba(255,230,220,0.45)'; t.lineWidth = rr * 0.035; t.beginPath(); t.arc(0, 0, rr * 0.8, -0.38, 0.38); t.stroke();
-    t.restore();
-    t.strokeStyle = 'rgba(0,0,0,0.6)'; t.lineWidth = rr * 0.1; t.beginPath(); t.arc(o, o, rr * 0.9, 0, Math.PI * 2); t.stroke();
-  }
-  const one = mk(size, size), og = one.getContext('2d');
-  const silver = ['#ece0e4', '#c4b2ba', '#8a7480'];
-  const drawRim = a => {
-    og.clearRect(0, 0, size, size); og.save(); og.translate(o, o); og.rotate(a);
-    if (style === 'dial') {
-      const g2 = og.createRadialGradient(0, 0, 0, 0, 0, rr);
-      g2.addColorStop(0, '#8a6a78'); g2.addColorStop(0.7, '#76586a'); g2.addColorStop(0.92, '#a08694'); g2.addColorStop(1, '#4a3440');
-      og.fillStyle = g2; og.beginPath(); og.arc(0, 0, rr, 0, Math.PI * 2); og.fill();
-      for (let i = 0; i < 5; i++) {
-        const b = i * Math.PI * 2 / 5, hx = Math.cos(b) * rr * 0.6, hy = Math.sin(b) * rr * 0.6;
-        og.fillStyle = '#2a1820'; og.beginPath(); og.arc(hx, hy, rr * 0.22, 0, Math.PI * 2); og.fill();
-        og.strokeStyle = 'rgba(90,60,74,0.9)'; og.lineWidth = rr * 0.045; og.stroke();
-      }
-      og.fillStyle = '#5a4450'; og.beginPath(); og.arc(0, 0, rr * 0.2, 0, Math.PI * 2); og.fill();
-    } else {
-      og.fillStyle = silver[1]; og.strokeStyle = silver[1];
-      if (style === 'spoke5') {
-        for (let i = 0; i < 5; i++) {
-          og.save(); og.rotate(i * Math.PI * 2 / 5);
-          og.beginPath(); og.moveTo(-rr * 0.15, -rr * 0.2); og.quadraticCurveTo(-rr * 0.1, -rr * 0.6, -rr * 0.09, -rr * 0.93);
-          og.lineTo(rr * 0.09, -rr * 0.93); og.quadraticCurveTo(rr * 0.1, -rr * 0.6, rr * 0.15, -rr * 0.2); og.closePath(); og.fill();
-          og.fillStyle = 'rgba(255,245,245,0.45)'; og.fillRect(-rr * 0.025, -rr * 0.9, rr * 0.035, rr * 0.68);
-          og.fillStyle = 'rgba(0,0,0,0.35)'; og.fillRect(rr * 0.04, -rr * 0.9, rr * 0.04, rr * 0.68); og.fillStyle = silver[1];
-          og.restore();
-        }
-      } else {
-        og.lineWidth = rr * 0.06; og.lineCap = 'round';
-        for (let i = 0; i < 10; i++) {
-          const b = i * Math.PI * 2 / 10;
-          for (const d of [-0.2, 0.2]) { og.beginPath(); og.moveTo(Math.cos(b) * rr * 0.24, Math.sin(b) * rr * 0.24); og.lineTo(Math.cos(b + d) * rr * 0.9, Math.sin(b + d) * rr * 0.9); og.stroke(); }
-        }
-        og.lineWidth = rr * 0.035; og.strokeStyle = silver[2]; og.beginPath(); og.arc(0, 0, rr * 0.3, 0, Math.PI * 2); og.stroke();
-      }
-      // lèvre polie, vis de jante, moyeu
-      og.strokeStyle = silver[0]; og.lineWidth = rr * 0.1; og.beginPath(); og.arc(0, 0, rr * 0.95, 0, Math.PI * 2); og.stroke();
-      og.fillStyle = silver[2];
-      for (let i = 0; i < 20; i++) { const b = i / 20 * Math.PI * 2; og.beginPath(); og.arc(Math.cos(b) * rr * 0.86, Math.sin(b) * rr * 0.86, rr * 0.018, 0, Math.PI * 2); og.fill(); }
-      og.fillStyle = silver[2]; og.beginPath(); og.arc(0, 0, rr * 0.22, 0, Math.PI * 2); og.fill();
-      og.fillStyle = silver[0]; og.beginPath(); og.arc(0, 0, rr * 0.1, 0, Math.PI * 2); og.fill();
-    }
-    og.fillStyle = '#d8c4cc';
-    for (let i = 0; i < 5; i++) { const b = i * Math.PI * 2 / 5 + 0.6; og.beginPath(); og.arc(Math.cos(b) * rr * 0.15, Math.sin(b) * rr * 0.15, rr * 0.028, 0, Math.PI * 2); og.fill(); }
-    og.restore();
-  };
-  const rim = mk(size, size), rg = rim.getContext('2d'), k = 8, spread = 0.22;
-  rg.globalCompositeOperation = 'lighter'; rg.globalAlpha = 1 / k;
-  for (let i = 0; i < k; i++) { drawRim((i / (k - 1) - 0.5) * spread); rg.drawImage(one, 0, 0); }
-  const gloss = mk(size, size), gg = gloss.getContext('2d');
-  gg.beginPath(); gg.arc(o, o, rr, 0, Math.PI * 2); gg.clip();
-  gr = gg.createLinearGradient(o - rr, o - rr, o + rr, o + rr);
-  gr.addColorStop(0, 'rgba(255,235,240,0.22)'); gr.addColorStop(0.45, 'rgba(255,200,210,0)'); gr.addColorStop(1, 'rgba(40,8,30,0.45)');
-  gg.fillStyle = gr; gg.fillRect(0, 0, size, size);
-  gg.strokeStyle = 'rgba(255,236,240,0.75)'; gg.lineWidth = R * 0.03;
-  gg.beginPath(); gg.arc(o, o, rr * 0.97, Math.PI * 1.0, Math.PI * 1.6); gg.stroke();
-  return { tyre, rim, gloss, o, R };
-}
-
-function buildShadow(def) {
-  const s = carScale(def), x = u => CX + (u - 500) * s, top = H * (Y.ground - 0.014), c = mk(W + H * 0.8, H - top), g = c.getContext('2d'), d = H * 0.014, m = H * 0.4;
-  g.filter = `blur(${Math.max(2, Math.round(10 * U))}px)`;
-  g.fillStyle = 'rgba(12,4,14,0.62)';
-  g.beginPath(); g.moveTo(m + x(40), d); g.lineTo(m + x(985), d); g.lineTo(m + x(985) + H * 0.2, c.height + H * 0.05); g.lineTo(m + x(40) - H * 0.14, c.height + H * 0.05); g.closePath(); g.fill();
-  g.filter = `blur(${Math.max(1, Math.round(4 * U))}px)`;
-  const [fx] = def.wheels[0], [rx] = def.wheels[1];
-  g.fillStyle = 'rgba(5,0,6,0.85)'; g.fillRect(m + x(fx - 90), d - H * 0.003, x(rx + 90) - x(fx - 90), H * 0.009);
-  g.filter = 'none';
-  g.globalCompositeOperation = 'destination-in';
-  const gr = g.createLinearGradient(0, 0, 0, c.height);
-  gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0.5)');
-  g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
-  return { c, top, m };
-}
-
-// prépare tout ce qui dépend de la voiture choisie
-function buildCarSet(def) {
-  const car = buildCar(def);
-  return { def, car, shadow: buildShadow(def), wheels: def.wheels.map(([u, rad]) => ({ u, w: buildWheel(rad * car.s * SS, def.rim, def.caliper) })) };
-}
-
-// reflets du décor qui glissent sur la carrosserie (lampadaires et ciel de l'autre côté de la rue)
-function drawCarReflections(t, set, x, y) {
-  const m = set.car.mask, rb = S.reflBuf;
-  if (rb.width < m.width || rb.height < m.height) { rb.width = m.width; rb.height = m.height; }
-  const g = rb.getContext('2d');
-  g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, m.width, m.height);
-  for (const L of S.refl) {
-    const span = m.width + L.w * 3, bx = ((t * L.v * H + L.o) % span) - L.w * 1.5;
-    const gr = g.createLinearGradient(bx, 0, bx + L.w, 0);
-    gr.addColorStop(0, `rgba(${L.col},0)`); gr.addColorStop(0.5, `rgba(${L.col},${L.a})`); gr.addColorStop(1, `rgba(${L.col},0)`);
-    g.fillStyle = gr;
-    g.beginPath(); g.moveTo(bx + m.height * 0.35, 0); g.lineTo(bx + L.w + m.height * 0.35, 0); g.lineTo(bx + L.w, m.height); g.lineTo(bx, m.height); g.fill();
-  }
-  // les reflets vivent surtout sur le haut des flancs, ils s'éteignent vers le bas de caisse
-  const fade = g.createLinearGradient(0, 0, 0, m.height);
-  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(0.45, 'rgba(0,0,0,0.1)'); fade.addColorStop(1, 'rgba(0,0,0,0.9)');
-  g.globalCompositeOperation = 'destination-out'; g.fillStyle = fade; g.fillRect(0, 0, m.width, m.height);
-  g.globalCompositeOperation = 'destination-in'; g.drawImage(m, 0, 0);
-  ctx.globalCompositeOperation = 'screen';
-  ctx.drawImage(rb, 0, 0, m.width, m.height, x, y, m.width, m.height);
-  ctx.globalCompositeOperation = 'source-over';
-}
-
 function buildVignette() {
   const c = mk(W, H), g = c.getContext('2d'), m = Math.max(W, H);
   const gr = g.createRadialGradient(CX, H * 0.5, m * 0.32, CX, H * 0.5, m * 0.8);
   gr.addColorStop(0, 'rgba(8,2,16,0)'); gr.addColorStop(1, 'rgba(8,2,16,0.55)');
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
   return c;
-}
-
-/* ---------- couloirs de décor qui défilent ---------- */
-
-function mkLane(seed, sprites, v, gap, yb) {
-  const r = rnd(seed), items = [];
-  let x = W + H * 0.3;
-  while (x > -H * 0.6) { items.push({ x, spr: sprites[(r() * sprites.length) | 0], ph: r() * 6.3, flip: r() < 0.5 ? -1 : 1 }); x -= H * lerp(gap[0], gap[1], r()); }
-  if (!items.length) items.push({ x, spr: sprites[0], ph: 0, flip: 1 });
-  return { items, v, gap, sprites, yb: H * yb, r };
-}
-
-function stepLane(L, dt) {
-  let minX = Infinity;
-  for (const it of L.items) { it.x += L.v * H * dt; minX = Math.min(minX, it.x); }
-  for (const it of L.items) {
-    if (it.x - it.spr.ax <= W) continue;
-    it.x = Math.min(minX, 0) - H * lerp(L.gap[0], L.gap[1], L.r());
-    it.spr = L.sprites[(L.r() * L.sprites.length) | 0]; it.flip = L.r() < 0.5 ? -1 : 1;
-    minX = it.x;
-  }
-}
-
-// sway : balancement au vent, la couronne bouge et le pied reste fixe (cisaillement autour du pied)
-function drawLane(L, t, sway) {
-  for (const it of L.items) {
-    const x = it.x - it.spr.ax;
-    if (x > W || x + it.spr.c.width < 0) continue;
-    if (!sway) { ctx.drawImage(it.spr.c, Math.round(x), Math.round(L.yb - it.spr.ay)); continue; }
-    const k = (Math.sin(t * 0.9 + it.ph) + 0.35 * Math.sin(t * 2.3 + it.ph * 1.7)) * sway;
-    ctx.setTransform(it.flip, 0, k, 1, it.x, L.yb);
-    ctx.drawImage(it.spr.c, -it.spr.ax, -it.spr.ay);
-  }
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 /* ---------- particules ---------- */
@@ -2434,26 +1975,6 @@ function drawDust(t, dt) {
     glow(S.dustSpr, d.x, y, rr, rr, a);
   }
   c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
-}
-
-// poussière soulevée par la roue arrière, qui file vers l'arrière et se dilue
-// sur route mouillée, la poussière devient une gerbe d'eau, aussi derrière la roue avant
-function drawKick(dt, x0, gy, x1) {
-  const c = ctx, wet = WX.cur.wet;
-  S.kickAcc += dt * (34 + 150 * wet);
-  while (S.kickAcc >= 1) {
-    S.kickAcc--;
-    const bx = wet > 0.3 && Math.random() < 0.35 ? x1 : x0;
-    S.kick.push({ x: bx + Math.random() * H * 0.03, y: gy - Math.random() * H * 0.012, vx: V.dash * H * (0.35 + 0.35 * Math.random()), vy: -H * (0.01 + 0.04 * Math.random()) * (1 + 2 * wet), age: 0, life: 0.5 + 0.5 * Math.random() + 0.4 * wet, w: wet });
-  }
-  for (const k of S.kick) { k.age += dt; k.x += k.vx * dt; k.y += k.vy * dt; k.vx *= 1 - dt * 1.5; }
-  S.kick = S.kick.filter(k => k.age < k.life);
-  for (const k of S.kick) {
-    const f = k.age / k.life, rr = H * (0.008 + 0.035 * f) * (1 + 0.6 * k.w);
-    glow(S.smokeSpr, k.x, k.y, rr * 1.6, rr, 0.16 * (1 - f) * (1 - k.w));
-    if (k.w > 0.05) glow(S.spraySpr, k.x, k.y, rr * 1.8, rr * 1.1, 0.24 * (1 - f) * k.w);
-  }
-  c.globalAlpha = 1;
 }
 
 // grosses taches floues tout près de l'objectif, qui traversent l'image de temps en temps
@@ -2572,22 +2093,6 @@ function drawRain(tile, t, vy, alpha) {
   ctx.save(); ctx.globalAlpha = alpha; ctx.translate(ox, oy); ctx.fillStyle = tile.pat; ctx.fillRect(-ox, -oy, W, H); ctx.restore();
 }
 
-// impacts de gouttes sur la route : petites couronnes qui filent avec l'asphalte
-function drawSplashes(dt) {
-  const rain = WX.cur.rain, y0 = H * Y.road, h = H - y0;
-  S.splAcc += dt * 170 * rain * W / (H * 1.78);
-  while (S.splAcc >= 1) { S.splAcc--; const f = Math.pow(Math.random(), 0.8); S.splash.push({ x: Math.random() * W, y: y0 + f * h, f, age: 0, life: 0.1 + 0.12 * Math.random() }); }
-  ctx.strokeStyle = '#dce2ff'; ctx.lineWidth = Math.max(1, U);
-  for (const p of S.splash) {
-    p.age += dt; p.x += lerp(2.8, 4.3, p.f) * H * dt;
-    const k = p.age / p.life, rr = H * (0.003 + 0.009 * p.f) * (0.4 + k);
-    ctx.globalAlpha = (1 - k) * 0.55;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y, rr, rr * 0.35, 0, Math.PI, Math.PI * 2); ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  S.splash = S.splash.filter(p => p.age < p.life);
-}
-
 // orage : éclairs espacés, parfois doublés, qui illuminent le ciel puis toute la scène
 function stepStorm(t, dt) {
   const st = S.storm, k = WX.cur.storm;
@@ -2635,29 +2140,491 @@ function drawFog(y1, a) {
   ctx.fillStyle = gr; ctx.fillRect(0, 0, W, y1);
 }
 
-/* ---------- changement de voiture ---------- */
-// l'ancienne voiture accélère et sort par la gauche, la nouvelle arrive par la droite et se cale à sa place
+/* ---------- vue de trois quarts face, en perspective ---------- */
+// Repère du monde en mètres : x le long de la route (la voiture roule vers -x), y vers le haut, z en travers.
+// La caméra est devant la voiture, un peu sur sa droite et en hauteur ; la baie, les palmiers et la ville sont
+// de l'autre côté de la route, derrière la voiture, sous le soleil couchant.
+const CAMERA = { pos: [-5.9, 1.75, 4.5], at: [0.5, 0.45, -0.6], focal: 1.5, car: [0.5, 0.64] };
+const ROAD = { near: 3.8, far: -5.8, kerb: -6.25, rail: -6.4, lamp: -7.1, palm: -8.8, divider: -1.9, speed: 24 };
+let CAM = null;
 
+function setupCamera() {
+  const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]); return v.map(x => x / l); };
+  const [px, py, pz] = CAMERA.pos, [ax, ay, az] = CAMERA.at;
+  const F = nrm([ax - px, ay - py, az - pz]), R = nrm([-F[2], 0, F[0]]);
+  const Up = [R[1] * F[2] - R[2] * F[1], R[2] * F[0] - R[0] * F[2], R[0] * F[1] - R[1] * F[0]];
+  CAM = { P: [px, py, pz], F, R, U: Up, f: CAMERA.focal * H, sx: 0, sy: 0 };
+  // décalage d'objectif : la voiture tombe au tiers bas de l'image, comme sur le fond d'écran d'origine
+  const c = proj3(0, 0.6, 0);
+  CAM.sx = W * CAMERA.car[0] - c[0]; CAM.sy = H * CAMERA.car[1] - c[1];
+  const hz = proj3(px + F[0] * 1e5, 0, pz + F[2] * 1e5);
+  CAM.horizon = hz[1] / H; CAM.sunX = hz[0];
+  CAM.ref = c[2];
+}
+function toCam(x, y, z) {
+  const d0 = x - CAM.P[0], d1 = y - CAM.P[1], d2 = z - CAM.P[2];
+  return [d0 * CAM.R[0] + d1 * CAM.R[1] + d2 * CAM.R[2], d0 * CAM.U[0] + d1 * CAM.U[1] + d2 * CAM.U[2], d0 * CAM.F[0] + d1 * CAM.F[1] + d2 * CAM.F[2]];
+}
+const camToScreen = (q) => [W / 2 + CAM.sx + CAM.f * q[0] / q[2], H / 2 + CAM.sy - CAM.f * q[1] / q[2], q[2]];
+const proj3 = (x, y, z) => camToScreen(toCam(x, y, z));
+
+// polygone du monde : découpé au plan proche de la caméra puis tracé à l'écran ; faux s'il est entièrement derrière
+function path3(pts) {
+  const near = 0.5, q = pts.map(p => toCam(p[0], p[1], p[2])), out = [];
+  for (let i = 0; i < q.length; i++) {
+    const a = q[i], b = q[(i + 1) % q.length];
+    if (a[2] >= near) out.push(a);
+    if ((a[2] >= near) !== (b[2] >= near)) { const t = (near - a[2]) / (b[2] - a[2]); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, near]); }
+  }
+  if (out.length < 3) return false;
+  ctx.beginPath();
+  out.forEach((p, i) => { const s = camToScreen(p); if (i) ctx.lineTo(s[0], s[1]); else ctx.moveTo(s[0], s[1]); });
+  ctx.closePath();
+  return true;
+}
+const quadX = (x0, x1, y0, y1, z0, z1) => [[x0, y0, z0], [x1, y0, z0], [x1, y1, z1], [x0, y1, z1]];   // bande le long de la route
+// une tache au sol (ombre, flaque de phare) : le sprite circulaire est plaqué sur le plan de la route
+function groundSprite(spr, x, z, rx, rz, a) {
+  const c = proj3(x, 0.01, z), px = proj3(x + rx, 0.01, z), pz = proj3(x, 0.01, z + rz);
+  if (c[2] < 0.6 || px[2] < 0.6 || pz[2] < 0.6) return;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.setTransform(px[0] - c[0], px[1] - c[1], pz[0] - c[0], pz[1] - c[1], c[0], c[1]);
+  ctx.drawImage(spr, -1, -1, 2, 2);
+  ctx.restore();
+}
+
+/* décor qui défile : palmiers et lampadaires de l'autre côté de la glissière */
+function buildScenery() {
+  const r = rnd(41), palms = [], lamps = [], sprites = [];
+  for (let i = 0; i < 6; i++) sprites.push(buildPalm(200 + i, H * 0.6, 0, 0, 0));
+  for (let x = -40; x < 260; x += 7 + r() * 9) palms.push({ x, z: ROAD.palm - r() * 2.2, h: 8.5 + r() * 3.5, spr: sprites[(r() * 6) | 0], ph: r() * 6.3, flip: r() < 0.5 ? -1 : 1 });
+  for (let x = -40; x < 260; x += 32) lamps.push({ x });
+  return { palms, lamps, sprites, span: 300, sh: H * 0.6, shadowSpr: shadowSprite() };
+}
+function shadowSprite() {
+  const n = 128, c = mk(n, n), g = c.getContext('2d'), gr = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
+  gr.addColorStop(0, 'rgba(6,2,8,0.9)'); gr.addColorStop(0.55, 'rgba(6,2,8,0.6)'); gr.addColorStop(1, 'rgba(6,2,8,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, n, n); return c;
+}
+function stepScenery(dt) {
+  const sc = S.scn, d = ROAD.speed * dt;
+  for (const p of sc.palms) { p.x += d; if (p.x > 260) p.x -= sc.span; }
+  for (const l of sc.lamps) { l.x += d; if (l.x > 260) l.x -= sc.span; }
+  sc.dash = ((sc.dash || 0) + d) % 12; sc.post = ((sc.post || 0) + d) % 2.6;
+}
+
+// palmiers et lampadaires, du plus lointain au plus proche
+function drawScenery(t, wx) {
+  const sc = S.scn, items = [];
+  for (const p of sc.palms) { const q = toCam(p.x, 0, p.z); if (q[2] > 1) items.push([q[2], 0, p]); }
+  for (const l of sc.lamps) { const q = toCam(l.x, 0, ROAD.lamp); if (q[2] > 1) items.push([q[2], 1, l]); }
+  items.sort((a, b) => b[0] - a[0]);
+  const c = ctx, sway = 0.012 * wx.wind;
+  for (const [zc, kind, o] of items) {
+    if (kind === 0) {
+      const b = proj3(o.x, 0, o.z), k = o.h * CAM.f / zc / sc.sh, sp = o.spr;
+      if (b[0] < -sp.c.width * k || b[0] > W + sp.c.width * k) continue;
+      const sh = (Math.sin(WX.windT * 0.9 + o.ph) + 0.35 * Math.sin(WX.windT * 2.3 + o.ph * 1.7)) * sway;
+      c.setTransform(o.flip * k, 0, sh * k, k, b[0], b[1]);
+      c.drawImage(sp.c, -sp.ax, -sp.ay);
+      c.setTransform(1, 0, 0, 1, 0, 0);
+    } else {
+      // lampadaire : mât, crosse tournée vers la route, lanterne
+      const z = ROAD.lamp, base = proj3(o.x, 0, z), top = proj3(o.x, 8.6, z), head = proj3(o.x, 8.7, z + 1.9);
+      if (base[0] < -W * 0.2 || base[0] > W * 1.2) continue;
+      c.strokeStyle = '#1e1420'; c.lineCap = 'round';
+      c.lineWidth = Math.max(1, 0.2 * CAM.f / zc);
+      c.beginPath(); c.moveTo(base[0], base[1]); c.lineTo(top[0], top[1]); c.quadraticCurveTo(lerp(top[0], head[0], 0.2), head[1] - 0.15 * CAM.f / zc, head[0], head[1]); c.stroke();
+      o.head = head;
+    }
+  }
+}
+function drawLampGlows(wx, halo) {
+  ctx.globalCompositeOperation = 'lighter';
+  for (const l of S.scn.lamps) {
+    const h = l.head; if (!h || h[2] < 1 || h[0] < -W * 0.3 || h[0] > W * 1.3) continue;
+    const k = CAM.f / h[2];
+    glow(S.glowO, h[0], h[1], 3.6 * k * halo, 3.6 * k * halo, 0.4 + 0.15 * wx.fog);
+    glow(S.glowW, h[0], h[1], 1.1 * k * halo, 1.1 * k * halo, 0.95);
+  }
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+}
+
+// glissière, mur, bordure éclairée, route et marquages
+function drawRoad(t, wx) {
+  const c = ctx, X0 = -60, X1 = 420, sc = S.scn;
+  // mur et bordure de l'autre côté
+  if (path3(quadX(X0, X1, 0, 0.62, ROAD.rail - 0.15, ROAD.rail - 0.15))) {
+    const g = c.createLinearGradient(0, H * CAM.horizon, 0, H); g.addColorStop(0, '#4e2626'); g.addColorStop(1, '#2c1416');
+    c.fillStyle = g; c.fill();
+  }
+  // poteaux de glissière qui défilent
+  c.fillStyle = '#24100f';
+  for (let x = -20 - sc.post; x < 260; x += 2.6) {
+    const q = toCam(x, 0, ROAD.rail); if (q[2] < 1) continue;
+    if (path3([[x, 0.55, ROAD.rail], [x + 0.1, 0.55, ROAD.rail], [x + 0.1, 1.05, ROAD.rail], [x, 1.05, ROAD.rail]])) c.fill();
+  }
+  // deux lisses
+  for (const y of [0.78, 1.02]) if (path3(quadX(X0, X1, y, y + 0.1, ROAD.rail, ROAD.rail))) {
+    const g = c.createLinearGradient(0, H * CAM.horizon - H * 0.02, 0, H * 0.75); g.addColorStop(0, '#c89088'); g.addColorStop(0.4, '#6a3a3a'); g.addColorStop(1, '#2a1214');
+    c.fillStyle = g; c.fill();
+  }
+  // trottoir de l'autre côté, sa bordure attrape le soleil
+  if (path3([[X0, 0.02, ROAD.far], [X1, 0.02, ROAD.far], [X1, 0.02, ROAD.kerb], [X0, 0.02, ROAD.kerb]])) { c.fillStyle = '#f08038'; c.fill(); }
+  // chaussée
+  if (path3([[X0, 0, ROAD.near], [X1, 0, ROAD.near], [X1, 0, ROAD.far], [X0, 0, ROAD.far]])) {
+    const g = c.createLinearGradient(0, H * CAM.horizon, 0, H);
+    g.addColorStop(0, '#5a2a28'); g.addColorStop(0.25, '#3c1a1a'); g.addColorStop(1, '#22120f');
+    c.fillStyle = g; c.fill();
+  }
+  // côté caméra : bas-côté sombre
+  if (path3([[X0, 0, ROAD.near], [X1, 0, ROAD.near], [X1, 0, ROAD.near + 6], [X0, 0, ROAD.near + 6]])) { c.fillStyle = '#1a0d0c'; c.fill(); }
+  // lignes de rive continues et ligne de séparation en pointillés
+  c.fillStyle = 'rgba(255,226,222,0.85)';
+  for (const z of [ROAD.far + 0.25, ROAD.near - 0.25]) if (path3(quadX(X0, X1, 0.01, 0.01, z - 0.07, z + 0.07))) c.fill();
+  for (let x = -24 - (12 - sc.dash); x < 300; x += 12) if (path3(quadX(x, x + 3, 0.01, 0.01, ROAD.divider - 0.07, ROAD.divider + 0.07))) c.fill();
+}
+
+/* ---------- voitures en volume (WebGL) ---------- */
+// La caisse est un « loft » : tranche après tranche le long de la voiture, une section arrondie suit le profil
+// (bas de caisse, ceinture, pavillon), la largeur se resserre au nez et à la poupe, la ceinture rentre en haut
+// (custode et pavillon plus étroits). La peinture vernie reflète un ciel de couchant : c'est elle qui donne le volume.
+
+const CAR_VS = `
+attribute vec3 aP, aN, aM, aL;
+uniform vec3 uOff, uScl, uCam, uR, uU, uF, uView;
+uniform vec2 uShift;
+varying vec3 vP, vN, vM, vL, vLoc;
+void main() {
+  vec3 p = aP * uScl + uOff; vP = p; vN = aN * sign(uScl); vM = aM; vL = aL; vLoc = aP;
+  vec3 d = p - uCam; float xc = dot(d, uR), yc = dot(d, uU), zc = dot(d, uF);
+  float sx = uView.y * 0.5 + uShift.x + uView.x * xc / zc, sy = uView.z * 0.5 + uShift.y - uView.x * yc / zc;
+  gl_Position = vec4((sx / uView.y * 2.0 - 1.0) * zc, (1.0 - sy / uView.z * 2.0) * zc, ((zc - 0.4) / 90.0 * 2.0 - 1.0) * zc, zc);
+}`;
+const CAR_FS = `
+precision highp float;
+varying vec3 vP, vN, vM, vL, vLoc;
+uniform vec3 uCam, uSun, uPaint, uSkyTop, uSkyHor, uGround, uCaliper;
+uniform float uSunK, uKind, uSpin, uRim, uRad, uClear;
+vec3 env(vec3 r) {
+  float h = r.y, sd = max(dot(r, uSun), 0.0);
+  vec3 sky = mix(uSkyHor, uSkyTop, smoothstep(0.0, 0.45, h));
+  sky += vec3(1.0, 0.72, 0.48) * (pow(sd, 10.0) * 0.7 + pow(sd, 260.0) * 6.0) * uSunK;
+  vec3 gnd = uGround * (0.55 + 0.45 * smoothstep(-0.35, 0.0, h));
+  gnd += vec3(1.0, 0.5, 0.2) * 0.6 * exp(-pow((h + 0.03) / 0.012, 2.0));
+  return mix(gnd, sky, smoothstep(-0.003, 0.003, h));
+}
+void main() {
+  vec3 V = normalize(uCam - vP), N = normalize(vN);
+  bool inside = dot(N, V) < -0.2;          // on voit l'envers de la tôle : intérieur des passages de roue, dessous
+  if (dot(N, V) < 0.0) N = normalize(N - V * dot(N, V) * 1.01);
+  vec3 R = reflect(-V, N);
+  float ndv = clamp(dot(N, V), 0.0, 1.0), fr = pow(1.0 - ndv, 5.0);
+  vec3 hemi = mix(uGround * 0.9, uSkyTop * 1.1, N.y * 0.5 + 0.5);
+  float fill = max(dot(N, normalize(vec3(-0.75, 0.5, 0.45))), 0.0), sunD = max(dot(N, uSun), 0.0) * uSunK;
+  vec3 light = hemi * 0.5 + vec3(1.0, 0.84, 0.74) * fill * 0.32 + vec3(1.0, 0.62, 0.42) * sunD;
+  vec3 col;
+  if (uKind < 0.5) {
+    if (vM.x > 0.5) {
+      col = vec3(0.012, 0.016, 0.034) + env(R) * (0.1 + 0.9 * fr);
+    } else {
+      vec3 base = mix(uPaint, vec3(0.018, 0.016, 0.02), vM.y);
+      col = base * light + env(R) * (0.07 + 0.93 * fr) * uClear * (1.0 - 0.7 * vM.y);
+      col += vec3(1.0, 0.55, 0.35) * pow(1.0 - ndv, 3.0) * 0.18 * uSunK;
+    }
+    if (vM.z > 0.5) col = vL * 1.5;
+    if (inside) col = vec3(0.012, 0.009, 0.012);
+  } else if (uKind < 1.5) {
+    col = vec3(0.03, 0.026, 0.03) * light * 1.6 + env(R) * 0.05 * fr;
+  } else {
+    float r = length(vLoc.xy) / uRad, rr = r / 0.72;
+    if (rr > 1.0) col = vec3(0.03, 0.026, 0.03) * light * 1.6;
+    else {
+      float a = atan(vLoc.y, vLoc.x) + uSpin, m = 0.0;
+      if (uRim < 0.5) {
+        float k = fract(a * 5.0 / 6.28318) - 0.5; float d = length(vec2(rr - 0.58, k * 1.25 * 0.58));
+        m = smoothstep(0.17, 0.23, d);
+      } else if (uRim < 1.5) {
+        float k = abs(fract(a * 5.0 / 6.28318) - 0.5); m = 1.0 - smoothstep(0.06, 0.12, k - (1.0 - rr) * 0.04);
+      } else {
+        float k = abs(fract(a * 10.0 / 6.28318) - 0.5); m = 1.0 - smoothstep(0.05, 0.1, k);
+        m = max(m, 1.0 - smoothstep(0.015, 0.04, abs(rr - 0.32)));
+      }
+      m = max(m, max(1.0 - smoothstep(0.2, 0.26, rr), smoothstep(0.86, 0.9, rr)));
+      vec3 metal = vec3(0.6, 0.57, 0.6) * light * 0.7 + env(R) * 0.55;
+      float a0 = atan(vLoc.y, vLoc.x);
+      vec3 inner = (rr > 0.45 && rr < 0.84 && a0 > 0.5 && a0 < 1.5) ? uCaliper * light : vec3(0.05, 0.045, 0.05) * light;
+      col = mix(inner, metal, m);
+    }
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`;
+
+function envelope(pts, u, top) {
+  let best = top ? -1e9 : 1e9, hit = false;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    if ((a[0] - u) * (b[0] - u) > 0 || a[0] === b[0]) continue;
+    const y = a[1] + (b[1] - a[1]) * (u - a[0]) / (b[0] - a[0]); hit = true;
+    best = top ? Math.max(best, y) : Math.min(best, y);
+  }
+  return hit ? best : null;
+}
+function inPoly(pts, u, y) {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && u < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const hexf = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
+
+// normales lissées par sommet, tournées vers l'extérieur (le haut de la caisse doit regarder vers le ciel)
+function smoothNormals(P, Nn, idx) {
+  for (let i = 0; i < idx.length; i += 3) {
+    const a = idx[i] * 3, b = idx[i + 1] * 3, c2 = idx[i + 2] * 3;
+    const e1 = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], e2 = [P[c2] - P[a], P[c2 + 1] - P[a + 1], P[c2 + 2] - P[a + 2]];
+    const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    for (const v of [a, b, c2]) { Nn[v] += n[0]; Nn[v + 1] += n[1]; Nn[v + 2] += n[2]; }
+  }
+  let up = 0;
+  for (let i = 0; i < Nn.length; i += 3) { const l = Math.hypot(Nn[i], Nn[i + 1], Nn[i + 2]) || 1; Nn[i] /= l; Nn[i + 1] /= l; Nn[i + 2] /= l; up += P[i + 1] * Nn[i + 1]; }
+  if (up < 0) for (let i = 0; i < Nn.length; i++) Nn[i] = -Nn[i];
+}
+const RINGN = { n: 0 };   // nombre de points par section, fixé à la première tranche
+
+function carMesh(def) {
+  prepCar(def);
+  const s = def.len / 1e6, hw = def.width / 2000, body = def.body;
+  // contours lissés : dessus et dessous de la caisse, ligne de ceinture
+  const N = 201, us = Array.from({ length: N }, (_, i) => i * 1000 / (N - 1));
+  const smoothArr = (a, k) => a.map((_, i) => { let t = 0, n = 0; for (let j = -k; j <= k; j++) { const v = a[Math.max(0, Math.min(a.length - 1, i + j))]; t += v; n++; } return t / n; });
+  const clampU = u => Math.max(1, Math.min(999, u));
+  const topY = smoothArr(us.map(u => envelope(body, clampU(u), true)), 2), botY = smoothArr(us.map(u => envelope(body, clampU(u), false)), 1);
+  const gl0 = [], glass = def.glass;
+  for (const p of glass) for (const q of p) gl0.push(q);
+  const gx0 = Math.min(...gl0.map(p => p[0])), gx1 = Math.max(...gl0.map(p => p[0]));
+  const belt0 = Math.min(...glass.map(p => envelope(p, gx0 + 8, false) ?? 1e9)), belt1 = Math.min(...glass.map(p => envelope(p, gx1 - 8, false) ?? 1e9));
+  const belt = u => belt0 + (belt1 - belt0) * (u - gx0) / (gx1 - gx0);
+  const isGlassTop = u => (u > def.ws[0] && u < def.ws[1]) || (u > def.rw[0] && u < def.rw[1]);
+  const P = [], Nn = [], M = [], L = [], idx = [];
+  const lamps = def.lamps.map(([pts, col]) => [pts, hexf(col)]);
+  // quart de superellipse du point (z0, y0) au point (z1, y1) autour du coin (z1 côté axe, y0) : n points, extrémités exclues au début
+  const quarter = (cz, cy, rz, ry, a0, a1, e, n, tag, out) => {
+    for (let k = 1; k <= n; k++) {
+      const a = a0 + (a1 - a0) * k / n, ca = Math.cos(a), sa = Math.sin(a);
+      out.push([cz + rz * Math.sign(ca) * Math.pow(Math.abs(ca), 2 / e), cy + ry * Math.sign(sa) * Math.pow(Math.abs(sa), 2 / e), tag]);
+    }
+  };
+  us.forEach((u, i) => {
+    const yt = topY[i], yb = Math.max(botY[i], 14), g = sstep(6, 26, yt - belt(u));
+    // épaule : à la ceinture sous un vitrage, un peu sous le dessus ailleurs (capot, malle)
+    const ys = lerp(yt - (yt - yb) * 0.14, Math.min(belt(u), yt - 4), g);
+    // vu de dessus, le nez et la poupe s'arrondissent
+    const fn = 1 - Math.pow(1 - Math.min(1, u / 140), 2.4), ft = 1 - Math.pow(1 - Math.min(1, (1000 - u) / 90), 2.4);
+    const w = hw * (0.64 + 0.36 * fn) * (0.84 + 0.16 * ft);
+    // flanc : de l'axe du dessous jusqu'à l'épaule, bombé ; puis le dessus : capot presque plat, ou épaule + habitacle qui rentre
+    const half = [[0, yb, 'low']];
+    quarter(0, ys, w, ys - yb, -Math.PI / 2, 0, 6.5, 7, 'low', half);
+    const wg = lerp(w * 0.97, w * 0.86, g), sh = lerp(0, (yt - ys) * 0.06, g);
+    half.push([wg, ys + sh, 'sh']);
+    quarter(0, ys + sh, wg, yt - ys - sh, 0, Math.PI / 2, lerp(5, 2.6, g), 8, 'top', half);
+    const ring = half.concat(half.slice(1, -1).reverse().map(([z, y, tg]) => [-z, y, tg]));
+    if (i === 0) RINGN.n = ring.length;
+    ring.forEach(([z, y, tag]) => {
+      P.push((u - 500) * s, y * s, z); Nn.push(0, 0, 0);
+      const side = Math.abs(z) / hw;
+      let gl = 0;
+      if (g > 0.5 && tag === 'top' && y > ys + sh + 2 && side > 0.35 && glass.some(p => inPoly(p, u, y))) gl = 1;
+      if (g > 0.4 && tag === 'top' && isGlassTop(u) && y > ys + (yt - ys) * 0.15) gl = 1;
+      let lamp = null;
+      if (side > 0.4) for (const [pts, col] of lamps) if (inPoly(pts, u, y)) { lamp = col; break; }
+      const dark = side > 0.4 && def.dark.some(p => inPoly(p, u, y)) ? 1 : 0;
+      M.push(gl, dark, lamp ? 1 : 0); L.push(...(lamp || [0, 0, 0]));
+    });
+    const RING = RINGN.n;
+    if (i > 0) for (let k = 0; k < RING; k++) {
+      const a = (i - 1) * RING + k, b = (i - 1) * RING + (k + 1) % RING, c2 = i * RING + k, d = i * RING + (k + 1) % RING;
+      idx.push(a, c2, b, b, c2, d);
+    }
+  });
+  const RING = RINGN.n;
+  // nez et poupe fermés
+  const cap = (ri, flip) => {
+    const ci = P.length / 3; let cx = 0, cy = 0, cz = 0;
+    for (let k = 0; k < RING; k++) { cx += P[(ri + k) * 3]; cy += P[(ri + k) * 3 + 1]; cz += P[(ri + k) * 3 + 2]; }
+    P.push(cx / RING + (flip ? 0.02 : -0.02), cy / RING, cz / RING); Nn.push(0, 0, 0); M.push(0, 0, 0); L.push(0, 0, 0);
+    for (let k = 0; k < RING; k++) { const a = ri + k, b = ri + (k + 1) % RING; if (flip) idx.push(ci, a, b); else idx.push(ci, b, a); }
+  };
+  cap(0, false); cap((N - 1) * RING, true);
+  smoothNormals(P, Nn, idx);
+  const box = (x0, x1, y0, y1, z0, z1, mat) => {
+    const v = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0], [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
+    const faces = [[[0, 1, 2, 3], [0, 0, -1]], [[5, 4, 7, 6], [0, 0, 1]], [[4, 0, 3, 7], [-1, 0, 0]], [[1, 5, 6, 2], [1, 0, 0]], [[3, 2, 6, 7], [0, 1, 0]], [[4, 5, 1, 0], [0, -1, 0]]];
+    for (const [f, n] of faces) {
+      const bi = P.length / 3;
+      for (const k of f) { P.push(...v[k]); Nn.push(...n); M.push(...mat); L.push(0, 0, 0); }
+      idx.push(bi, bi + 1, bi + 2, bi, bi + 2, bi + 3);
+    }
+  };
+  const X = u => (u - 500) * s, Yy = y => y * s;
+  // aileron, montants, rétroviseurs
+  if (def.wing) {
+    // un vrai profil d'aileron : corde d'une quarantaine de centimètres, mince
+    const [u0w, y0, u1, y1] = bbox(def.wing), u0 = Math.max(u0w, u1 - 0.42 / s), th = 0.05 / s;
+    box(X(u0), X(u1), Yy(y1 - th), Yy(y1), -hw * 0.84, hw * 0.84, [0, 0, 0]);
+    for (const st of def.struts) { const [a0, b0, a1, b1] = bbox(st); for (const zz of [-1, 1]) box(X(a0) - 0.02, X(Math.max(a1, a0 + 6)) + 0.02, Yy(b0) - 0.05, Yy(y1 - th), zz * hw * 0.55 - 0.03, zz * hw * 0.55 + 0.03, [0, 1, 0]); }
+  }
+  const [m0, n0, m1, n1] = bbox(def.mirror);
+  for (const zz of [-1, 1]) { const wz = hw * 0.86; box(X(m0), X(m1), Yy(n0), Yy(n1), zz > 0 ? wz : -wz - 0.09, zz > 0 ? wz + 0.09 : -wz, [0, 0, 0]); }
+  return { P: new Float32Array(P), N: new Float32Array(Nn), M: new Float32Array(M), L: new Float32Array(L), I: new Uint16Array(idx), s, hw };
+}
+
+function wheelMesh(R, width) {
+  const P = [], Nn = [], idx = [], seg = 48;
+  const ring = (z, r, nz, nr) => { const b = P.length / 3; for (let i = 0; i <= seg; i++) { const a = i / seg * Math.PI * 2; P.push(Math.cos(a) * r, Math.sin(a) * r, z); Nn.push(Math.cos(a) * nr, Math.sin(a) * nr, nz); } return b; };
+  // bande de roulement (épaule arrondie : deux anneaux légèrement rentrés)
+  const t0 = ring(-width / 2, R * 0.96, -0.6, 0.8), t1 = ring(-width * 0.38, R, 0, 1), t2 = ring(width * 0.38, R, 0, 1), t3 = ring(width / 2, R * 0.96, 0.6, 0.8);
+  for (const [a, b] of [[t0, t1], [t1, t2], [t2, t3]]) for (let i = 0; i < seg; i++) idx.push(a + i, b + i, a + i + 1, a + i + 1, b + i, b + i + 1);
+  const tread = idx.length;
+  // flanc et jante, côté extérieur : un disque légèrement creusé
+  const c0 = P.length / 3; P.push(0, 0, width * 0.42); Nn.push(0, 0, 1);
+  const f0 = ring(width / 2, R * 0.96, 1, 0);
+  for (let i = 0; i < seg; i++) idx.push(c0, f0 + i, f0 + i + 1);
+  return { P: new Float32Array(P), N: new Float32Array(Nn), I: new Uint16Array(idx), tread, R };
+}
+
+function initCarGL() {
+  const c = document.createElement('canvas');
+  const gl = c.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: true, depth: true });
+  if (!gl) return null;
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) { console.error('[drft] car shader', gl.getShaderInfoLog(o)); return null; } return o; };
+  const vs = sh(gl.VERTEX_SHADER, CAR_VS), fs = sh(gl.FRAGMENT_SHADER, CAR_FS);
+  if (!vs || !fs) return null;
+  const prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
+  gl.useProgram(prog);
+  const U = {}; for (const n of ['uOff', 'uScl', 'uCam', 'uR', 'uU', 'uF', 'uView', 'uShift', 'uSun', 'uPaint', 'uSkyTop', 'uSkyHor', 'uGround', 'uCaliper', 'uSunK', 'uKind', 'uSpin', 'uRim', 'uRad', 'uClear']) U[n] = gl.getUniformLocation(prog, n);
+  const A = {}; for (const n of ['aP', 'aN', 'aM', 'aL']) A[n] = gl.getAttribLocation(prog, n);
+  gl.enable(gl.DEPTH_TEST);
+  return { c, gl, U, A };
+}
+
+function uploadMesh(G, m) {
+  const gl = G.gl, buf = d => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, d, gl.STATIC_DRAW); return b; };
+  const o = { p: buf(m.P), n: buf(m.N), m: m.M ? buf(m.M) : null, l: m.L ? buf(m.L) : null, i: gl.createBuffer(), count: m.I.length, tread: m.tread };
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, o.i); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, m.I, gl.STATIC_DRAW);
+  return o;
+}
+
+function drawMesh(G, o) {
+  const gl = G.gl, A = G.A;
+  const attr = (loc, b, n) => { if (loc < 0) return; if (b) { gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, 0, 0); } else { gl.disableVertexAttribArray(loc); gl.vertexAttrib3f(loc, 0, 0, 0); } };
+  attr(A.aP, o.p, 3); attr(A.aN, o.n, 3); attr(A.aM, o.m, 3); attr(A.aL, o.l, 3);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, o.i);
+}
+
+const PAINT3 = { red: [0.62, 0.035, 0.02], black: [0.018, 0.016, 0.022] };
+const RIMS = { dial: 0, spoke5: 1, mesh: 2 };
+
+function buildCar3D(G, def) {
+  const m = carMesh(def), body = uploadMesh(G, m), s = m.s;
+  const wheels = def.wheels.map(([u, rad]) => { const R = rad * s, wm = wheelMesh(R, 0.25); return { x: (u - 500) * s, R, mesh: uploadMesh(G, wm) }; });
+  return { def, body, wheels, s, hw: m.hw, len: def.len / 1000 };
+}
+
+// dessine la voiture dans le canevas WebGL ; mirror : son reflet dans la route mouillée
+function renderCar(car, x, lift, spin, wx, mirror) {
+  const G = S.gl, gl = G.gl, U = G.U;
+  gl.viewport(0, 0, G.c.width, G.c.height);
+  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.disable(gl.CULL_FACE);
+  gl.uniform3fv(U.uCam, CAM.P); gl.uniform3fv(U.uR, CAM.R); gl.uniform3fv(U.uU, CAM.U); gl.uniform3fv(U.uF, CAM.F);
+  gl.uniform3f(U.uView, CAM.f, W, H); gl.uniform2f(U.uShift, CAM.sx, CAM.sy);
+  const sun = [CAM.F[0] * 0.95, 0.3, CAM.F[2] * 0.95], sl = Math.hypot(...sun);
+  gl.uniform3f(U.uSun, sun[0] / sl, sun[1] / sl, sun[2] / sl);
+  const o = wx.over, mixv = (a, b, k) => a.map((v, i) => v + (b[i] / 255 - v) * k);
+  gl.uniform3fv(U.uSkyTop, mixv([0.2, 0.24, 0.52], wx.sky[0], o * 0.8));
+  gl.uniform3fv(U.uSkyHor, mixv([1.0, 0.6, 0.42], wx.sky[1], o * 0.7));
+  gl.uniform3fv(U.uGround, [0.16 + 0.05 * wx.wet, 0.07, 0.08 + 0.04 * wx.wet]);
+  gl.uniform1f(U.uSunK, 1 - 0.85 * o); gl.uniform1f(U.uClear, car.def.paint === 'black' ? 1.6 : 1.1);
+  gl.uniform3fv(U.uPaint, PAINT3[car.def.paint]);
+  gl.uniform3fv(U.uCaliper, hexf(car.def.caliper || '#3a3436'));
+  const sy = mirror ? -1 : 1;
+  // caisse
+  gl.uniform1f(U.uKind, 0); gl.uniform3f(U.uOff, x, lift * sy, 0); gl.uniform3f(U.uScl, 1, sy, 1);
+  drawMesh(G, car.body); gl.drawElements(gl.TRIANGLES, car.body.count, gl.UNSIGNED_SHORT, 0);
+  // roues : bande de roulement, puis jante côté extérieur ; celles du côté opposé sont retournées
+  gl.uniform1f(U.uRim, RIMS[car.def.rim] || 0); gl.uniform1f(U.uSpin, spin);
+  for (const wh of car.wheels) {
+    gl.uniform1f(U.uRad, wh.R);
+    for (const zz of [1, -1]) {
+      gl.uniform3f(U.uOff, x + wh.x, wh.R * sy, zz * (car.hw - 0.15)); gl.uniform3f(U.uScl, 1, sy, zz);
+      drawMesh(G, wh.mesh);
+      gl.uniform1f(U.uKind, 1); gl.drawElements(gl.TRIANGLES, wh.mesh.tread, gl.UNSIGNED_SHORT, 0);
+      gl.uniform1f(U.uKind, 2); gl.drawElements(gl.TRIANGLES, wh.mesh.count - wh.mesh.tread, gl.UNSIGNED_SHORT, wh.mesh.tread * 2);
+    }
+  }
+}
+
+/* ---------- changement de voiture : l'ancienne file vers la caméra et sort, la nouvelle arrive de loin ---------- */
 function switchCar(dir) {
   if (S.swap) return;
   S.swap = { phase: 0, t: 0, next: (S.carIdx + dir + CARS.length) % CARS.length };
   showLabel(CARS[S.swap.next].name);
 }
-
-function carOffset(dt) {
-  const sw = S.swap, far = W / 2 + H * 1.2;
+function carX(dt) {
+  const sw = S.swap;
   if (!sw) return 0;
   sw.t += dt;
   if (sw.phase === 0) {
-    const off = -H * 2.2 * sw.t * sw.t;
-    if (off > -far) return off;
+    const x = -6 * sw.t * sw.t;
+    if (x > -30) return x;
     S.carIdx = sw.next; sw.phase = 1; sw.t = 0;
   }
-  const f = Math.min(1, sw.t / 1.8);
+  const f = Math.min(1, sw.t / 2.4);
   if (f >= 1) S.swap = null;
-  return far * Math.pow(1 - f, 3);
+  return 80 * Math.pow(1 - f, 3);
 }
 
+// poussière ou gerbes d'eau soulevées par les roues arrière, dans le monde : elles filent vers l'arrière
+function drawKick3D(dt, car, x) {
+  const wet = WX.cur.wet, rear = x + car.wheels[1].x + car.wheels[1].R * 0.6;
+  S.kickAcc += dt * (40 + 160 * wet);
+  while (S.kickAcc >= 1) {
+    S.kickAcc--;
+    const zz = (Math.random() < 0.5 ? 1 : -1) * (car.hw - 0.1);
+    S.kick.push({ x: rear, y: 0.08, z: zz, vx: 6 + 10 * Math.random(), vy: (0.3 + 1.6 * Math.random()) * (1 + 1.5 * wet), age: 0, life: 0.5 + 0.6 * Math.random() + 0.4 * wet, w: wet });
+  }
+  for (const k of S.kick) { k.age += dt; k.x += (k.vx + ROAD.speed * 0.15) * dt; k.y += k.vy * dt; k.vy -= 1.5 * dt; k.vx *= 1 - dt; }
+  S.kick = S.kick.filter(k => k.age < k.life);
+  for (const k of S.kick) {
+    const p = proj3(k.x, Math.max(0, k.y), k.z); if (p[2] < 0.8) continue;
+    const f = k.age / k.life, r = (0.25 + 0.9 * f) * (1 + 0.6 * k.w) * CAM.f / p[2];
+    glow(S.smokeSpr, p[0], p[1], r * 1.4, r, 0.16 * (1 - f) * (1 - k.w));
+    if (k.w > 0.05) glow(S.spraySpr, p[0], p[1], r * 1.6, r * 1.1, 0.26 * (1 - f) * k.w);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// impacts de pluie sur la chaussée, posés dans le monde, entraînés par la route
+function drawSplashes3D(dt) {
+  const rain = WX.cur.rain;
+  S.splAcc += dt * 220 * rain;
+  while (S.splAcc >= 1) { S.splAcc--; S.splash.push({ x: -8 + Math.random() * 70, z: ROAD.far + Math.random() * (ROAD.near - ROAD.far), age: 0, life: 0.1 + 0.12 * Math.random() }); }
+  ctx.strokeStyle = '#dce2ff'; ctx.lineWidth = Math.max(1, U);
+  for (const p of S.splash) {
+    p.age += dt; p.x += ROAD.speed * dt;
+    const q = proj3(p.x, 0, p.z); if (q[2] < 0.8) continue;
+    const k = p.age / p.life, rr = (0.08 + 0.18 * k) * CAM.f / q[2];
+    ctx.globalAlpha = (1 - k) * 0.55;
+    ctx.beginPath(); ctx.ellipse(q[0], q[1], rr, rr * 0.3, 0, Math.PI, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  S.splash = S.splash.filter(p => p.age < p.life);
+}
 
 /* ---------- construction et boucle ---------- */
 
@@ -2667,6 +2634,9 @@ function build() {
   const k = Math.min(1, 2560 / w, 1440 / h);
   W = sc.width = cv.width = Math.round(w * k); H = sc.height = cv.height = Math.round(h * k); U = H / 1080; CX = W / 2;
   if (post) { post.gl.viewport(0, 0, W, H); post.gl.uniform2f(post.uPx, 1 / W, 1 / H); }
+  // la caméra fixe l'horizon : ciel, ville et baie se calent dessus
+  setupCamera();
+  Y.city = CAM.horizon; Y.shore = Y.city + 0.007; Y.wall = 1; Y.sun = Y.city - 0.21;
   const old = S;
   S = {};
   S.bloom = mk(W / 4, H / 4);
@@ -2680,34 +2650,27 @@ function build() {
   clear.addColorStop(0, 'rgba(0,0,0,0.8)'); clear.addColorStop(1, 'rgba(0,0,0,0)');
   S.sunClear = clear;
   S.city = buildCity(); S.water = buildWater(); S.shore = buildShore();
-  const far = [], near = [];
-  for (let i = 0; i < 4; i++) far.push(buildPalm(100 + i, H * (0.48 + 0.12 * i / 3), H * 0.004, 0.1, 1.1 * U));
-  for (let i = 0; i < 6; i++) near.push(buildPalm(200 + i, H * (0.64 + 0.2 * i / 5), H * 0.006, 0, 0));
-  S.lamp = buildLamp(H * 0.006);
-  S.lanes = [mkLane(41, far, V.palmFar, [0.28, 0.7], Y.wall + 0.004), mkLane(43, near, V.palmNear, [0.45, 1.05], Y.wall + 0.008), mkLane(47, [S.lamp], V.lamp, [3.2, 4.6], Y.wall + 0.004)];
-  S.beam = buildBeam(); S.wall = buildWall(); S.road = buildRoad(); S.roadLight = buildRoadLight();
+  S.scn = buildScenery();
   S.vignette = buildVignette();
-  // toutes les voitures sont préparées d'avance : le changement ne provoque pas d'à-coup
-  S.sets = CARS.map(buildCarSet);
-  S.reflBuf = mk(1, 1);
-  const rr = rnd(71);
-  S.refl = Array.from({ length: 5 }, () => ({ v: 1.2 + rr() * 0.8, o: rr() * 5000, w: H * (0.05 + 0.1 * rr()), a: 0.05 + 0.08 * rr(), col: rr() < 0.6 ? '255,210,170' : '170,180,255' }));
+  S.gl = GLC; S.cars = CARS3;
+  if (GLC) { GLC.c.width = W; GLC.c.height = H; }
   S.carIdx = old ? old.carIdx : startCar;
   S.swap = null;
   S.glowW = glowSprite(255, 210, 160); S.glowR = glowSprite(255, 40, 50); S.glowO = glowSprite(255, 140, 70);
   S.glowF = glowSprite(255, 176, 150); S.ghostSpr = softSprite(170, 200, 255, true);
   // météo
-  S.overcast = buildOvercast(); S.ocBuf = mk(W, Math.ceil(H * Y.city)); S.mirror = mk(W, H * 0.17);
+  S.overcast = buildOvercast(); S.ocBuf = mk(W, Math.ceil(H * Y.city)); S.mirror = mk(W, H * 0.3);
   S.rainFar = buildRainTile(512, 900, H * 0.04, Math.max(1, U), 0.55);
   S.rainNear = buildRainTile(Math.round(H * 0.7), 260, H * 0.09, Math.max(1.2, 1.6 * U), 0.6);
   S.splash = []; S.splAcc = 0; S.spraySpr = softSprite(205, 212, 235);
   S.storm = { next: 2, flash: 0, bolt: null, boltT: 0, again: 0 };
   buildParticles();
-  S.wheelA = old ? old.wheelA : 0;
+  S.spin = old ? old.spin : 0;
 }
 
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  // jamais de pas de temps négatif (horloge qui recule) : les transitions s'emballeraient
+  const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
   const t = (now - t0) / 1000;
   const c = ctx;
   stepWeather(t, dt); stepStorm(t, dt);
@@ -2773,7 +2736,7 @@ function frame(now) {
   // par mauvais temps la ville s'allume davantage : ses lumières font les couleurs de la scène
   if (wx.lights > 0.01) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = wx.lights * 0.22; c.drawImage(S.city.c, 0, 0); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
 
-  // eau et quai
+  // la baie et le quai d'en face
   const wa = S.water;
   c.drawImage(wa.c, 0, wa.y0);
   c.fillStyle = '#ffe0b8';
@@ -2781,24 +2744,18 @@ function frame(now) {
   c.globalAlpha = 1;
   const so = (t * V.shore * H) % S.shore.TW, sy = H * Y.shore - S.shore.c.height + H * 0.002;
   c.drawImage(S.shore.c, so - S.shore.TW, sy); c.drawImage(S.shore.c, so, sy);
-  drawFog(H * Y.wall, wx.fog * 0.7);
+  drawFog(H * (Y.city + 0.12), wx.fog * 0.7);
   drawRain(S.rainFar, t, 1.8, 0.5 * wx.rain);
 
-  // palmiers et lampadaires
-  for (const L of S.lanes) stepLane(L, dt);
-  drawLane(S.lanes[0], WX.windT, 0.008 * wx.wind);
-  drawFog(H * Y.road, wx.fog * 0.25);
-  drawLane(S.lanes[1], WX.windT + 1.7, 0.012 * wx.wind); drawLane(S.lanes[2]);
-  c.globalCompositeOperation = 'lighter';
-  const lamp = S.lanes[2], halo = 1 + 0.9 * wx.fog + 0.3 * wx.rain;
-  for (const it of lamp.items) {
-    const x = it.x - it.spr.ax + it.spr.hx, y = lamp.yb - it.spr.ay + it.spr.hy;
-    if (x < -H * 0.3 || x > W + H * 0.3) continue;
-    glow(S.glowO, x, y, H * 0.13 * halo, H * 0.13 * halo, 0.35 + 0.15 * wx.fog);
-    glow(S.glowW, x, y, H * 0.045 * halo, H * 0.045 * halo, 0.95);
-  }
+  // palmiers et lampadaires, en perspective
+  stepScenery(dt);
+  drawScenery(t, wx);
+  drawFog(H * (Y.city + 0.3), wx.fog * 0.22);
+  const halo = 1 + 0.9 * wx.fog + 0.3 * wx.rain;
+  drawLampGlows(wx, halo);
   // le soleil déborde sur tout ce qui passe devant lui ; derrière les nuages il ne reste qu'une lueur
   const sR = H * SUN_R, sY = H * Y.sun, sunK = 1 - 0.85 * wx.over;
+  c.globalCompositeOperation = 'lighter';
   glow(S.glowO, CX, sY, sR * 2.3, sR * 2.1, 0.13 * sunK);
   glow(S.glowW, CX, sY, sR * 1.5, sR * 1.5, 0.14 * sunK);
   // reflet anamorphique : une longue traînée horizontale qui traverse l'image, comme avec un objectif de cinéma
@@ -2809,94 +2766,59 @@ function frame(now) {
   c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
   drawDust(t, dt);
 
-  // glissière
-  const y0 = H * Y.rail, yw = H * Y.wall, sp = H * 0.3, ro = (t * V.rail * H) % sp, pw = Math.max(1, H * 0.0055);
-  for (let x = ro - sp; x < W + sp; x += sp) {
-    c.fillStyle = '#24100f'; c.fillRect(x, y0, pw, yw - y0);
-    c.fillStyle = 'rgba(255,170,150,0.35)'; c.fillRect(x, y0, Math.max(1, U), yw - y0);
-  }
-  c.drawImage(S.beam, 0, y0); c.drawImage(S.beam, 0, H * Y.beam);
-
-  // mur et bordure éclairée
-  c.drawImage(S.wall.c, 0, S.wall.y0);
-  const jo = (t * V.rail * H) % (H * 0.6);
-  c.fillStyle = 'rgba(0,0,0,0.25)';
-  for (let x = jo - H * 0.6; x < W; x += H * 0.6) c.fillRect(x, S.wall.y0, Math.max(1, U), H * (Y.kerb - Y.wall));
-
-  // route : trois bandes de plus en plus rapides vers le bas
-  const rd = S.road, rh = rd.c.height, bands = [0, 0.25, 0.55, 1], ry = rd.y0;
-  for (let i = 0; i < 3; i++) {
-    const by = Math.round(rh * bands[i]), bh = Math.round(rh * bands[i + 1]) - by, o = (t * V.road[i] * H) % rd.TW;
-    c.drawImage(rd.c, 0, by, rd.TW, bh, o - rd.TW, ry + by, rd.TW, bh);
-    c.drawImage(rd.c, 0, by, rd.TW, bh, o, ry + by, rd.TW, bh);
-  }
-  c.drawImage(S.roadLight, 0, ry);
-  // route mouillée : asphalte plus sombre, le décor s'y reflète en s'étirant, chaque lumière y laisse une traînée
+  // glissière, bordure, chaussée, marquages
+  drawRoad(t, wx);
+  // route mouillée : asphalte plus sombre, le quai et la ville s'y reflètent en s'étirant, les lampadaires y tracent des traînées
   const wet = wx.wet;
-  if (wet > 0.02) {
-    c.fillStyle = `rgba(14,10,22,${0.32 * wet})`; c.fillRect(0, ry, W, H - ry);
-    const mb = S.mirror, mh = mb.height;
-    mb.getContext('2d').drawImage(sc, 0, ry - mh, W, mh, 0, 0, W, mh);
-    c.save(); c.globalAlpha = 0.34 * wet; c.translate(0, ry); c.scale(1, -1.35); c.drawImage(mb, 0, -mh); c.restore();
-    const fade = c.createLinearGradient(0, ry, 0, H);
-    fade.addColorStop(0, 'rgba(14,10,22,0)'); fade.addColorStop(1, `rgba(14,10,22,${0.5 * wet})`);
-    c.fillStyle = fade; c.fillRect(0, ry, W, H - ry);
+  if (wet > 0.02 && path3([[-60, 0, ROAD.near], [420, 0, ROAD.near], [420, 0, ROAD.far], [-60, 0, ROAD.far]])) {
+    c.save(); c.clip();
+    c.fillStyle = `rgba(14,10,22,${0.3 * wet})`; c.fillRect(0, 0, W, H);
+    const yr = proj3(8, 0, ROAD.far)[1], mb = S.mirror, mh = mb.height;
+    mb.getContext('2d').clearRect(0, 0, W, mh);
+    mb.getContext('2d').drawImage(sc, 0, yr - mh, W, mh, 0, 0, W, mh);
+    c.globalAlpha = 0.18 * wet; c.translate(0, yr); c.scale(1, -1.4); c.drawImage(mb, 0, -mh); c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalCompositeOperation = 'lighter';
-    for (const it of lamp.items) {
-      const x = it.x - it.spr.ax + it.spr.hx;
-      if (x > -H * 0.1 && x < W + H * 0.1) glow(S.glowO, x, ry + H * 0.075, H * 0.016, H * 0.085, 0.5 * wet);
+    for (const l of S.scn.lamps) {
+      const h = l.head; if (!h || h[2] < 1) continue;
+      const m = proj3(l.x, -8.7, ROAD.lamp + 1.9), b = proj3(l.x, 0, ROAD.lamp + 1.9), k = CAM.f / h[2];
+      glow(S.glowO, (m[0] + b[0]) / 2, (m[1] + b[1]) / 2, 0.6 * k, Math.abs(m[1] - b[1]) / 2, 0.5 * wet);
     }
-    glow(S.glowO, CX, ry + H * 0.09, H * 0.07, H * 0.11, 0.3 * wet * sunK);
+    c.restore();
     c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
   }
-  // pointillés
-  const dy = H * Y.dash, dh = Math.max(2, H * 0.0065), dl = H * 0.48, period = H * 2.3, dof = (t * V.dash * H) % period;
-  for (let x = dof - period; x < W; x += period) {
-    const gr = c.createLinearGradient(x, 0, x + dl, 0);
-    gr.addColorStop(0, 'rgba(255,226,222,0)'); gr.addColorStop(0.08, 'rgba(255,226,222,0.8)'); gr.addColorStop(0.92, 'rgba(255,226,222,0.8)'); gr.addColorStop(1, 'rgba(255,226,222,0)');
-    c.fillStyle = gr; c.fillRect(x, dy, dl, dh);
-  }
-  if (wx.rain > 0.02) drawSplashes(dt);
+  if (wx.rain > 0.02) drawSplashes3D(dt);
 
-  // voiture
-  const cox = carOffset(dt), set = S.sets[S.carIdx], def = set.def, car = set.car, s = car.s, gy = H * Y.ground, X = u => CX + cox + (u - 500) * s;
-  const bob = Math.sin(t * 9.1) * 0.5 * U + Math.sin(t * 2.7) * 0.7 * U + (def.drop || 0) * s;
-  const cx0 = CX + cox - (500 + car.ox) * s, cy0 = gy - car.gy * s + bob, cw = car.c.width / SS, ch = car.c.height / SS;
-  const Yc = v => gy - v * s + bob;
-  // ombre portée : elle s'efface quand les nuages cachent le soleil
-  c.globalAlpha = 1 - 0.75 * wx.over; c.drawImage(set.shadow.c, cox - set.shadow.m, set.shadow.top); c.globalAlpha = 1;
-  // sur route mouillée, la voiture se reflète sous elle, et ses feux tracent des traînées
-  if (wet > 0.02) {
-    c.save(); c.globalAlpha = 0.3 * wet; c.translate(0, 2 * gy); c.scale(1, -1); c.drawImage(car.c, cx0, cy0, cw, ch); c.restore();
-    const fade = c.createLinearGradient(0, gy, 0, gy + (gy - cy0));
-    fade.addColorStop(0, 'rgba(14,10,22,0.1)'); fade.addColorStop(1, 'rgba(14,10,22,0.85)');
-    c.globalAlpha = wet; c.fillStyle = fade; c.fillRect(cx0, gy, cw, gy - cy0); c.globalAlpha = 1;
-    c.globalCompositeOperation = 'lighter';
-    for (const [k, u, v, rx, ry2, a] of def.glows) glow(S['glow' + k], X(u), gy + (gy - Yc(v)) * 1.3, H * rx * 0.7, H * ry2 * 3, a * 0.5 * wet);
-    c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
-  }
+  // voiture (sans WebGL : pas de voiture, le décor tourne quand même)
+  if (S.cars) {
+  const x = carX(dt), car = S.cars[S.carIdx], def = car.def, L = car.len, hw = car.hw;
+  const lift = (Math.sin(t * 9.1) * 0.004 + Math.sin(t * 2.7) * 0.006) - (def.drop || 0) * car.s;
+  S.spin -= dt * 9;
+  // ombre portée vers la caméra (le soleil est derrière la voiture) ; elle s'efface sous les nuages
+  groundSprite(S.scn.shadowSpr, x - CAM.F[0] * 0.7, -CAM.F[2] * 0.7, L * 0.62, hw * 1.45, 0.85 * (1 - 0.6 * wx.over));
   c.globalCompositeOperation = 'lighter';
-  glow(S.glowO, X(520), gy - H * 0.006, X(760) - X(520), H * 0.02, 0.85 * (1 - 0.6 * wx.over));
-  glow(S.glowR, X(1000) + H * 0.1, gy - H * 0.01, H * 0.16, H * 0.03, 0.4 * (1 + wet));
-  glow(S.glowW, X(0) - H * 0.1, gy - H * 0.012, H * 0.16, H * 0.025, 0.18);
+  groundSprite(S.glowO, x + L * 0.05, 0, L * 0.45, hw * 0.9, 0.45 * (1 - 0.6 * wx.over));
+  groundSprite(S.glowW, x - L / 2 - 4.5, 0, 5.5, 1.9, 0.22 * (1 + wet));
   c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
-  drawKick(dt, X(def.wheels[1][0] + 60), gy, X(def.wheels[0][0] + 40));
-  c.drawImage(car.c, cx0, cy0, cw, ch);
-  drawCarReflections(t, set, cx0, cy0);
-  S.wheelA -= dt * 14;
-  for (const wh of set.wheels) {
-    const w = wh.w, x = X(wh.u), y = gy - w.R / SS, o = w.o / SS, d = w.tyre.width / SS;
-    c.drawImage(w.tyre, x - o, y - o, d, d);
-    c.save(); c.translate(x, y); c.rotate(S.wheelA); c.drawImage(w.rim, -o, -o, d, d); c.restore();
-    c.drawImage(w.gloss, x - o, y - o, d, d);
+  if (S.gl) {
+    if (wet > 0.02) { renderCar(car, x, lift, S.spin, wx, true); c.globalAlpha = 0.3 * wet; c.drawImage(S.gl.c, 0, 0); c.globalAlpha = 1; }
+    drawKick3D(dt, car, x);
+    renderCar(car, x, lift, S.spin, wx, false); c.drawImage(S.gl.c, 0, 0);
   }
+  // phares et feux avant, des deux côtés : la voiture vient vers nous
   c.globalCompositeOperation = 'lighter';
-  for (const [k, u, v, rx, ry2, a] of def.glows) glow(S['glow' + k], X(u), Yc(v), H * rx * halo, H * ry2 * halo, a);
-  // phares allumés : flaque de lumière sur la route devant, faisceau visible dans la pluie et le brouillard
-  const lx = X(def.beam[0]), ly = Yc(def.beam[1]), beamK = 1 + 1.5 * wx.rain + 2 * wx.fog;
-  glow(S.glowW, lx - H * 0.42, gy - H * 0.004, H * 0.5, H * 0.03, 0.2 * (1 + wet));
-  glow(S.glowW, lx - H * 0.28, ly + H * 0.012, H * 0.32, H * 0.022, 0.09 * beamK);
+  for (const [k, u, v, rx, ry, a] of def.glows) {
+    if (u > 600) continue;
+    for (const zz of [1, -1]) {
+      const p = proj3(x + (u - 500) * car.s, v * car.s + lift, zz * hw * 0.78); if (p[2] < 0.8) continue;
+      const kk = CAM.ref / p[2];
+      glow(S['glow' + k], p[0], p[1], H * rx * kk * halo, H * ry * kk * halo, a * (zz > 0 ? 1 : 0.85));
+    }
+  }
+  // faisceau des phares, visible dans la pluie et le brouillard
+  const beamK = 1 + 1.5 * wx.rain + 2 * wx.fog, bp = proj3(x - L / 2 - 3, 0.6, 0);
+  if (bp[2] > 0.8) glow(S.glowW, bp[0], bp[1], 2.6 * CAM.f / bp[2], 0.5 * CAM.f / bp[2], 0.08 * beamK);
   c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+  }
 
   // pluie au premier plan, voile de brouillard, éclair qui illumine toute la scène
   drawRain(S.rainNear, t, 3.2, 0.42 * wx.rain);
@@ -2904,16 +2826,19 @@ function frame(now) {
   if (S.storm.flash > 0) { c.globalCompositeOperation = 'lighter'; c.fillStyle = `rgba(180,180,255,${S.storm.flash * 0.12})`; c.fillRect(0, 0, W, H); c.globalCompositeOperation = 'source-over'; }
   drawBokeh(dt);
   if (post) present(t); else c.drawImage(S.vignette, 0, 0);
-
 }
 
 // tout est préparé au premier affichage seulement (quelques dixièmes de seconde)
+let GLC = null, CARS3 = null;
 function init() {
   if (ready) return;
   ready = true; t0 = last = performance.now();
   post = initPost();
   if (!post) { sc.id = 'sunset'; sc.hidden = cv.hidden; cv.replaceWith(sc); }
+  GLC = initCarGL();
   build();
+  if (GLC) CARS3 = CARS.map(d => buildCar3D(GLC, d));
+  S.cars = CARS3;
 }
 let resizeT = 0;
 const skyIndex = id => WEATHERS.findIndex(w => w.id === id);
@@ -2973,6 +2898,18 @@ const Abstract = (() => {
     { bg: '#171126', ink: '#ffe4cf', c: ['#ff7a59', '#ff3d8b', '#ffd166', '#58c4f0'] },
     { bg: '#0c1b1e', ink: '#e8efe6', c: ['#f25c54', '#f7b267', '#56bfae', '#d9e3a0'] },
   ];
+  // toutes les encres 5 % moins saturées (en TSL : même teinte, même clarté)
+  const desat = (hex, k) => {
+    const n = parseInt(hex.slice(1), 16), r = (n >> 16 & 255) / 255, gg = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b), l = (mx + mn) / 2, d = mx - mn;
+    if (!d) return hex;
+    const s = (l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn)) * k;
+    const h = (mx === r ? (gg - b) / d + (gg < b ? 6 : 0) : mx === gg ? (b - r) / d + 2 : (r - gg) / d + 4) / 6;
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const ch = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    return '#' + [h + 1 / 3, h, h - 1 / 3].map(t => Math.round(ch(t) * 255).toString(16).padStart(2, '0')).join('');
+  };
+  for (const P of PALETTES) { P.bg = desat(P.bg, 0.95); P.ink = desat(P.ink, 0.95); P.c = P.c.map(c => desat(c, 0.95)); }
 
   // contour un peu irrégulier, comme découpé ou imprimé : le rayon ondule de quelques millièmes
   function wcircle(x, y, r, seed) {
@@ -3281,9 +3218,60 @@ const Abstract = (() => {
 /* =====================================================================
    BOUCLE DE RENDU
    ===================================================================== */
+/* l'encre de l'interface prend la couleur dominante de l'animation : l'image est réduite à 24 x 14 points
+   deux fois par seconde, les teintes vives et lumineuses votent, et la teinte gagnante devient une encre claire
+   et douce (lisible sur l'image comme sur le fond sombre du panneau), vers laquelle le texte glisse lentement */
+const Ink = (() => {
+  const c = document.createElement('canvas'); c.width = 24; c.height = 14;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  const cur = [166, 224, 227], target = cur.slice(), root = document.documentElement.style;
+  let lastSample = -1e9, lastSet = 0, lastNow = 0;
+  const hsl = (h, s, l) => {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q;
+    const ch = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p; };
+    return [h + 1 / 3, h, h - 1 / 3].map(t => ch(t) * 255);
+  };
+  function sample(src) {
+    x.drawImage(src, 0, 0, 24, 14);
+    const d = x.getImageData(0, 0, 24, 14).data, cs = new Float32Array(24), sn = new Float32Array(24), ws = new Float32Array(24), sat = new Float32Array(24);
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), dl = mx - mn;
+      if (dl < 0.04) continue;
+      // les couleurs franches comptent bien plus que les fonds pâles (papier, brume) qui couvrent pourtant beaucoup de place
+      const s = dl / mx; if (s < 0.2) continue;
+      const w = s * s * Math.pow(mx, 1.2);
+      const h = (mx === r ? (g - b) / dl + (g < b ? 6 : 0) : mx === g ? (b - r) / dl + 2 : (r - g) / dl + 4) / 6, k = Math.min(23, (h * 24) | 0);
+      cs[k] += Math.cos(h * Math.PI * 2) * w; sn[k] += Math.sin(h * Math.PI * 2) * w; ws[k] += w; sat[k] += s * w;
+    }
+    // la teinte la plus présente, lissée avec ses deux voisines
+    let best = -1, bw = 0;
+    for (let k = 0; k < 24; k++) { const w = ws[k] + 0.5 * (ws[(k + 23) % 24] + ws[(k + 1) % 24]); if (w > bw) { bw = w; best = k; } }
+    if (best < 0 || bw < 2) return;   // image presque grise : on garde l'encre actuelle
+    let ccos = 0, csin = 0, cw = 0, cs2 = 0;
+    for (const k of [(best + 23) % 24, best, (best + 1) % 24]) { ccos += cs[k]; csin += sn[k]; cw += ws[k]; cs2 += sat[k]; }
+    const h = ((Math.atan2(csin, ccos) / (Math.PI * 2)) + 1) % 1, s = cs2 / cw;
+    const rgb = hsl(h, Math.min(0.62, Math.max(0.28, s * 0.7)), 0.8);
+    for (let j = 0; j < 3; j++) target[j] = rgb[j];
+  }
+  return {
+    frame(now, src) {
+      if (now - lastSample > 500 && src && src.width > 1) { lastSample = now; try { sample(src); } catch (e) { /* image illisible : encre inchangée */ } }
+      const k = 1 - Math.exp(-Math.min(0.1, (now - lastNow) / 1000) / 1.2); lastNow = now;
+      for (let j = 0; j < 3; j++) cur[j] += (target[j] - cur[j]) * k;
+      if (now - lastSet > 100) {
+        lastSet = now;
+        const v = cur.map(Math.round).join(',');
+        root.setProperty('--ink-rgb', v); root.setProperty('--ink', 'rgb(' + v + ')');
+      }
+    }
+  };
+})();
+
 function frame(now) {
   try {
     if (settings.visual === 'sunset') Sunset.frame(now); else Abstract.frame(now);
+    // lu juste après le dessin, tant que l'image WebGL est encore disponible
+    Ink.frame(now, settings.visual === 'sunset' ? Sunset.canvas : Abstract.canvas);
     UI.frame(now);
   } catch (e) { console.error('[drft] frame', e); }
   requestAnimationFrame(frame);
